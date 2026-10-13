@@ -38,7 +38,9 @@ public final class CardCatalog implements DeckImporter.Catalog {
       try {
         String request =
             mapper.writeValueAsString(
-                Map.of("identifiers", chunk.stream().map(n -> Map.of("name", n)).toList()));
+                Map.of(
+                    "identifiers",
+                    chunk.stream().map(n -> Map.of("name", collectionName(n))).toList()));
         JsonNode response =
             mapper.readTree(
                 http.post(URI.create("https://api.scryfall.com/cards/collection"), request));
@@ -111,6 +113,12 @@ public final class CardCatalog implements DeckImporter.Catalog {
     } catch (Exception e) {
       return "";
     }
+  }
+
+  private static String collectionName(String name) {
+    // Collection identifiers accept individual face names, not combined printed names.
+    int separator = name.indexOf(" // ");
+    return separator < 0 ? name : name.substring(0, separator).trim();
   }
 
   private static String normalize(String name) {

@@ -7,6 +7,7 @@ Each specification's `Depends on` metadata is authoritative.
 | [Commander tabletop](commander-tabletop.md) | Completed | High | Four-player assisted Commander | None | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): authoritative state, recovery, and privacy |
 | [Build automation](build-automation.md) | Completed | Medium | Frontend-first clean packaging and artifact reporting | [Commander tabletop](commander-tabletop.md) | None |
 | [Deck import refactor](deck-import-refactor.md) | Completed | Medium | Source-specific parsing and strict provider validation | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing authoritative state boundary |
+| [Multi-face catalog lookup](catalog-multiface-lookup.md) | Completed | High | Resolve full multi-face card names through Scryfall identifiers | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing authoritative state boundary |
 
 ## Dependency graph
 
@@ -16,6 +17,8 @@ flowchart TD
     build["Build automation"]
     imports["Deck import refactor"]
     imports -->|depends on| tabletop
+    catalog["Multi-face catalog lookup"]
+    catalog -->|depends on| tabletop
     build -->|depends on| tabletop
 ```
 
