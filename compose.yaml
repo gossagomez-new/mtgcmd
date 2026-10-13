@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: mtgcmd
+      POSTGRES_USER: mtgcmd
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mtgcmd -d mtgcmd"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  app:
+    build: .
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/mtgcmd
+      DATABASE_USER: mtgcmd
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      BIND_ADDRESS: 0.0.0.0
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://127.0.0.1:8080}
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  https:
+    image: caddy:2-alpine
+    profiles: [https]
+    environment:
+      TABLE_DOMAIN: ${TABLE_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    restart: unless-stopped
+volumes:
+  database:
+  caddy_data:
+  caddy_config:
