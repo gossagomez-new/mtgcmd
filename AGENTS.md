@@ -6,15 +6,30 @@ more specific `AGENTS.md` exists in a subdirectory.
 
 ## Project commands
 
-Document the repository's canonical commands here before using this template:
+Run commands from the repository root unless otherwise noted. Java 25,
+Maven, and Node 24 are required. Backend tests start a real embedded PostgreSQL
+instance and must run as a non-root user with permission to bind local ports.
 
-- Install dependencies: `<command>`
-- Run tests: `<command>`
-- Run a specific test: `<command>`
-- Run linting: `<command>`
-- Run formatting checks: `<command>`
-- Run type checks: `<command>`
-- Build the project: `<command>`
+- Install dependencies: `npm --prefix frontend ci` and
+  `mvn -f backend/pom.xml dependency:resolve`
+- Run tests: `mvn -f backend/pom.xml test` and `npm --prefix frontend test`
+- Run build-wrapper tests: `node --test --test-isolation=none scripts/build.test.mjs`
+- Run browser tests: `npm --prefix frontend run test:e2e` (starts test servers;
+  install Chromium with `cd frontend && npx playwright install chromium`, or
+  set `CHROME_PATH` to a local Chrome executable)
+- Run a specific test: `mvn -f backend/pom.xml -Dtest=GameEngineTest test`;
+  `npm --prefix frontend test -- src/protocol.test.ts`
+- Run linting: `npm --prefix frontend run lint` (Java compiler checks during build)
+- Run formatting checks: `npm --prefix frontend run format:check` and
+  `mvn -f backend/pom.xml spotless:check`
+- Run formatting: `npm --prefix frontend run format` and
+  `mvn -f backend/pom.xml spotless:apply`
+- Run type checks: `npm --prefix frontend run typecheck`
+- Build the project: `./scripts/build.sh` (frontend first, then Maven clean verify;
+  embeds the frontend and runs Java tests). For packaging with Java tests
+  explicitly skipped: `./scripts/build.sh --skip-tests`.
+  Underlying troubleshooting commands: `npm --prefix frontend run build`, then
+  `mvn -f backend/pom.xml clean verify`.
 
 Do not invent project commands. Discover them from repository configuration or
 ask the user when they cannot be determined safely.
