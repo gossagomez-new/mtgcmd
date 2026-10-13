@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 import type { Snapshot } from "../src/protocol";
 
 test("four guests play with private cards, explicit reveals, and durable reconnect", async ({
@@ -90,6 +90,24 @@ test("four guests play with private cards, explicit reveals, and durable reconne
         .getByTestId("opponent-0")
         .getByRole("button", { name: "Inspect Secret A" }),
     ).toHaveCount(1);
+    const ownPermanent = pages[0]
+      .getByTestId("your-battlefield")
+      .getByRole("button", { name: "Inspect Secret A" });
+    const opponentPermanent = pages[1]
+      .getByTestId("opponent-0")
+      .getByRole("button", { name: "Inspect Secret A" });
+    await expectRotation(ownPermanent, 0);
+    await ownPermanent.click();
+    await pages[0].getByRole("button", { name: "Tap", exact: true }).click();
+    await expectRotation(ownPermanent, 90);
+    await expectRotation(opponentPermanent, 90);
+    await ownPermanent.hover();
+    await expectRotation(ownPermanent, 90);
+    await opponentPermanent.hover();
+    await expectRotation(opponentPermanent, 90);
+    await pages[0].getByRole("button", { name: "Untap", exact: true }).click();
+    await expectRotation(ownPermanent, 0);
+    await expectRotation(opponentPermanent, 0);
     await pages[0]
       .getByRole("button", { name: "Lose 1 life", exact: true })
       .click();
@@ -154,6 +172,9 @@ test("four guests play with private cards, explicit reveals, and durable reconne
         .getByRole("dialog", { name: "Zone viewer" })
         .getByRole("button", { name: "Inspect Secret A" }),
     ).toHaveCount(11);
+    await pages[1]
+      .getByRole("searchbox", { name: "Search library cards" })
+      .fill("Secret A");
     expect(
       snapshots[2]?.cards.filter((c) => c.owner === 0 && c.zone === "library"),
     ).toHaveLength(0);
@@ -167,6 +188,14 @@ test("four guests play with private cards, explicit reveals, and durable reconne
           ).length,
       )
       .toBe(0);
+    await expect(
+      pages[1]
+        .getByRole("dialog", { name: "Zone viewer" })
+        .getByRole("button", { name: /^Inspect / }),
+    ).toHaveCount(0);
+    await expect(
+      pages[1].getByText("No visible cards in this zone."),
+    ).toBeVisible();
     await pages[1].getByRole("button", { name: "Close zone viewer" }).click();
     await pages[0]
       .getByTestId("your-battlefield")
@@ -235,3 +264,149 @@ async function importDeck(page: Page, letter: string) {
     .click();
   await expect(page.getByText("You are ready", { exact: true })).toBeVisible();
 }
+
+async function expectRotation(card: Locator, degrees: number) {
+  await expect
+    .poll(() =>
+      card.evaluate((element) => {
+        const matrix = new DOMMatrixReadOnly(
+          getComputedStyle(element).transform,
+        );
+        return Math.round((Math.atan2(matrix.b, matrix.a) * 180) / Math.PI);
+      }),
+    )
+    .toBe(degrees);
+}
+
+test("private library search filters locally and retains library positions", async ({
+  browser,
+}) => {
+  const contexts = await Promise.all(
+    Array.from({ length: 4 }, () => browser.newContext()),
+  );
+  const pages = await Promise.all(contexts.map((context) => context.newPage()));
+  try {
+    await pages[0].goto("/");
+    await pages[0].getByLabel("Your name").fill("Search host");
+    await pages[0]
+      .getByRole("button", { name: "Create table", exact: true })
+      .click();
+    await expect(pages[0]).toHaveURL(/\/room\//);
+    const roomUrl = pages[0].url();
+    for (let i = 1; i < 4; i++) {
+      await pages[i].goto(roomUrl);
+      await pages[i].getByLabel("Your name").fill(`Search player ${i}`);
+      await pages[i]
+        .getByRole("button", { name: "Join table", exact: true })
+        .click();
+    }
+    for (let i = 0; i < 4; i++) {
+      await pages[i]
+        .getByLabel("Decklist")
+        .fill("Commander\n1 Demo Commander\nDeck\n10 Secret A\n10 Secret B");
+      await pages[i]
+        .getByRole("button", { name: "Preview deck", exact: true })
+        .click();
+      await pages[i]
+        .getByRole("button", { name: "Use this deck", exact: true })
+        .click();
+      await pages[i].getByLabel("Accept deck warnings").check();
+      await pages[i]
+        .getByRole("button", { name: "Ready to play", exact: true })
+        .click();
+      await expect(
+        pages[i].getByText("You are ready", { exact: true }),
+      ).toBeVisible();
+    }
+    await pages[0]
+      .getByRole("button", { name: "Start game", exact: true })
+      .click();
+    const page = pages[0];
+    await page
+      .locator(".zone-shortcuts")
+      .getByRole("button", { name: "library 13", exact: true })
+      .click();
+    const modal = page.getByRole("dialog", { name: "Zone viewer" });
+    await expect(modal.getByRole("button", { name: /^Inspect / })).toHaveCount(
+      13,
+    );
+    const apiUrl = new URL(
+      `/api/rooms/${new URL(roomUrl).pathname.split("/").pop()}`,
+      roomUrl,
+    ).toString();
+    const before = (await (await page.request.get(apiUrl)).json()) as Snapshot;
+    const library = before.cards.filter(
+      (card) => card.zone === "library" && card.zoneOwner === before.you,
+    );
+    const matching = library
+      .map((card, index) => ({ card, position: index + 1 }))
+      .filter((entry) => entry.card.definition?.name === "Secret A");
+    const input = modal.getByRole("searchbox", {
+      name: "Search library cards",
+    });
+    await input.fill("  sEcReT a  ");
+    await expect(
+      modal.getByRole("button", { name: "Inspect Secret A" }),
+    ).toHaveCount(matching.length);
+    await expect(
+      modal.getByRole("button", { name: "Inspect Secret B" }),
+    ).toHaveCount(0);
+    await expect(modal.locator(".zone-grid > div > small")).toHaveText(
+      matching.map((entry) => `#${entry.position}`),
+    );
+    await modal
+      .getByRole("button", { name: "Inspect Secret A" })
+      .first()
+      .click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "Card inspector" })
+        .getByRole("heading", { name: "Secret A", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Close inspector" }).click();
+    await input.fill("not-a-card");
+    await expect(modal.getByRole("button", { name: /^Inspect / })).toHaveCount(
+      0,
+    );
+    await expect(modal.getByText("No cards match your search.")).toBeVisible();
+    await modal
+      .getByRole("button", { name: "Clear search", exact: true })
+      .click();
+    await expect(input).toBeEmpty();
+    await expect(modal.getByRole("button", { name: /^Inspect / })).toHaveCount(
+      13,
+    );
+    const after = (await (await page.request.get(apiUrl)).json()) as Snapshot;
+    expect(after.revision).toBe(before.revision);
+    expect(after.cards).toEqual(before.cards);
+    const otherView = (await (
+      await pages[1].request.get(apiUrl)
+    ).json()) as Snapshot;
+    expect(
+      otherView.cards.filter(
+        (card) => card.zone === "library" && card.zoneOwner === before.you,
+      ),
+    ).toHaveLength(0);
+    await input.fill("Secret B");
+    await page.getByRole("button", { name: "Close zone viewer" }).click();
+    await page
+      .locator(".zone-shortcuts")
+      .getByRole("button", { name: "library 13", exact: true })
+      .click();
+    await expect(input).toBeEmpty();
+    await expect(modal.getByRole("button", { name: /^Inspect / })).toHaveCount(
+      13,
+    );
+    await page.getByRole("button", { name: "Close zone viewer" }).click();
+    await page
+      .locator(".zone-shortcuts")
+      .getByRole("button", { name: "graveyard 0", exact: true })
+      .click();
+    await expect(modal.getByRole("searchbox")).toHaveCount(0);
+    await expect(
+      modal.getByText("No visible cards in this zone."),
+    ).toBeVisible();
+  } finally {
+    await Promise.all(contexts.map((context) => context.close()));
+  }
+});

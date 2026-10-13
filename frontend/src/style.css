@@ -704,11 +704,11 @@ small {
   border-radius: 6px;
 }
 .card.tapped {
-  transform: rotate(12deg);
+  transform: rotate(90deg);
   opacity: 0.8;
 }
 .card.tapped:hover {
-  transform: rotate(12deg) translateY(-4px);
+  transform: rotate(90deg) translateY(-4px);
 }
 .card-fallback {
   height: 100%;
@@ -891,6 +891,20 @@ details .counter-row {
   margin: 0;
   font-size: 20px;
   text-transform: capitalize;
+}
+.library-search {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 16px 0;
+}
+.library-search label {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.library-search button {
+  flex-shrink: 0;
 }
 .zone-grid {
   display: grid;
