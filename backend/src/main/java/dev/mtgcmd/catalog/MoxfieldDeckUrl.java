@@ -13,7 +13,7 @@ record MoxfieldDeckUrl(String deckId) {
     try {
       uri = URI.create(input.trim());
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("Invalid Moxfield URL");
+      throw new IllegalArgumentException("Invalid Moxfield URL", e);
     }
     Matcher path = DECK_PATH.matcher(uri.getPath() == null ? "" : uri.getPath());
     if (!usesHttps(uri) || !hasAllowedHost(uri) || !hasDefaultAuthority(uri) || !path.matches())

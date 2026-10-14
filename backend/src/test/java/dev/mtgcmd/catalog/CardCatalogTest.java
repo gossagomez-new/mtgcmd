@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.*;
 import dev.mtgcmd.game.Game.Definition;
 import dev.mtgcmd.game.GameFormat;
+import dev.mtgcmd.testsupport.LogCapture;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import java.net.URI;
 import java.time.*;
@@ -201,9 +203,11 @@ class CardCatalogTest {
   @Test
   void unknownCardsKeepTheirOriginalErrorName() {
     assertThatThrownBy(() -> catalog.resolve(List.of("Unknown // Also Unknown")))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessage(
             "Unknown card: Unknown // Also Unknown. Check spelling or use the full printed name.");
     assertThatThrownBy(() -> catalog.resolve(List.of("Unknown")))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Unknown card: Unknown.");
   }
 
@@ -284,7 +288,7 @@ class CardCatalogTest {
     cached("Island", "legal", clock.millis() - 86400000);
     catalog = new CardCatalog(jdbc, mapper, http, clock);
     when(http.post(any(URI.class), anyString()))
-        .thenThrow(new IllegalArgumentException("Catalog offline"));
+        .thenThrow(new CardServiceUnavailableException("Catalog offline", null));
     Definition fallback = catalog.resolve(List.of("Island"), GameFormat.STANDARD).getFirst();
     assertThat(fallback.legalityCheckedAt()).isEqualTo(clock.millis() - 86400000);
     assertThatThrownBy(() -> catalog.resolve(List.of("Island", "Unknown"), GameFormat.STANDARD))
@@ -350,5 +354,64 @@ class CardCatalogTest {
     assertThat(cards.get(0)).isEqualTo(cards.get(1));
     catalog.resolve(List.of(name, "Clearwater Pathway"), GameFormat.STANDARD);
     assertThat(requests).hasSize(1);
+  }
+
+  @ParameterizedTest
+  @org.junit.jupiter.params.provider.MethodSource(
+      "dev.mtgcmd.catalog.DeckImporterTest#serviceFailures")
+  void refreshRecoveryLogsKnownFailuresButNeverSwallowsInterruption(CardServiceException failure)
+      throws Exception {
+    cached("Island", "legal", clock.millis() - 86400000);
+    when(http.post(any(URI.class), anyString())).thenThrow(failure);
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    try (var logs = new LogCapture(CardCatalog.class)) {
+      if (failure instanceof CardServiceInterruptedException) {
+        Thread.currentThread().interrupt();
+        assertThat(catchThrowable(() -> catalog.resolve(List.of("Island"), GameFormat.STANDARD)))
+            .isSameAs(failure);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        assertThat(logs.events()).isEmpty();
+      } else {
+        assertThat(
+                catalog
+                    .resolve(List.of("Island"), GameFormat.STANDARD)
+                    .getFirst()
+                    .legalityCheckedAt())
+            .isEqualTo(clock.millis() - 86400000);
+        assertThat(logs.events()).hasSize(1);
+        assertThat(logs.events().getFirst().getLevel()).isEqualTo(Level.WARN);
+        assertThat(logs.events().getFirst().getThrowableProxy().getClassName())
+            .isEqualTo(failure.getClass().getName());
+        assertThat(logs.events().getFirst().getFormattedMessage()).doesNotContain("Island");
+      }
+    } finally {
+      Thread.interrupted();
+    }
+    try (var logs = new LogCapture(CardCatalog.class)) {
+      assertThat(
+              catchThrowable(
+                  () -> catalog.resolve(List.of("Island", "Unknown"), GameFormat.STANDARD)))
+          .isSameAs(failure);
+      assertThat(logs.events()).isEmpty();
+    }
+  }
+
+  @Test
+  void malformedCatalogJsonRetainsItsCauseAndExistingMessage() {
+    when(http.post(any(URI.class), anyString())).thenReturn("{bad");
+    assertThatThrownBy(() -> catalog.resolve(List.of("Island")))
+        .isInstanceOf(InvalidCardServiceResponseException.class)
+        .hasMessage("Card catalog unavailable; try again later")
+        .hasCauseInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
+  }
+
+  @Test
+  void programmingFailureDoesNotActivateCachedRefreshFallback() throws Exception {
+    cached("Island", null, null);
+    var bug = new NullPointerException("provider adapter bug");
+    when(http.post(any(URI.class), anyString())).thenThrow(bug);
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    assertThat(catchThrowable(() -> catalog.resolve(List.of("Island"), GameFormat.STANDARD)))
+        .isSameAs(bug);
   }
 }

@@ -11,6 +11,17 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 
 class DeckImporterTest {
+  @Test
+  void providerJsonFailureRetainsItsCauseAndExistingMessage() {
+    Throwable failure =
+        catchThrowable(() -> fromJson("{bad").preview(null, "https://moxfield.com/decks/x"));
+    assertThat(failure)
+        .hasMessage(
+            "Moxfield is unavailable or the deck is private. Export the deck and paste its text instead.")
+        .hasCauseInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
+    assertThat(failure.getClass().getSimpleName()).isEqualTo("InvalidCardServiceResponseException");
+  }
+
   DeckImporter.Catalog catalog =
       names ->
           names.stream()
@@ -79,7 +90,7 @@ class DeckImporterTest {
         new DeckImporter(
             catalog,
             uri -> {
-              throw new IllegalArgumentException("403");
+              throw new CardServiceUnavailableException("403", null);
             });
     assertThatThrownBy(() -> importer.preview(null, "https://moxfield.com/decks/abc"))
         .hasMessageContaining("paste");
@@ -88,6 +99,59 @@ class DeckImporterTest {
 
   private DeckImporter fromJson(String json) {
     return new DeckImporter(catalog, uri -> json);
+  }
+
+  static Stream<CardServiceException> serviceFailures() {
+    var cause = new java.io.IOException("provider failure");
+    return Stream.of(
+        new CardServiceTimeoutException("timeout", cause),
+        new CardServiceUnavailableException("offline", cause),
+        new InvalidCardServiceResponseException("invalid response", cause),
+        new CardServiceInterruptedException("interrupted", new InterruptedException()));
+  }
+
+  @ParameterizedTest
+  @MethodSource("serviceFailures")
+  void moxfieldTranslationPreservesEveryFailureCategoryAndCause(CardServiceException original) {
+    var importer =
+        new DeckImporter(
+            catalog,
+            uri -> {
+              throw original;
+            });
+    Throwable failure =
+        catchThrowable(() -> importer.preview(null, "https://moxfield.com/decks/x"));
+    assertThat(failure)
+        .isExactlyInstanceOf(original.getClass())
+        .hasCause(original)
+        .hasMessage(
+            "Moxfield is unavailable or the deck is private. Export the deck and paste its text instead.");
+    assertThat(failure.getCause().getCause()).isSameAs(original.getCause());
+  }
+
+  @Test
+  void unexpectedFetcherFailureIsNotConvertedIntoProviderUnavailability() {
+    var bug = new NullPointerException("fetcher bug");
+    var importer =
+        new DeckImporter(
+            catalog,
+            uri -> {
+              throw bug;
+            });
+    assertThat(catchThrowable(() -> importer.preview(null, "https://moxfield.com/decks/x")))
+        .isSameAs(bug);
+  }
+
+  @Test
+  void inputParsingRetainsCausesWithoutBecomingAServiceFailure() {
+    assertThatThrownBy(() -> MoxfieldDeckUrl.parse("https://moxfield.com/decks/%"))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasCauseInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Invalid Moxfield URL");
+    assertThatThrownBy(() -> new TextDeckParser().parse("999999999999999999999 Island"))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasCauseInstanceOf(NumberFormatException.class)
+        .hasMessage("Deck exceeds 250 cards");
   }
 
   @ParameterizedTest

@@ -1,14 +1,20 @@
 package dev.mtgcmd.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.mtgcmd.catalog.CardServiceException;
 import dev.mtgcmd.game.Game;
 import dev.mtgcmd.store.RoomStore;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.*;
 
 public final class GameSocket extends TextWebSocketHandler {
+  private static final Logger LOG = LoggerFactory.getLogger(GameSocket.class);
   private final ObjectMapper mapper;
   private final RoomStore rooms;
   private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
@@ -35,15 +41,19 @@ public final class GameSocket extends TextWebSocketHandler {
       send(target, Map.of("type", "ack", "commandId", command.id(), "view", view));
       broadcast(room(session));
     } catch (IllegalArgumentException e) {
+      if (e instanceof CardServiceException)
+        LOG.warn("Card service operation failed: room={}", room(session), e);
       Map<String, Object> error = new LinkedHashMap<>();
       error.put("type", "error");
       error.put("message", e.getMessage());
       try {
         error.put("view", rooms.view(guest(session), room(session)));
-      } catch (Exception ignored) {
+      } catch (Exception recoveryFailure) {
+        LOG.error("WebSocket view recovery failed: room={}", room(session), recoveryFailure);
       }
       send(target, error);
     } catch (Exception e) {
+      LOG.error("WebSocket command failed: room={}", room(session), e);
       send(target, Map.of("type", "error", "message", "Action failed. Refresh before retrying."));
     }
   }
@@ -54,7 +64,18 @@ public final class GameSocket extends TextWebSocketHandler {
   }
 
   public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
-    session.close(CloseStatus.SERVER_ERROR);
+    try {
+      session.close(CloseStatus.SERVER_ERROR);
+    } catch (Exception closeFailure) {
+      if (closeFailure != exception) exception.addSuppressed(closeFailure);
+      throw closeFailure;
+    } finally {
+      LOG.warn(
+          "WebSocket transport failed: room={}, connection={}",
+          room(session),
+          session.getId(),
+          exception);
+    }
   }
 
   public void broadcast(String room) {
@@ -65,6 +86,9 @@ public final class GameSocket extends TextWebSocketHandler {
     try {
       send(s, Map.of("type", "snapshot", "view", rooms.view(guest(s), room(s))));
     } catch (Exception e) {
+      if (e instanceof CardServiceException)
+        LOG.warn("Card service view failed: room={}", room(s), e);
+      else LOG.error("WebSocket snapshot failed: room={}", room(s), e);
       send(s, Map.of("type", "error", "message", "Game temporarily unavailable"));
     }
   }
@@ -88,8 +112,12 @@ public final class GameSocket extends TextWebSocketHandler {
     } catch (Exception e) {
       try {
         s.close(CloseStatus.SERVER_ERROR);
-      } catch (Exception ignored) {
+      } catch (Exception closeFailure) {
+        if (closeFailure != e) e.addSuppressed(closeFailure);
       }
+      if (e instanceof IOException && !(e instanceof JsonProcessingException))
+        LOG.warn("WebSocket send failed: room={}, connection={}", room(s), s.getId(), e);
+      else LOG.error("WebSocket send failed: room={}, connection={}", room(s), s.getId(), e);
     }
   }
 

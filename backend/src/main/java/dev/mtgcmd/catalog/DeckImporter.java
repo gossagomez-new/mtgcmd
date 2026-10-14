@@ -17,6 +17,7 @@ public class DeckImporter {
 
   @FunctionalInterface
   public interface Fetcher {
+    /** Returns provider data or throws a typed CardServiceException for operational failures. */
     String get(URI uri);
   }
 

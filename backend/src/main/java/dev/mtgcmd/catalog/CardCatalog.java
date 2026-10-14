@@ -1,5 +1,6 @@
 package dev.mtgcmd.catalog;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.*;
 import dev.mtgcmd.game.CardLegality;
 import dev.mtgcmd.game.Game.*;
@@ -7,9 +8,13 @@ import dev.mtgcmd.game.GameFormat;
 import java.net.URI;
 import java.time.Clock;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 public final class CardCatalog implements DeckImporter.Catalog {
+  private static final Logger LOG = LoggerFactory.getLogger(CardCatalog.class);
   private final JdbcTemplate jdbc;
   private final ObjectMapper mapper;
   private final JsonHttp http;
@@ -43,7 +48,7 @@ public final class CardCatalog implements DeckImporter.Catalog {
         Definition def;
         try {
           def = mapper.readValue(rows.getFirst(), Definition.class);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
           throw new IllegalStateException("Invalid cached card", e);
         }
         found.put(key, def);
@@ -59,12 +64,19 @@ public final class CardCatalog implements DeckImporter.Catalog {
         response = fetch(chunk);
         if (format == GameFormat.STANDARD
             && (response == null || !response.isObject() || !response.path("data").isArray()))
-          throw new IllegalArgumentException("Card catalog returned an unsupported response");
-      } catch (Exception e) {
+          throw new InvalidCardServiceResponseException(
+              "Card catalog returned an unsupported response", null);
+      } catch (CardServiceInterruptedException e) {
+        throw e;
+      } catch (CardServiceException e) {
         if (format == GameFormat.STANDARD
-            && chunk.stream().allMatch(n -> found.containsKey(normalize(n)))) continue;
-        if (e instanceof IllegalArgumentException invalid) throw invalid;
-        throw new IllegalArgumentException("Card catalog unavailable; try again later");
+            && chunk.stream().allMatch(n -> found.containsKey(normalize(n)))) {
+          LOG.warn("Catalog refresh failed; using cached definitions", e);
+          continue;
+        }
+        throw e;
+      } catch (JsonProcessingException e) {
+        throw new CardServiceUnavailableException("Card catalog unavailable; try again later", e);
       }
       try {
         for (JsonNode card : response.path("data")) {
@@ -79,9 +91,8 @@ public final class CardCatalog implements DeckImporter.Catalog {
             }
           }
         }
-      } catch (Exception e) {
-        if (e instanceof IllegalArgumentException invalid) throw invalid;
-        throw new IllegalArgumentException("Card catalog unavailable; try again later");
+      } catch (JsonProcessingException | DataAccessException e) {
+        throw new CardServiceUnavailableException("Card catalog unavailable; try again later", e);
       }
       for (String name : chunk) {
         if (!found.containsKey(normalize(name)))
@@ -92,17 +103,21 @@ public final class CardCatalog implements DeckImporter.Catalog {
     return names.stream().map(n -> found.get(normalize(n))).toList();
   }
 
-  private JsonNode fetch(List<String> names) throws Exception {
+  private JsonNode fetch(List<String> names) throws JsonProcessingException {
     String request =
         mapper.writeValueAsString(
             Map.of(
                 "identifiers",
                 names.stream().map(n -> Map.of("name", collectionName(n))).toList()));
-    return mapper.readTree(
-        http.post(URI.create("https://api.scryfall.com/cards/collection"), request));
+    String json = http.post(URI.create("https://api.scryfall.com/cards/collection"), request);
+    try {
+      return mapper.readTree(json);
+    } catch (JsonProcessingException e) {
+      throw new InvalidCardServiceResponseException("Card catalog unavailable; try again later", e);
+    }
   }
 
-  private void cache(String name, Definition def) throws Exception {
+  private void cache(String name, Definition def) throws JsonProcessingException {
     jdbc.update(
         "INSERT INTO catalog(name,definition) VALUES (?,CAST(? AS jsonb)) ON CONFLICT(name) DO UPDATE SET definition=EXCLUDED.definition,updated_at=now()",
         normalize(name),

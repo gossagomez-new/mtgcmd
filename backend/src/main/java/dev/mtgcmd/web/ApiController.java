@@ -3,12 +3,15 @@ package dev.mtgcmd.web;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.mtgcmd.catalog.CardServiceException;
 import dev.mtgcmd.catalog.DeckImporter;
 import dev.mtgcmd.game.Game;
 import dev.mtgcmd.game.GameFormat;
 import dev.mtgcmd.store.RoomStore;
 import jakarta.servlet.http.*;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class ApiController {
+  private static final Logger LOG = LoggerFactory.getLogger(ApiController.class);
   private final GuestSessions guests;
   private final RoomStore rooms;
   private final DeckImporter importer;
@@ -64,7 +68,7 @@ public class ApiController {
       try {
         format = GameFormat.valueOf(request.format().textValue());
       } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException("Choose COMMANDER or STANDARD");
+        throw new IllegalArgumentException("Choose COMMANDER or STANDARD", e);
       }
     }
     return rooms.create(guest(r), request.name(), format);
@@ -154,11 +158,13 @@ public class ApiController {
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<?> invalid(IllegalArgumentException e) {
+    if (e instanceof CardServiceException) LOG.warn("Card service operation failed", e);
     return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<?> failed(Exception e) {
+    LOG.error("HTTP request failed", e);
     return ResponseEntity.status(500)
         .body(
             Map.of(

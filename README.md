@@ -193,6 +193,14 @@ Frontend unit tests check revision ordering and
 command IDs. Backend tests cover gameplay/privacy, import parsing, persistence,
 idempotency, concurrency, rollback, guest cookies, and CSRF/origin enforcement.
 
+Card-service diagnostics distinguish timeouts, unavailability, invalid responses,
+and interruption while retaining original causes. HTTP/WebSocket handlers log
+service failures at WARN and unexpected failures at ERROR; ordinary input
+validation stays quiet. Catalog refresh recovery logs a warning when it uses
+cached definitions. Player error messages retain their existing shape; stack
+traces stay in server logs. See the
+[service failure diagnostics specification](spec/service-failure-diagnostics.md).
+
 Docker image build and public HTTPS certificate issuance have not been tested
 in this workspace, which has no Docker executable. Compose YAML has been parsed
 successfully. See the final implementation report for executed checks.
@@ -225,6 +233,7 @@ Gisa and Geralf, Sol Ring, and Islands. It never writes to an operator's databas
 
 - [Specification](spec/commander-tabletop.md) and [specification index](spec/INDEX.md)
 - [Build automation specification](spec/build-automation.md)
+- [Service failure diagnostics specification](spec/service-failure-diagnostics.md)
 - [State ownership and recovery ADR](docs/adr/0001-authoritative-game-state.md)
 - [API and command reference](docs/API.md)
 - [Standard tables specification](spec/standard-tables.md)

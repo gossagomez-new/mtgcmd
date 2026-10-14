@@ -12,6 +12,7 @@ Each specification's `Depends on` metadata is authoritative.
 | [Card and library UX](tabletop-card-and-library-ux.md) | Completed | Medium | Standard tap orientation and private library name filtering | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing privacy boundary |
 | [Battlefield grouping](battlefield-grouping.md) | Completed | Medium | Automatic permanent type groups with lands below | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing state and privacy boundary |
 | [Standard tables](standard-tables.md) | Completed | High | Two-player Standard with format-aware validation | [Commander tabletop](commander-tabletop.md) | [ADR-0002](../docs/adr/0002-room-format-profiles.md): immutable format profiles and legacy defaults; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): authority and privacy |
+| [Service failure diagnostics](service-failure-diagnostics.md) | Completed | Medium | Typed service failures, preserved causes, and boundary/recovery diagnostics | [Deck import refactor](deck-import-refactor.md), [Multi-face catalog lookup](catalog-multiface-lookup.md), [Standard tables](standard-tables.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing privacy and recovery boundaries |
 
 ## Dependency graph
 
@@ -31,6 +32,10 @@ flowchart TD
     grouping -->|depends on| tabletop
     standard["Standard tables"]
     standard -->|depends on| tabletop
+    diagnostics["Service failure diagnostics"]
+    diagnostics -->|depends on| imports
+    diagnostics -->|depends on| catalog
+    diagnostics -->|depends on| standard
     build -->|depends on| tabletop
 ```
 

@@ -38,14 +38,14 @@ final class MoxfieldDeckSource {
     String json;
     try {
       json = fetcher.get(url.apiUri());
-    } catch (RuntimeException e) {
-      throw new IllegalArgumentException(UNAVAILABLE);
+    } catch (CardServiceException e) {
+      throw e.withMessage(UNAVAILABLE);
     }
     if (json == null || json.isBlank()) throw unsupported();
     try {
       return mapper.readTree(json);
     } catch (JsonProcessingException e) {
-      throw new IllegalArgumentException(UNAVAILABLE);
+      throw new InvalidCardServiceResponseException(UNAVAILABLE, e);
     }
   }
 
@@ -85,7 +85,7 @@ final class MoxfieldDeckSource {
     if (node == null || !(node.isObject() || node.isArray())) throw unsupported();
   }
 
-  private IllegalArgumentException unsupported() {
-    return new IllegalArgumentException(UNSUPPORTED);
+  private InvalidCardServiceResponseException unsupported() {
+    return new InvalidCardServiceResponseException(UNSUPPORTED, null);
   }
 }

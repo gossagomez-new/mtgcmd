@@ -46,7 +46,7 @@ final class TextDeckParser {
     try {
       count = Integer.parseInt(match.group(1));
     } catch (NumberFormatException e) {
-      throw new IllegalArgumentException("Deck exceeds 250 cards");
+      throw new IllegalArgumentException("Deck exceeds 250 cards", e);
     }
     if (!DeckImportLimits.validQuantity(count))
       throw new IllegalArgumentException(DeckImportLimits.CARD_COUNT_ERROR);
