@@ -6,8 +6,10 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.*;
 import dev.mtgcmd.game.Game.Definition;
+import dev.mtgcmd.game.GameFormat;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import java.net.URI;
+import java.time.*;
 import java.util.*;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.*;
@@ -22,6 +24,8 @@ class CardCatalogTest {
   private final List<List<String>> requests = new ArrayList<>();
   private final Map<String, JsonNode> available = new HashMap<>();
   private CardCatalog catalog;
+  private JsonHttp http;
+  private final Clock clock = Clock.fixed(Instant.parse("2026-10-14T12:00:00Z"), ZoneOffset.UTC);
 
   @BeforeAll
   static void database() throws Exception {
@@ -39,7 +43,7 @@ class CardCatalogTest {
   @BeforeEach
   void setup() {
     jdbc.execute("DELETE FROM catalog");
-    JsonHttp http = mock(JsonHttp.class);
+    http = mock(JsonHttp.class);
     when(http.post(any(URI.class), anyString()))
         .thenAnswer(
             invocation -> {
@@ -219,5 +223,132 @@ class CardCatalogTest {
     assertThat(requests).allSatisfy(batch -> assertThat(batch).hasSizeLessThanOrEqualTo(75));
     assertThat(requests.stream().flatMap(List::stream).toList())
         .containsExactlyElementsOf(names.stream().map(name -> name.split(" // ")[0]).toList());
+  }
+
+  private void cached(String name, String status, Long checkedAt) throws Exception {
+    Definition def =
+        new Definition(
+            name,
+            name,
+            "",
+            "",
+            "Basic Land",
+            List.of(),
+            true,
+            List.of(),
+            status == null ? Map.of() : Map.of("standard", status),
+            checkedAt);
+    jdbc.update(
+        "INSERT INTO catalog(name,definition) VALUES (?,CAST(? AS jsonb))",
+        name.toLowerCase(Locale.ROOT),
+        mapper.writeValueAsString(def));
+  }
+
+  private void standardCard(String name, String status) {
+    normalCard(name);
+    ((com.fasterxml.jackson.databind.node.ObjectNode) available.get(name.toLowerCase(Locale.ROOT)))
+        .set("legalities", mapper.valueToTree(Map.of("commander", "legal", "standard", status)));
+  }
+
+  @ParameterizedTest
+  @ValueSource(longs = {-1, 0, 86399999, 86400000, 86400001})
+  void standardLegalityFreshnessHasDeterministicBoundaries(long age) throws Exception {
+    cached("Island", "legal", clock.millis() - age);
+    standardCard("Island", "legal");
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    Definition def = catalog.resolve(List.of("Island"), GameFormat.STANDARD).getFirst();
+    boolean refresh = age < 0 || age >= 86400000;
+    assertThat(requests).hasSize(refresh ? 1 : 0);
+    assertThat(def.legalityCheckedAt()).isEqualTo(refresh ? clock.millis() : clock.millis() - age);
+    assertThat(def.legalities()).containsEntry("standard", "legal");
+  }
+
+  @Test
+  void missingMetadataRefreshesOnlyForStandardAndCachesObservation() throws Exception {
+    cached("Island", null, null);
+    standardCard("Island", "banned");
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    assertThat(catalog.resolve(List.of("Island")).getFirst().legalities()).isEmpty();
+    assertThat(requests).isEmpty();
+    Definition def = catalog.resolve(List.of("Island"), GameFormat.STANDARD).getFirst();
+    assertThat(def.legalities())
+        .containsEntry("standard", "banned")
+        .containsEntry("commander", "legal");
+    assertThat(def.legalityCheckedAt()).isEqualTo(clock.millis());
+    assertThat(catalog.resolve(List.of("Island"), GameFormat.STANDARD)).containsExactly(def);
+    assertThat(requests).hasSize(1);
+  }
+
+  @Test
+  void refreshFailurePreservesCachedCardsButDoesNotInventUncachedDefinitions() throws Exception {
+    cached("Island", "legal", clock.millis() - 86400000);
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    when(http.post(any(URI.class), anyString()))
+        .thenThrow(new IllegalArgumentException("Catalog offline"));
+    Definition fallback = catalog.resolve(List.of("Island"), GameFormat.STANDARD).getFirst();
+    assertThat(fallback.legalityCheckedAt()).isEqualTo(clock.millis() - 86400000);
+    assertThatThrownBy(() -> catalog.resolve(List.of("Island", "Unknown"), GameFormat.STANDARD))
+        .hasMessageContaining("offline");
+  }
+
+  @Test
+  void partialResponseRetainsStaleCacheAndRejectsUncachedUnknownNames() throws Exception {
+    cached("Island", null, null);
+    standardCard("Sol Ring", "not_legal");
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    var definitions = catalog.resolve(List.of("Island", "Sol Ring"), GameFormat.STANDARD);
+    assertThat(definitions).extracting(Definition::name).containsExactly("Island", "Sol Ring");
+    assertThat(definitions.getFirst().legalityCheckedAt()).isNull();
+    assertThat(definitions.get(1).legalities()).containsEntry("standard", "not_legal");
+    assertThatThrownBy(() -> catalog.resolve(List.of("Island", "Unknown"), GameFormat.STANDARD))
+        .hasMessageContaining("Unknown card: Unknown");
+  }
+
+  @Test
+  void multiFaceStandardLookupKeepsMetadataAndBothFaces() {
+    twoFaceCard("Clearwater Pathway", "Murkwater Pathway");
+    ((com.fasterxml.jackson.databind.node.ObjectNode) available.get("clearwater pathway"))
+        .set(
+            "legalities",
+            mapper.valueToTree(Map.of("commander", "legal", "standard", "not_legal")));
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    Definition def =
+        catalog
+            .resolve(List.of("Clearwater Pathway // Murkwater Pathway"), GameFormat.STANDARD)
+            .getFirst();
+    assertThat(def.faces()).hasSize(2);
+    assertThat(def.legalities()).containsEntry("standard", "not_legal");
+    assertThat(def.legalityCheckedAt()).isEqualTo(clock.millis());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "null", "[]", "{bad", "{}", "{\"data\":null}"})
+  void malformedRefreshResponsesFallBackOnlyToCachedDefinitions(String response) throws Exception {
+    cached("Island", null, null);
+    when(http.post(any(URI.class), anyString())).thenReturn(response);
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    assertThat(
+            catalog.resolve(List.of("Island"), GameFormat.STANDARD).getFirst().legalityCheckedAt())
+        .isNull();
+    assertThatThrownBy(() -> catalog.resolve(List.of("Uncached"), GameFormat.STANDARD))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void cachedMultiFaceAliasesRefreshTogetherAndReuseTheirObservation() throws Exception {
+    String name = "Clearwater Pathway // Murkwater Pathway";
+    cached(name, null, null);
+    cached("Clearwater Pathway", null, null);
+    twoFaceCard("Clearwater Pathway", "Murkwater Pathway");
+    ((com.fasterxml.jackson.databind.node.ObjectNode) available.get("clearwater pathway"))
+        .set("legalities", mapper.valueToTree(Map.of("commander", "legal", "standard", "legal")));
+    catalog = new CardCatalog(jdbc, mapper, http, clock);
+    var cards = catalog.resolve(List.of(name, "Clearwater Pathway"), GameFormat.STANDARD);
+    assertThat(cards).hasSize(2);
+    assertThat(cards)
+        .allSatisfy(card -> assertThat(card.legalityCheckedAt()).isEqualTo(clock.millis()));
+    assertThat(cards.get(0)).isEqualTo(cards.get(1));
+    catalog.resolve(List.of(name, "Clearwater Pathway"), GameFormat.STANDARD);
+    assertThat(requests).hasSize(1);
   }
 }

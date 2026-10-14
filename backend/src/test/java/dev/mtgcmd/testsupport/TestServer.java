@@ -21,17 +21,27 @@ public final class TestServer {
     start();
     JdbcTemplate jdbc = context.getBean(JdbcTemplate.class);
     ObjectMapper mapper = context.getBean(ObjectMapper.class);
-    for (String name : List.of("Demo Commander", "Secret A", "Secret B", "Secret C", "Secret D")) {
+    for (String name :
+        List.of(
+            "Demo Commander", "Secret A", "Secret B", "Secret C", "Secret D", "Demo Forbidden")) {
       Definition card =
           new Definition(
               name,
               name,
               "",
               "Browser-test fixture",
-              name.equals("Demo Commander") ? "Legendary Creature" : "Basic Land",
+              name.equals("Demo Commander")
+                  ? "Legendary Creature"
+                  : name.equals("Demo Forbidden") ? "Sorcery" : "Basic Land",
               List.of(),
               true,
-              List.of());
+              List.of(),
+              Map.of(
+                  "commander",
+                  "legal",
+                  "standard",
+                  name.equals("Demo Forbidden") ? "banned" : "legal"),
+              System.currentTimeMillis());
       jdbc.update(
           "INSERT INTO catalog(name,definition) VALUES (?,CAST(? AS jsonb))",
           name.toLowerCase(Locale.ROOT),

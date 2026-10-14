@@ -1,6 +1,7 @@
 package dev.mtgcmd.catalog;
 
 import dev.mtgcmd.game.Game.Definition;
+import dev.mtgcmd.game.GameFormat;
 import java.net.URI;
 import java.util.*;
 
@@ -8,6 +9,10 @@ public class DeckImporter {
   @FunctionalInterface
   public interface Catalog {
     List<Definition> resolve(List<String> names);
+
+    default List<Definition> resolve(List<String> names, GameFormat format) {
+      return resolve(names);
+    }
   }
 
   @FunctionalInterface
@@ -27,10 +32,14 @@ public class DeckImporter {
   }
 
   public Draft preview(String text, String url) {
+    return preview(text, url, GameFormat.COMMANDER);
+  }
+
+  public Draft preview(String text, String url, GameFormat format) {
     ParsedDeck deck =
         url != null && !url.isBlank() ? moxfieldSource.parse(url) : textParser.parse(text);
     deck.validateTotal();
-    List<Definition> resolved = catalog.resolve(deck.names());
+    List<Definition> resolved = catalog.resolve(deck.names(), format);
     if (resolved.size() != deck.entries().size())
       throw new IllegalArgumentException("Some card names could not be resolved");
     return assembleDraft(deck, resolved);

@@ -3,6 +3,7 @@ package dev.mtgcmd.game;
 import static dev.mtgcmd.game.Game.*;
 
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.util.*;
 
 /** Physical tabletop actions, independent of card-rules interpretation. */
@@ -24,13 +25,23 @@ public final class GameEngine {
           "End step",
           "Cleanup");
   private final SecureRandom random = new SecureRandom();
+  private final Clock clock;
+
+  public GameEngine() {
+    this(Clock.systemUTC());
+  }
+
+  public GameEngine(Clock clock) {
+    this.clock = clock;
+  }
 
   public void join(Game g, String name) {
     require(g.status.equals("lobby"), "Game has already started");
-    require(g.players.size() < 4, "Room is full");
+    require(g.players.size() < g.format().seatCapacity(), "Room is full");
     Player p = new Player();
     p.seat = g.players.size();
     p.name = clean(name, "name", 40);
+    p.counters.put("life", g.format().startingLife());
     g.players.add(p);
     g.revision++;
     log(g, p.name + " joined seat " + (p.seat + 1));
@@ -38,40 +49,10 @@ public final class GameEngine {
 
   public void load(Game g, int seat, List<Definition> deck, List<String> commanders) {
     require(g.status.equals("lobby"), "Decks cannot change after start");
-    require(deck != null && !deck.isEmpty() && deck.size() <= 250, "Deck must contain 1–250 cards");
-    require(
-        commanders != null && !commanders.isEmpty() && commanders.size() <= 2,
-        "Choose one or two commanders");
-    require(new HashSet<>(commanders).size() == commanders.size(), "Commanders must be distinct");
-    for (String id : commanders)
-      require(deck.stream().anyMatch(d -> d.id().equals(id)), "Commander must be in the deck");
+    List<String> warnings = DeckRules.validate(g.format(), deck, commanders, clock);
     Player p = player(g, seat);
-    List<String> warnings = new ArrayList<>();
-    if (deck.size() != 100)
-      warnings.add(
-          "Deck contains "
-              + deck.size()
-              + " cards; Commander normally uses 100 including commanders.");
-    Set<String> identity = new HashSet<>();
-    for (String id : commanders) {
-      Definition def = deck.stream().filter(c -> c.id().equals(id)).findFirst().orElseThrow();
-      identity.addAll(def.colors());
-      if (!def.type().contains("Legendary") || !def.type().contains("Creature"))
-        warnings.add("Check commander eligibility for " + def.name() + ".");
-    }
-    if (commanders.size() == 2) warnings.add("Check that the chosen commanders can be paired.");
-    Set<String> seen = new HashSet<>();
-    for (Definition def : deck) {
-      if (!def.legal()) warnings.add(def.name() + " is not listed as Commander legal.");
-      if (!identity.containsAll(def.colors()))
-        warnings.add(def.name() + " exceeds the chosen color identity.");
-      if (!seen.add(def.id())
-          && !def.type().contains("Basic")
-          && !def.text().contains("any number of cards named"))
-        warnings.add("Check singleton exception for " + def.name() + ".");
-    }
     p.deck = new ArrayList<>(deck);
-    p.commanders = new ArrayList<>(commanders);
+    p.commanders = commanders == null ? new ArrayList<>() : new ArrayList<>(commanders);
     p.warnings = warnings.stream().distinct().toList();
     p.ready = false;
     p.acceptedWarnings = false;
@@ -98,15 +79,21 @@ public final class GameEngine {
       require(seat == g.host, "Only the host can start");
       require(g.status.equals("lobby"), "Game has already started");
       require(
-          g.players.size() == 4 && g.players.stream().allMatch(x -> x.ready),
-          "Four ready players are required");
+          g.players.size() == g.format().seatCapacity()
+              && g.players.stream().allMatch(x -> x.ready),
+          g.format() == GameFormat.COMMANDER
+              ? "Four ready players are required"
+              : "Two ready players are required");
+      if (g.format() == GameFormat.STANDARD)
+        g.active = integer(d, "firstPlayer", g.host, 0, g.players.size() - 1);
       start(g);
     } else {
       require(g.status.equals("playing"), "Game is not playing");
       require(!p.conceded || command.type().equals("FINISH"), "You have conceded");
       switch (command.type()) {
         case "DRAW" -> {
-          int target = integer(d, "target", seat, 0, 3), count = integer(d, "count", 1, 1, 100);
+          int target = integer(d, "target", seat, 0, g.players.size() - 1),
+              count = integer(d, "count", 1, 1, 100);
           privatePermission(g, seat, target);
           List<Card> library = zone(g, target, "library");
           require(library.size() >= count, "Not enough cards in library");
@@ -114,20 +101,20 @@ public final class GameEngine {
           description = "drew " + count + " card(s)";
         }
         case "SHUFFLE" -> {
-          int target = integer(d, "target", seat, 0, 3);
+          int target = integer(d, "target", seat, 0, g.players.size() - 1);
           privatePermission(g, seat, target);
           shuffle(g, target);
           description = "shuffled a library";
         }
         case "SEARCH" -> {
-          int target = integer(d, "target", seat, 0, 3);
+          int target = integer(d, "target", seat, 0, g.players.size() - 1);
           privatePermission(g, seat, target);
           g.searches.put(seat, target);
           description = "opened a private library search";
         }
         case "CLOSE_SEARCH" -> g.searches.remove(seat);
         case "GRANT" -> {
-          int target = integer(d, "target", -1, 0, 3);
+          int target = integer(d, "target", -1, 0, g.players.size() - 1);
           player(g, target);
           Set<Integer> grants = g.grants.computeIfAbsent(seat, x -> new HashSet<>());
           if (bool(d, "allow", true)) grants.add(target);
@@ -172,7 +159,7 @@ public final class GameEngine {
           Set<Integer> seats = new HashSet<>();
           for (Object value : (List<?>) audience) {
             require(value instanceof Number, "Invalid audience");
-            int viewer = exactInteger((Number) value, "audience", 0, 3);
+            int viewer = exactInteger((Number) value, "audience", 0, g.players.size() - 1);
             player(g, viewer);
             seats.add(viewer);
           }
@@ -181,7 +168,7 @@ public final class GameEngine {
         case "CONTROL" -> {
           Card c = editable(g, seat, d);
           battlefield(c);
-          int target = integer(d, "target", -1, 0, 3);
+          int target = integer(d, "target", -1, 0, g.players.size() - 1);
           require(!player(g, target).conceded, "Target player conceded");
           c.controller = target;
           c.zoneOwner = target;
@@ -207,6 +194,7 @@ public final class GameEngine {
         case "CARD_COUNTER" -> updateCounter(editable(g, seat, d).counters, d);
         case "COUNTER" -> updateCounter(p.counters, d);
         case "COMMANDER_CAST" -> {
+          require(g.format().usesCommanders(), "Standard does not use commanders");
           String key = string(d, "key", 80);
           require(
               g.cards.stream().anyMatch(c -> key.equals(c.commanderKey) && c.owner == seat),
@@ -300,8 +288,8 @@ public final class GameEngine {
               seat == g.active || seat == g.host, "Only the active player or host advances phases");
           int index = PHASES.indexOf(g.phase);
           if (index == PHASES.size() - 1) {
-            for (int i = 0; i < 4; i++) {
-              g.active = (g.active + 1) % 4;
+            for (int i = 0; i < g.players.size(); i++) {
+              g.active = (g.active + 1) % g.players.size();
               if (!g.players.get(g.active).conceded) break;
             }
             g.turn++;
@@ -417,6 +405,8 @@ public final class GameEngine {
     out.put("id", g.id);
     out.put("revision", g.revision);
     out.put("status", g.status);
+    out.put("format", g.format().name());
+    out.put("seatCapacity", g.format().seatCapacity());
     out.put("host", g.host);
     out.put("active", g.active);
     out.put("turn", g.turn);

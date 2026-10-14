@@ -11,8 +11,8 @@ the origin/cookie automatically. The frontend never receives the guest secret.
 | Method | Endpoint | Request / result |
 | --- | --- | --- |
 | GET | `/api/session` | CSRF token; HttpOnly guest cookie |
-| GET | `/api/rooms` | Current guest's saved room IDs/statuses |
-| POST | `/api/rooms` | `{name}` → creator's snapshot |
+| GET | `/api/rooms` | Current guest's saved room IDs/statuses/formats |
+| POST | `/api/rooms` | `{name,format?}` → creator's snapshot; COMMANDER default, or STANDARD |
 | POST | `/api/rooms/{id}/join` | `{name}` → member's snapshot; same guest reclaims own seat |
 | GET | `/api/rooms/{id}` | Member's filtered snapshot |
 | POST | `/api/rooms/{id}/decks/preview` | `{text,url}` → `{draftId,choices,suggested,count}`; URL takes precedence |
@@ -24,6 +24,25 @@ Commander IDs refer to the returned choices. Definitions submitted by a client
 are not used to construct a deck. Errors return `{message}` with 400 for invalid
 actions, 403 for authorization, 409 for stale revisions, and 500 for unacknowledged
 infrastructure failures. A stale REST response requires fetching a current view.
+
+## Formats and compatibility
+
+Every room snapshot includes `format` (COMMANDER or STANDARD) and `seatCapacity`
+(4 or 2). Format is immutable. Missing/null creation format and legacy snapshot
+format default to Commander; unsupported creation values return 400. Join
+requests cannot change format. Existing saved life totals are preserved.
+
+Standard starts at 20 life and requires a 60–250-card main deck. For Standard
+`/deck`, omit commanders or send an empty list; nonempty selections are rejected.
+Commander still requires one or two selections. Legality and copy-limit warnings
+require READY `acceptWarnings=true`. Sideboards are not imported.
+
+Definitions retain `legal` for Commander and add `legalities` (provider status by
+format) and `legalityCheckedAt` (epoch milliseconds, nullable for legacy entries).
+Standard preview requests attempt refresh when observations are missing/stale;
+load-time warnings distinguish unavailable verification from fresh nonlegal status.
+Cached definitions may be used during refresh failure, but missing uncached cards
+still fail. Standard has no commander casts or command-zone cards.
 
 ## WebSocket
 
@@ -52,7 +71,7 @@ and host FINISH. Card IDs come only from filtered snapshots.
 | Type | Data | Behavior |
 | --- | --- | --- |
 | READY | `ready=true, acceptWarnings=false` | Set readiness; a deck and warning acceptance are required |
-| START | `{}` | Host starts with four ready players; shuffles and draws up to seven |
+| START | `firstPlayer?` (Standard only) | Host starts with the format's required ready seats; Standard defaults to host or accepts seat 0/1; shuffles and draws seven |
 | DRAW | `count=1, target=self` | Move 1–100 top cards to hand atomically; fail if insufficient |
 | SHUFFLE | `target=self` | Shuffle library, replace hidden IDs, close searches, clear reveals |
 | SEARCH | `target=self` | Open a permitted private library view |

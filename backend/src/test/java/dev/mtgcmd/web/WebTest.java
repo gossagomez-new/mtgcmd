@@ -84,4 +84,71 @@ class WebTest {
     assertThat(valid.statusCode()).isEqualTo(200);
     assertThat(valid.body()).contains("\"you\":0");
   }
+
+  @Test
+  void standardCreationUsesTwoSeatsAndTwentyLifeWhileOldRequestsRemainCommander() throws Exception {
+    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    var cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+    var client = HttpClient.newBuilder().cookieHandler(cookies).build();
+    URI base = URI.create("http://127.0.0.1:" + port + "/api/");
+    var session =
+        client.send(
+            HttpRequest.newBuilder(base.resolve("session")).GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+    String csrf = mapper.readTree(session.body()).path("csrf").asText();
+    for (String format : new String[] {"STANDARD", "COMMANDER", "INVALID"}) {
+      var response =
+          client.send(
+              HttpRequest.newBuilder(base.resolve("rooms"))
+                  .header("Content-Type", "application/json")
+                  .header("Origin", "http://table.test")
+                  .header("X-CSRF-Token", csrf)
+                  .POST(
+                      HttpRequest.BodyPublishers.ofString(
+                          "{\"name\":\"Format host\",\"format\":\"" + format + "\"}"))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      if (format.equals("INVALID")) {
+        assertThat(response.statusCode()).isEqualTo(400);
+      } else {
+        assertThat(response.statusCode()).isEqualTo(200);
+        var room = mapper.readTree(response.body());
+        assertThat(room.path("format").asText()).isEqualTo(format);
+        assertThat(room.path("seatCapacity").asInt()).isEqualTo(format.equals("STANDARD") ? 2 : 4);
+        assertThat(room.path("players").get(0).path("counters").path("life").asInt())
+            .isEqualTo(format.equals("STANDARD") ? 20 : 40);
+      }
+    }
+  }
+
+  @Test
+  void malformedFormatValuesAreBadRequestsAndNullDefaultsToCommander() throws Exception {
+    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    var client =
+        HttpClient.newBuilder()
+            .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL))
+            .build();
+    URI base = URI.create("http://127.0.0.1:" + port + "/api/");
+    var session =
+        client.send(
+            HttpRequest.newBuilder(base.resolve("session")).GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+    String csrf = mapper.readTree(session.body()).path("csrf").asText();
+    for (String raw : new String[] {"null", "{}", "[]", "true", "123", "\"\"", "\"standard\""}) {
+      var response =
+          client.send(
+              HttpRequest.newBuilder(base.resolve("rooms"))
+                  .header("Content-Type", "application/json")
+                  .header("Origin", "http://table.test")
+                  .header("X-CSRF-Token", csrf)
+                  .POST(
+                      HttpRequest.BodyPublishers.ofString(
+                          "{\"name\":\"Host\",\"format\":" + raw + "}"))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      assertThat(response.statusCode()).isEqualTo(raw.equals("null") ? 200 : 400);
+      if (raw.equals("null"))
+        assertThat(mapper.readTree(response.body()).path("format").asText()).isEqualTo("COMMANDER");
+    }
+  }
 }

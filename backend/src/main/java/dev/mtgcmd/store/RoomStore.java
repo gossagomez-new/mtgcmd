@@ -35,9 +35,14 @@ public class RoomStore {
   }
 
   public Map<String, Object> create(String guest, String name) {
+    return create(guest, name, GameFormat.COMMANDER);
+  }
+
+  public Map<String, Object> create(String guest, String name, GameFormat format) {
     return transactions.execute(
         ignored -> {
           Game g = new Game();
+          g.format = format == null ? GameFormat.COMMANDER : format;
           engine.join(g, name);
           jdbc.update("INSERT INTO rooms(id,snapshot) VALUES (?,CAST(? AS jsonb))", g.id, json(g));
           jdbc.update("INSERT INTO members(room_id,guest_hash,seat) VALUES (?,?,0)", g.id, guest);
@@ -65,6 +70,11 @@ public class RoomStore {
           event(g, seat);
           return engine.view(g, seat);
         });
+  }
+
+  public GameFormat format(String guest, String id) {
+    seat(guest, id);
+    return read(id, false).format();
   }
 
   public Map<String, Object> view(String guest, String id) {
@@ -104,7 +114,7 @@ public class RoomStore {
         id,
         commandId,
         revision,
-        json(Map.of("cards", cards, "commanders", commanders)),
+        json(Map.of("cards", cards, "commanders", commanders == null ? List.of() : commanders)),
         (g, s) -> engine.load(g, s, cards, commanders));
   }
 
@@ -150,9 +160,15 @@ public class RoomStore {
 
   public List<Map<String, Object>> list(String guest) {
     return jdbc.query(
-        "SELECT r.id,r.snapshot->>'status' AS status FROM rooms r JOIN members m ON m.room_id=r.id WHERE m.guest_hash=? ORDER BY r.updated_at DESC LIMIT 30",
+        "SELECT r.id,r.snapshot->>'status' AS status, COALESCE(r.snapshot->>'format','COMMANDER') AS format FROM rooms r JOIN members m ON m.room_id=r.id WHERE m.guest_hash=? ORDER BY r.updated_at DESC LIMIT 30",
         (rs, row) ->
-            Map.<String, Object>of("id", rs.getString("id"), "status", rs.getString("status")),
+            Map.<String, Object>of(
+                "id",
+                rs.getString("id"),
+                "status",
+                rs.getString("status"),
+                "format",
+                rs.getString("format")),
         guest);
   }
 

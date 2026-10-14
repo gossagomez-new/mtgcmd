@@ -6,6 +6,12 @@ public final class Game {
   public String id = UUID.randomUUID().toString();
   public long revision;
   public String status = "lobby";
+  public GameFormat format = GameFormat.COMMANDER;
+
+  public GameFormat format() {
+    return format == null ? GameFormat.COMMANDER : format;
+  }
+
   public int host;
   public int active;
   public int turn = 1;
@@ -40,7 +46,25 @@ public final class Game {
       String type,
       List<String> colors,
       boolean legal,
-      List<Face> faces) {}
+      List<Face> faces,
+      Map<String, String> legalities,
+      Long legalityCheckedAt) {
+    public Definition {
+      legalities = legalities == null ? Map.of() : Map.copyOf(legalities);
+    }
+
+    public Definition(
+        String id,
+        String name,
+        String image,
+        String text,
+        String type,
+        List<String> colors,
+        boolean legal,
+        List<Face> faces) {
+      this(id, name, image, text, type, colors, legal, faces, Map.of(), null);
+    }
+  }
 
   public static final class Card {
     public String id = UUID.randomUUID().toString();

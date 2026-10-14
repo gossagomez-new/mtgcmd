@@ -1,9 +1,11 @@
 package dev.mtgcmd.web;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.mtgcmd.catalog.DeckImporter;
 import dev.mtgcmd.game.Game;
+import dev.mtgcmd.game.GameFormat;
 import dev.mtgcmd.store.RoomStore;
 import jakarta.servlet.http.*;
 import java.util.*;
@@ -38,6 +40,8 @@ public class ApiController {
 
   public record Name(String name) {}
 
+  public record CreateRoom(String name, JsonNode format) {}
+
   public record Import(String text, String url) {}
 
   public record Deck(String draftId, List<String> commanders, String commandId, long revision) {}
@@ -53,8 +57,17 @@ public class ApiController {
   }
 
   @PostMapping("/rooms")
-  public Map<String, Object> create(HttpServletRequest r, @RequestBody Name name) {
-    return rooms.create(guest(r), name.name());
+  public Map<String, Object> create(HttpServletRequest r, @RequestBody CreateRoom request) {
+    GameFormat format = GameFormat.COMMANDER;
+    if (request.format() != null && !request.format().isNull()) {
+      if (!request.format().isTextual()) throw new IllegalArgumentException("Invalid table format");
+      try {
+        format = GameFormat.valueOf(request.format().textValue());
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("Choose COMMANDER or STANDARD");
+      }
+    }
+    return rooms.create(guest(r), request.name(), format);
   }
 
   @PostMapping("/rooms/{id}/join")
@@ -83,7 +96,7 @@ public class ApiController {
       HttpServletRequest r, @PathVariable String id, @RequestBody Import request) throws Exception {
     String guest = guest(r);
     rooms.seat(guest, id);
-    var draft = importer.preview(request.text(), request.url());
+    var draft = importer.preview(request.text(), request.url(), rooms.format(guest, id));
     String draftId = UUID.randomUUID().toString();
     jdbc.update(
         "DELETE FROM deck_drafts WHERE guest_hash=? AND created_at<now()-interval '1 day'", guest);
@@ -108,7 +121,8 @@ public class ApiController {
       HttpServletRequest r, @PathVariable String id, @RequestBody Deck request) throws Exception {
     String guest = guest(r);
     rooms.seat(guest, id);
-    if (request.commanders() == null || request.commanders().isEmpty())
+    if (rooms.format(guest, id).usesCommanders()
+        && (request.commanders() == null || request.commanders().isEmpty()))
       throw new IllegalArgumentException("Choose commanders");
     var rows =
         jdbc.queryForList(

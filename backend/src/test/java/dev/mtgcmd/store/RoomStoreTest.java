@@ -163,4 +163,88 @@ class RoomStoreTest {
         .isInstanceOf(IllegalArgumentException.class);
     assertThat(store.join(guests.getFirst(), id, "new name")).isEqualTo(v);
   }
+
+  @Test
+  void standardFormatAndPrivateStateSurviveRecoveryAndCommandsRemainIdempotent() {
+    var view = store.create(guests.get(0), "Standard A", GameFormat.STANDARD);
+    String id = (String) view.get("id");
+    assertThat(view).containsEntry("format", "STANDARD").containsEntry("seatCapacity", 2);
+    store.join(guests.get(1), id, "Standard B");
+    assertThatThrownBy(() -> store.join(guests.get(2), id, "Third")).hasMessage("Room is full");
+    for (int seat = 0; seat < 2; seat++) {
+      String name = "Private Standard " + seat;
+      var def =
+          new Game.Definition(
+              name,
+              name,
+              "",
+              "",
+              "Basic Land",
+              List.of(),
+              true,
+              List.of(),
+              Map.of("standard", "legal"),
+              System.currentTimeMillis());
+      view = store.view(guests.get(seat), id);
+      store.load(
+          guests.get(seat),
+          id,
+          UUID.randomUUID().toString(),
+          rev(view),
+          Collections.nCopies(60, def),
+          null);
+      view = store.view(guests.get(seat), id);
+      store.execute(guests.get(seat), id, command(rev(view), "READY", Map.of()));
+    }
+    view = store.view(guests.get(0), id);
+    var start = command(rev(view), "START", Map.of("firstPlayer", 1));
+    var started = store.execute(guests.get(0), id, start);
+    assertThat(store.execute(guests.get(0), id, start)).isEqualTo(started);
+    assertThat(started).containsEntry("active", 1);
+    view =
+        store.execute(
+            guests.get(0),
+            id,
+            command(rev(started), "COUNTER", Map.of("name", "life", "delta", -1)));
+    var restarted = new RoomStore(jdbc, tx, new ObjectMapper(), new GameEngine());
+    assertThat(restarted.view(guests.get(0), id)).isEqualTo(view);
+    assertThat(
+            new ObjectMapper()
+                .valueToTree(view)
+                .path("players")
+                .get(0)
+                .path("counters")
+                .path("life")
+                .asInt())
+        .isEqualTo(19);
+    assertThat(new ObjectMapper().valueToTree(view).path("cards").toString())
+        .doesNotContain("Private Standard 1");
+    assertThat(restarted.format(guests.get(0), id)).isEqualTo(GameFormat.STANDARD);
+    assertThat(restarted.list(guests.get(0)))
+        .anySatisfy(
+            room -> assertThat(room).containsEntry("id", id).containsEntry("format", "STANDARD"));
+  }
+
+  @Test
+  void oldStoredSnapshotsAndSummariesDefaultToCommanderWithoutResettingLife() {
+    var view = store.create(guests.getFirst(), "Legacy");
+    String id = (String) view.get("id");
+    jdbc.update(
+        "UPDATE rooms SET snapshot=jsonb_set(snapshot - 'format','{players,0,counters,life}','17') WHERE id=?",
+        id);
+    view = store.view(guests.getFirst(), id);
+    assertThat(view).containsEntry("format", "COMMANDER").containsEntry("seatCapacity", 4);
+    assertThat(
+            new ObjectMapper()
+                .valueToTree(view)
+                .path("players")
+                .get(0)
+                .path("counters")
+                .path("life")
+                .asInt())
+        .isEqualTo(17);
+    assertThat(store.list(guests.getFirst()))
+        .anySatisfy(
+            room -> assertThat(room).containsEntry("id", id).containsEntry("format", "COMMANDER"));
+  }
 }
