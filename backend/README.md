@@ -153,6 +153,19 @@ mvn -f backend/pom.xml test-compile pmd:pmd
 See the [static-analysis specification](../spec/java-static-analysis.md) and
 [advisory-analysis ADR](../docs/adr/0003-advisory-java-static-analysis.md).
 
+Summarize an existing XML report without rebuilding:
+
+```sh
+python3 scripts/analyze-pmd.py
+```
+
+Use `--json new-summary.json` to save a baseline and `--baseline previous-summary.json`
+to compare counts. Optional `--markdown new-analysis.md` saves the human-readable
+summary. Output files must be new; reports and baselines in `backend/target` are
+removed by `clean`. Exit 2 indicates incomplete PMD analysis, while exit 1 indicates
+an input/output error. This optional tool requires Python 3 and uses only its
+standard library. See the [review skill](../skills/pmd-report-analysis/SKILL.md).
+
 ## State, API, and diagnostics
 
 Rooms are persisted as authoritative PostgreSQL snapshots. Mutations use
