@@ -171,6 +171,12 @@ cards when a provider fails; unresolved cards still require a successful lookup.
 aliases. See the [catalog decomposition specification](../spec/catalog-decomposition.md)
 and [component boundary ADR](../docs/adr/0004-catalog-component-boundaries.md).
 
+`GameEngine` validates and dispatches commands, then advances revisions and logs.
+Grouped action handlers share `GameAccess` and `CardZoneTransitions`;
+`GameViewMapper` builds seat-filtered snapshots. `RoomStore` retains transaction
+ownership. See the [engine decomposition specification](../spec/game-engine-decomposition.md)
+and [engine boundary ADR](../docs/adr/0005-game-engine-component-boundaries.md).
+
 Service failures distinguish timeout, unavailability, invalid response, and
 interruption. Adapter message translation retains the subtype and original
 cause. HTTP/WebSocket handlers emit WARN for service failures and ERROR for

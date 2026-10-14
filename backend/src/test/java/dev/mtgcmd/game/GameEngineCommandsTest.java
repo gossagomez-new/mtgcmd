@@ -1,0 +1,217 @@
+package dev.mtgcmd.game;
+
+import static org.assertj.core.api.Assertions.*;
+
+import java.util.*;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.*;
+
+class GameEngineCommandsTest {
+  private final GameEngine engine = new GameEngine();
+
+  static Stream<Arguments> commands() {
+    List<String> types =
+        List.of(
+            "READY",
+            "START",
+            "DRAW",
+            "SHUFFLE",
+            "SEARCH",
+            "CLOSE_SEARCH",
+            "GRANT",
+            "MOVE",
+            "TAP",
+            "UNTAP_ALL",
+            "FACE_DOWN",
+            "TRANSFORM",
+            "REVEAL",
+            "CONTROL",
+            "ATTACH",
+            "CARD_COUNTER",
+            "COUNTER",
+            "COMMANDER_CAST",
+            "TOKEN",
+            "EDIT_TOKEN",
+            "COPY",
+            "POSITION",
+            "COMBAT",
+            "ABILITY",
+            "RESOLVE_ABILITY",
+            "PHASE",
+            "DICE",
+            "CONCEDE",
+            "FINISH");
+    return Arrays.stream(GameFormat.values())
+        .flatMap(
+            format ->
+                types.stream()
+                    .filter(
+                        type -> format == GameFormat.COMMANDER || !type.equals("COMMANDER_CAST"))
+                    .map(type -> Arguments.of(format, type)));
+  }
+
+  Game ready(GameFormat format) {
+    Game game = new Game();
+    game.format = format;
+    var definition =
+        new Game.Definition(
+            "island",
+            "Island",
+            "",
+            "",
+            "Basic Land — Island",
+            List.of("U"),
+            true,
+            List.of(),
+            Map.of("standard", "legal"),
+            System.currentTimeMillis());
+    for (int seat = 0; seat < format.seatCapacity(); seat++) {
+      engine.join(game, "Player " + seat);
+      engine.load(
+          game,
+          seat,
+          Collections.nCopies(format == GameFormat.STANDARD ? 60 : 20, definition),
+          format.usesCommanders() ? List.of("island") : List.of());
+      apply(game, seat, "READY", Map.of("acceptWarnings", true));
+    }
+    return game;
+  }
+
+  Game playing(GameFormat format) {
+    Game game = ready(format);
+    apply(game, 0, "START", Map.of());
+    return game;
+  }
+
+  void apply(Game game, int seat, String type, Map<String, Object> data) {
+    engine.apply(
+        game, seat, new Game.Command(UUID.randomUUID().toString(), game.revision, type, data));
+  }
+
+  private Game.Card permanent(Game game) {
+    Game.Card card =
+        game.cards.stream()
+            .filter(c -> c.owner == 0 && c.zone.equals("hand"))
+            .findFirst()
+            .orElseThrow();
+    apply(game, 0, "MOVE", Map.of("cardId", card.id, "zone", "battlefield"));
+    return card;
+  }
+
+  private Map<String, Object> data(Game game, String type) {
+    return switch (type) {
+      case "READY" -> Map.of("acceptWarnings", true);
+      case "GRANT", "CONTROL" ->
+          type.equals("CONTROL")
+              ? Map.of("cardId", permanent(game).id, "target", 1)
+              : Map.of("target", 1);
+      case "MOVE" -> Map.of("cardId", permanent(game).id, "zone", "graveyard");
+      case "TAP", "FACE_DOWN", "COPY" -> Map.of("cardId", permanent(game).id);
+      case "TRANSFORM" -> {
+        var card = permanent(game);
+        card.definition =
+            new Game.Definition(
+                "faces",
+                "Front // Back",
+                "",
+                "",
+                "Creature",
+                List.of(),
+                true,
+                List.of(
+                    new Game.Face("Front", "", "", "Creature"),
+                    new Game.Face("Back", "", "", "Creature")));
+        yield Map.of("cardId", card.id);
+      }
+      case "REVEAL" -> Map.of("cardId", permanent(game).id, "audience", List.of(1));
+      case "ATTACH" -> Map.of("cardId", permanent(game).id, "targetId", permanent(game).id);
+      case "POSITION" -> Map.of("cardId", permanent(game).id, "x", .25, "y", .5);
+      case "COMBAT" -> Map.of("cardId", permanent(game).id, "marker", "attacker");
+      case "CARD_COUNTER" -> Map.of("cardId", permanent(game).id, "name", "charge", "delta", 1);
+      case "COUNTER" -> Map.of("name", "life", "delta", -1);
+      case "COMMANDER_CAST" ->
+          Map.of(
+              "key",
+              game.cards.stream()
+                  .filter(c -> c.commanderKey != null && c.owner == 0)
+                  .findFirst()
+                  .orElseThrow()
+                  .commanderKey);
+      case "TOKEN" -> Map.of("name", "Zombie");
+      case "EDIT_TOKEN" -> {
+        apply(game, 0, "TOKEN", Map.of("name", "Zombie"));
+        yield Map.of("cardId", game.cards.getLast().id, "name", "Skeleton");
+      }
+      case "ABILITY" -> Map.of("text", "Draw a card");
+      case "RESOLVE_ABILITY" -> {
+        apply(game, 0, "ABILITY", Map.of("text", "Draw a card"));
+        yield Map.of("abilityId", game.abilities.getFirst().id);
+      }
+      default -> Map.of();
+    };
+  }
+
+  @ParameterizedTest
+  @MethodSource("commands")
+  void everyCommandAdvancesExactlyOneRevisionAndRecordsItsExistingDescription(
+      GameFormat format, String type) {
+    Game game = type.equals("READY") || type.equals("START") ? ready(format) : playing(format);
+    Map<String, Object> data = data(game, type);
+    long initialRevision = game.revision;
+    int entries = game.log.size();
+    apply(game, 0, type, data);
+    assertThat(game.revision).isEqualTo(initialRevision + 1);
+    assertThat(game.log).hasSize(entries + 1);
+    String description =
+        switch (type) {
+          case "DRAW" -> "drew 1 card(s)";
+          case "SHUFFLE" -> "shuffled a library";
+          case "SEARCH" -> "opened a private library search";
+          case "PHASE" -> "advanced to Upkeep";
+          default -> type.toLowerCase(Locale.ROOT).replace('_', ' ');
+        };
+    if (type.equals("DICE")) assertThat(game.log.getLast()).matches("Player 0: rolled [1-6]");
+    else assertThat(game.log.getLast()).isEqualTo("Player 0: " + description);
+  }
+
+  @Test
+  void validationPrecedenceAndRejectedCommandBookkeepingRemainCompatible() {
+    Game game = ready(GameFormat.COMMANDER);
+    long initialRevision = game.revision;
+    List<String> log = List.copyOf(game.log);
+    assertThatThrownBy(() -> engine.apply(game, -1, null)).hasMessage("Invalid command");
+    assertThatThrownBy(
+            () ->
+                engine.apply(
+                    game, -1, new Game.Command("id", initialRevision - 1, "UNKNOWN", Map.of())))
+        .hasMessage("Stale revision");
+    assertThatThrownBy(() -> apply(game, -1, "UNKNOWN", Map.of())).hasMessage("Unknown seat");
+    assertThatThrownBy(() -> apply(game, 0, "UNKNOWN", Map.of())).hasMessage("Game is not playing");
+    assertThat(game.revision).isEqualTo(initialRevision);
+    assertThat(game.log).containsExactlyElementsOf(log);
+    apply(game, 0, "START", Map.of());
+    apply(game, 1, "CONCEDE", Map.of());
+    long revision = game.revision;
+    log = List.copyOf(game.log);
+    assertThatThrownBy(() -> apply(game, 1, "UNKNOWN", Map.of())).hasMessage("You have conceded");
+    assertThatThrownBy(() -> apply(game, 1, "FINISH", Map.of()))
+        .hasMessage("Only the host can finish");
+    assertThatThrownBy(() -> apply(game, 0, "UNKNOWN", Map.of())).hasMessage("Unknown command");
+    assertThat(game.revision).isEqualTo(revision);
+    assertThat(game.log).containsExactlyElementsOf(log);
+  }
+
+  @Test
+  void concededHostCanFinishAndLogHistoryRemainsBounded() {
+    Game game = playing(GameFormat.STANDARD);
+    game.log.clear();
+    for (int i = 0; i < 105; i++) apply(game, 0, "COUNTER", Map.of("name", "life", "delta", 0));
+    assertThat(game.log).hasSize(100);
+    apply(game, 0, "CONCEDE", Map.of());
+    apply(game, 0, "FINISH", Map.of());
+    assertThat(game.status).isEqualTo("finished");
+    assertThat(game.log).hasSize(100);
+  }
+}
