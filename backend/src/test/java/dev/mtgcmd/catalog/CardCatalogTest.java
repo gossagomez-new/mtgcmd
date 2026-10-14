@@ -414,4 +414,76 @@ class CardCatalogTest {
     assertThat(catchThrowable(() -> catalog.resolve(List.of("Island"), GameFormat.STANDARD)))
         .isSameAs(bug);
   }
+
+  @Test
+  void repeatedNamesPreserveOutputMultiplicityWithoutRepeatingProviderIdentifiers() {
+    normalCard("Island");
+    normalCard("Sol Ring");
+    assertThat(catalog.resolve(List.of("Island", "Sol Ring", "Island")))
+        .extracting(Definition::name)
+        .containsExactly("Island", "Sol Ring", "Island");
+    assertThat(requests).containsExactly(List.of("Island", "Sol Ring"));
+  }
+
+  @Test
+  void unresolvedFirstBatchStopsBeforeLaterRequestsButRetainsSuccessfulCacheWrites() {
+    var names = new ArrayList<String>();
+    names.add("Unknown");
+    for (int i = 0; i < 75; i++) {
+      String name = "Card " + i;
+      names.add(name);
+      normalCard(name);
+    }
+    assertThatThrownBy(() -> catalog.resolve(names)).hasMessageContaining("Unknown card: Unknown");
+    assertThat(requests).hasSize(1);
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM catalog", Integer.class)).isEqualTo(74);
+  }
+
+  @Test
+  void failureMappingLaterCardRetainsEarlierCacheWrites() {
+    normalCard("Island");
+    normalCard("Sol Ring");
+    Clock observationClock = mock(Clock.class);
+    var failure = new IllegalStateException("clock failed");
+    when(observationClock.millis()).thenReturn(123L).thenThrow(failure);
+    catalog = new CardCatalog(jdbc, mapper, http, observationClock);
+    assertThat(catchThrowable(() -> catalog.resolve(List.of("Island", "Sol Ring"))))
+        .isSameAs(failure);
+    assertThat(jdbc.queryForList("SELECT name FROM catalog", String.class))
+        .containsExactly("island");
+  }
+
+  @Test
+  void failedAliasWriteIsNotTreatedAsRecoverableProviderFailure() throws Exception {
+    String alias = "Murkwater Pathway";
+    cached(alias, null, null);
+    twoFaceCard("Clearwater Pathway", alias);
+    var failingJdbc = spy(jdbc);
+    var failure = new org.springframework.dao.DataAccessResourceFailureException("write failed");
+    doThrow(failure)
+        .when(failingJdbc)
+        .update(anyString(), eq(alias.toLowerCase(Locale.ROOT)), anyString());
+    catalog = new CardCatalog(failingJdbc, mapper, http, clock);
+    try (var logs = new LogCapture(CardCatalog.class)) {
+      assertThatThrownBy(() -> catalog.resolve(List.of(alias), GameFormat.STANDARD))
+          .isInstanceOf(CardServiceUnavailableException.class)
+          .hasCause(failure);
+      assertThat(logs.events()).isEmpty();
+    }
+    assertThat(jdbc.queryForList("SELECT name FROM catalog", String.class))
+        .contains("clearwater pathway // murkwater pathway", "murkwater pathway");
+  }
+
+  @Test
+  void commanderKeepsPermissiveEnvelopeHandlingWhileStandardRequiresAnArray() {
+    when(http.post(any(URI.class), anyString()))
+        .thenReturn("{\"data\":{\"entry\":{\"name\":\"Island\"}}}");
+    assertThat(catalog.resolve(List.of("Island")))
+        .extracting(Definition::name)
+        .containsExactly("Island");
+    jdbc.execute("DELETE FROM catalog");
+    assertThatThrownBy(() -> catalog.resolve(List.of("Island"), GameFormat.STANDARD))
+        .isInstanceOf(InvalidCardServiceResponseException.class)
+        .hasMessage("Card catalog returned an unsupported response");
+  }
 }

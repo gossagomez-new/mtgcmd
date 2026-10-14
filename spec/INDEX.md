@@ -13,6 +13,7 @@ Each specification's `Depends on` metadata is authoritative.
 | [Battlefield grouping](battlefield-grouping.md) | Completed | Medium | Automatic permanent type groups with lands below | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing state and privacy boundary |
 | [Standard tables](standard-tables.md) | Completed | High | Two-player Standard with format-aware validation | [Commander tabletop](commander-tabletop.md) | [ADR-0002](../docs/adr/0002-room-format-profiles.md): immutable format profiles and legacy defaults; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): authority and privacy |
 | [Service failure diagnostics](service-failure-diagnostics.md) | Completed | Medium | Typed service failures, preserved causes, and boundary/recovery diagnostics | [Deck import refactor](deck-import-refactor.md), [Multi-face catalog lookup](catalog-multiface-lookup.md), [Standard tables](standard-tables.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing privacy and recovery boundaries |
+| [Catalog decomposition](catalog-decomposition.md) | Completed | Medium | Separate catalog coordination, cache persistence, and Scryfall adaptation | [Service failure diagnostics](service-failure-diagnostics.md) | [ADR-0004](../docs/adr/0004-catalog-component-boundaries.md): catalog component responsibilities; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing state/privacy boundary |
 
 ## Dependency graph
 
@@ -36,6 +37,8 @@ flowchart TD
     diagnostics -->|depends on| imports
     diagnostics -->|depends on| catalog
     diagnostics -->|depends on| standard
+    decomposition["Catalog decomposition"]
+    decomposition -->|depends on| diagnostics
     build -->|depends on| tabletop
 ```
 

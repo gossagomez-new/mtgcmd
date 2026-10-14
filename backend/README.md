@@ -165,6 +165,12 @@ Moxfield and pasted-export adapters feed the catalog, which resolves names
 through Scryfall and caches definitions. Standard refresh can retain cached
 cards when a provider fails; unresolved cards still require a successful lookup.
 
+`CardCatalog` coordinates freshness, batch recovery, and ordered results.
+`JdbcCardCache` owns SQL and stored-definition serialization;
+`ScryfallCardSource` owns provider requests, definition mapping, and verified
+aliases. See the [catalog decomposition specification](../spec/catalog-decomposition.md)
+and [component boundary ADR](../docs/adr/0004-catalog-component-boundaries.md).
+
 Service failures distinguish timeout, unavailability, invalid response, and
 interruption. Adapter message translation retains the subtype and original
 cause. HTTP/WebSocket handlers emit WARN for service failures and ERROR for

@@ -1,33 +1,36 @@
 package dev.mtgcmd.catalog;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.mtgcmd.game.CardLegality;
-import dev.mtgcmd.game.Game.*;
+import dev.mtgcmd.game.Game.Definition;
 import dev.mtgcmd.game.GameFormat;
-import java.net.URI;
 import java.time.Clock;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+/** Coordinates cached definitions, format-specific refresh, and per-batch recovery. */
 public final class CardCatalog implements DeckImporter.Catalog {
   private static final Logger LOG = LoggerFactory.getLogger(CardCatalog.class);
-  private final JdbcTemplate jdbc;
-  private final ObjectMapper mapper;
-  private final JsonHttp http;
+  private final CardCache cache;
+  private final ScryfallCardSource source;
   private final Clock clock;
+
+  private record ResolutionPlan(Map<String, Definition> found, List<String> pending) {}
 
   public CardCatalog(JdbcTemplate jdbc, ObjectMapper mapper, JsonHttp http) {
     this(jdbc, mapper, http, Clock.systemUTC());
   }
 
   public CardCatalog(JdbcTemplate jdbc, ObjectMapper mapper, JsonHttp http, Clock clock) {
-    this.jdbc = jdbc;
-    this.mapper = mapper;
-    this.http = http;
+    this(new JdbcCardCache(jdbc, mapper), new ScryfallCardSource(http, mapper, clock), clock);
+  }
+
+  CardCatalog(CardCache cache, ScryfallCardSource source, Clock clock) {
+    this.cache = cache;
+    this.source = source;
     this.clock = clock;
   }
 
@@ -37,154 +40,86 @@ public final class CardCatalog implements DeckImporter.Catalog {
 
   @Override
   public List<Definition> resolve(List<String> names, GameFormat format) {
+    ResolutionPlan plan = planLookup(names, format);
+    for (int offset = 0;
+        offset < plan.pending().size();
+        offset += ScryfallCardSource.MAX_BATCH_SIZE) {
+      List<String> batch =
+          plan.pending()
+              .subList(
+                  offset,
+                  Math.min(offset + ScryfallCardSource.MAX_BATCH_SIZE, plan.pending().size()));
+      resolveBatch(batch, format, plan.found());
+    }
+    return names.stream().map(name -> plan.found().get(CardNames.key(name))).toList();
+  }
+
+  private ResolutionPlan planLookup(List<String> names, GameFormat format) {
     Map<String, Definition> found = new HashMap<>();
     Set<String> pending = new LinkedHashSet<>();
     for (String name : names) {
-      String key = normalize(name);
-      List<String> rows =
-          jdbc.queryForList("SELECT definition::text FROM catalog WHERE name=?", String.class, key);
-      if (rows.isEmpty()) pending.add(name);
-      else {
-        Definition def;
-        try {
-          def = mapper.readValue(rows.getFirst(), Definition.class);
-        } catch (JsonProcessingException e) {
-          throw new IllegalStateException("Invalid cached card", e);
-        }
-        found.put(key, def);
-        if (format == GameFormat.STANDARD && !CardLegality.fresh(def, "standard", clock))
-          pending.add(name);
-      }
+      Optional<Definition> cached = cache.find(name);
+      cached.ifPresent(definition -> found.put(CardNames.key(name), definition));
+      if (needsLookup(cached, format)) pending.add(name);
     }
-    List<String> requested = new ArrayList<>(pending);
-    for (int offset = 0; offset < requested.size(); offset += 75) {
-      List<String> chunk = requested.subList(offset, Math.min(offset + 75, requested.size()));
-      JsonNode response;
-      try {
-        response = fetch(chunk);
-        if (format == GameFormat.STANDARD
-            && (response == null || !response.isObject() || !response.path("data").isArray()))
-          throw new InvalidCardServiceResponseException(
-              "Card catalog returned an unsupported response", null);
-      } catch (CardServiceInterruptedException e) {
-        throw e;
-      } catch (CardServiceException e) {
-        if (format == GameFormat.STANDARD
-            && chunk.stream().allMatch(n -> found.containsKey(normalize(n)))) {
-          LOG.warn("Catalog refresh failed; using cached definitions", e);
-          continue;
-        }
-        throw e;
-      } catch (JsonProcessingException e) {
-        throw new CardServiceUnavailableException("Card catalog unavailable; try again later", e);
-      }
-      try {
-        for (JsonNode card : response.path("data")) {
-          Definition def = definition(card, clock.millis());
-          cache(def.name(), def);
-          for (String name : chunk) {
-            if (normalize(name).equals(normalize(def.name()))
-                || def.faces().stream()
-                    .anyMatch(f -> normalize(f.name()).equals(normalize(name)))) {
-              found.put(normalize(name), def);
-              cache(name, def);
-            }
-          }
-        }
-      } catch (JsonProcessingException | DataAccessException e) {
-        throw new CardServiceUnavailableException("Card catalog unavailable; try again later", e);
-      }
-      for (String name : chunk) {
-        if (!found.containsKey(normalize(name)))
-          throw new IllegalArgumentException(
-              "Unknown card: " + name + ". Check spelling or use the full printed name.");
-      }
-    }
-    return names.stream().map(n -> found.get(normalize(n))).toList();
+    return new ResolutionPlan(found, new ArrayList<>(pending));
   }
 
-  private JsonNode fetch(List<String> names) throws JsonProcessingException {
-    String request =
-        mapper.writeValueAsString(
-            Map.of(
-                "identifiers",
-                names.stream().map(n -> Map.of("name", collectionName(n))).toList()));
-    String json = http.post(URI.create("https://api.scryfall.com/cards/collection"), request);
+  private boolean needsLookup(Optional<Definition> cached, GameFormat format) {
+    return cached.isEmpty()
+        || (format == GameFormat.STANDARD && !CardLegality.fresh(cached.get(), "standard", clock));
+  }
+
+  private void resolveBatch(List<String> batch, GameFormat format, Map<String, Definition> found) {
+    ScryfallCardSource.LookupResult result;
     try {
-      return mapper.readTree(json);
-    } catch (JsonProcessingException e) {
-      throw new InvalidCardServiceResponseException("Card catalog unavailable; try again later", e);
+      result = fetchBatch(batch, format);
+    } catch (CardServiceInterruptedException e) {
+      throw e;
+    } catch (CardServiceException e) {
+      if (!canUseCachedBatch(batch, format, found)) throw e;
+      LOG.warn("Catalog refresh failed; using cached definitions", e);
+      return;
+    }
+    persistAndMerge(result, found);
+    requireResolved(batch, found);
+  }
+
+  private ScryfallCardSource.LookupResult fetchBatch(List<String> batch, GameFormat format) {
+    ScryfallCardSource.LookupResult result = source.lookupBatch(batch);
+    if (format == GameFormat.STANDARD && !result.supportedEnvelope())
+      throw new InvalidCardServiceResponseException(
+          "Card catalog returned an unsupported response", null);
+    return result;
+  }
+
+  private boolean canUseCachedBatch(
+      List<String> batch, GameFormat format, Map<String, Definition> found) {
+    return format == GameFormat.STANDARD
+        && batch.stream().allMatch(name -> found.containsKey(CardNames.key(name)));
+  }
+
+  private void persistAndMerge(
+      ScryfallCardSource.LookupResult result, Map<String, Definition> found) {
+    for (ScryfallCardSource.MatchedCard card : result.cards()) {
+      cache.store(card.definition().name(), card.definition());
+      for (String alias : card.aliases()) {
+        found.put(CardNames.key(alias), card.definition());
+        cache.store(alias, card.definition());
+      }
     }
   }
 
-  private void cache(String name, Definition def) throws JsonProcessingException {
-    jdbc.update(
-        "INSERT INTO catalog(name,definition) VALUES (?,CAST(? AS jsonb)) ON CONFLICT(name) DO UPDATE SET definition=EXCLUDED.definition,updated_at=now()",
-        normalize(name),
-        mapper.writeValueAsString(def));
-  }
-
-  public static Definition definition(JsonNode c) {
-    return definition(c, System.currentTimeMillis());
-  }
-
-  private static Definition definition(JsonNode c, long observedAt) {
-    Map<String, String> legalities = new LinkedHashMap<>();
-    c.path("legalities")
-        .fields()
-        .forEachRemaining(
-            entry -> {
-              if (entry.getValue().isTextual())
-                legalities.put(entry.getKey(), entry.getValue().textValue());
-            });
-    List<Face> faces = new ArrayList<>();
-    for (JsonNode f : c.path("card_faces"))
-      faces.add(
-          new Face(
-              f.path("name").asText(),
-              image(f),
-              f.path("oracle_text").asText(),
-              f.path("type_line").asText()));
-    List<String> colors = new ArrayList<>();
-    c.path("color_identity").forEach(n -> colors.add(n.asText()));
-    String image = image(c);
-    if (image.isEmpty() && !faces.isEmpty()) image = faces.getFirst().image();
-    String text = c.path("oracle_text").asText();
-    if (text.isEmpty()) text = String.join("\n\n", faces.stream().map(Face::text).toList());
-    return new Definition(
-        c.path("oracle_id").asText(c.path("id").asText()),
-        c.path("name").asText(),
-        image,
-        text,
-        c.path("type_line").asText(),
-        colors,
-        "legal".equals(c.path("legalities").path("commander").asText()),
-        faces,
-        legalities,
-        observedAt);
-  }
-
-  private static String image(JsonNode c) {
-    String value = c.path("image_uris").path("normal").asText("");
-    try {
-      URI uri = URI.create(value);
-      return "https".equals(uri.getScheme())
-              && uri.getHost() != null
-              && uri.getHost().endsWith(".scryfall.io")
-          ? value
-          : "";
-    } catch (Exception e) {
-      return "";
+  private void requireResolved(List<String> batch, Map<String, Definition> found) {
+    for (String name : batch) {
+      if (!found.containsKey(CardNames.key(name)))
+        throw new IllegalArgumentException(
+            "Unknown card: " + name + ". Check spelling or use the full printed name.");
     }
   }
 
-  private static String collectionName(String name) {
-    // Collection identifiers accept individual face names, not combined printed names.
-    int separator = name.indexOf(" // ");
-    return separator < 0 ? name : name.substring(0, separator).trim();
-  }
-
-  private static String normalize(String name) {
-    return name.trim().toLowerCase(Locale.ROOT);
+  /** Compatibility entry point for provider definition mapping. */
+  public static Definition definition(JsonNode card) {
+    return ScryfallCardSource.definition(card, System.currentTimeMillis());
   }
 }
