@@ -137,6 +137,27 @@ The original sandboxed test attempt could not bind local HTTP ports, so the
 red/green and final verification runs used approved escalation. Frontend/browser
 tests and live provider calls were not run for this backend-only change.
 
+### Moxfield stack-trace analysis follow-up
+
+Keep the existing subtype-preserving `withMessage` translation and its original
+exception cause chain. A documented method-local `PMD.PreserveStackTrace`
+suppression on `MoxfieldDeckSource.fetchRoot` acknowledges that PMD cannot infer
+the receiver method's cause-preserving contract. The rule remains enabled
+elsewhere; future edits to this method must preserve causes in both catch paths.
+No runtime behavior or public contract changes, and no new ADR is required.
+
+Retain the confirmed comprehensive coverage target. The existing parameterized
+`moxfieldTranslationPreservesEveryFailureCategoryAndCause` test covers all four
+failure subtypes, contextual messages, original exception identity, and nested
+causes. No new tests are needed for this analysis-only annotation change.
+
+Executed on 2026-10-14: `DeckImporterTest` passed, followed by
+`spotless:apply spotless:check verify` with all 554 backend tests passing and no
+failures, errors, or skips. The regenerated PMD report has no active
+`PreserveStackTrace` findings and records the Moxfield finding as suppressed,
+with no analysis errors. `git diff --check` passed. Frontend/browser checks and
+live provider calls were unnecessary for this annotation-only change.
+
 ## Architecture decisions
 
 No new ADR: this is a reversible internal hierarchy and diagnostic improvement

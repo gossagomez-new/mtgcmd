@@ -34,6 +34,9 @@ final class MoxfieldDeckSource {
     return ParsedDeck.from(entries);
   }
 
+  // withMessage preserves the failure subtype and chains the caught exception as its cause.
+  // DeckImporterTest verifies every subtype and its complete cause chain.
+  @SuppressWarnings("PMD.PreserveStackTrace")
   private JsonNode fetchRoot(MoxfieldDeckUrl url) {
     String json;
     try {
