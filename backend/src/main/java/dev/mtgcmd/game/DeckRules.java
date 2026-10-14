@@ -1,7 +1,6 @@
 package dev.mtgcmd.game;
 
-import static dev.mtgcmd.game.Game.*;
-
+import dev.mtgcmd.game.Game.Definition;
 import java.time.Clock;
 import java.util.*;
 

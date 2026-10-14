@@ -1,7 +1,5 @@
 package dev.mtgcmd.game;
 
-import static dev.mtgcmd.game.CommandInput.*;
-import static dev.mtgcmd.game.Game.*;
 import static dev.mtgcmd.game.GameLookup.*;
 import static dev.mtgcmd.game.GameZones.*;
 

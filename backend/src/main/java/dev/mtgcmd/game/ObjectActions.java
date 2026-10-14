@@ -1,10 +1,12 @@
 package dev.mtgcmd.game;
 
 import static dev.mtgcmd.game.CommandInput.*;
-import static dev.mtgcmd.game.Game.*;
 import static dev.mtgcmd.game.GameLookup.*;
 import static dev.mtgcmd.game.GameZones.*;
 
+import dev.mtgcmd.game.Game.Ability;
+import dev.mtgcmd.game.Game.Card;
+import dev.mtgcmd.game.Game.Definition;
 import java.util.*;
 
 /** Object tabletop commands; revision and logging belong to the facade. */
