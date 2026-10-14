@@ -25,3 +25,16 @@ Run its fixture tests with:
 ```sh
 python3 -B -m unittest discover -s scripts -p test_analyze_pmd.py
 ```
+
+## Refactor design explanation
+
+[refactor-design-explanation](refactor-design-explanation/SKILL.md) explains a
+proposed method/class refactor with reasoning, relevant PMD rules, pattern
+trade-offs, before/after examples, and compatibility-focused verification. It
+reuses the design-audit framework and PMD analysis tooling; it does not implement
+changes automatically.
+
+Example request:
+
+> Use skills/refactor-design-explanation/SKILL.md to explain how you would refactor
+> JsonHttp.send, including PMD rules, patterns, code examples, and verification.
