@@ -66,6 +66,11 @@ public final class Game {
     }
   }
 
+  /**
+   * Flat persisted card state, kept compatible with existing snapshots. Transitions and visibility
+   * policies belong to CardZoneTransitions and GameAccess; player views belong to GameViewMapper.
+   */
+  @SuppressWarnings("PMD.TooManyFields")
   public static final class Card {
     public String id = UUID.randomUUID().toString();
     public Definition definition;
