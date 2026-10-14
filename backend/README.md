@@ -190,6 +190,13 @@ Grouped action handlers share `GameAccess` and `CardZoneTransitions`;
 ownership. See the [engine decomposition specification](../spec/game-engine-decomposition.md)
 and [engine boundary ADR](../docs/adr/0005-game-engine-component-boundaries.md).
 
+HTTP routes are grouped in `SessionController`, `RoomController`, and
+`DeckController`. `DeckImportService` coordinates deck operations;
+`DeckDraftRepository` owns guest-scoped draft SQL/JSON. `ApiExceptionHandler`
+applies the existing errors only to those controllers and retains the historical
+HTTP logger category. See the [API decomposition specification](../spec/api-controller-decomposition.md)
+and [API boundary ADR](../docs/adr/0007-api-component-boundaries.md).
+
 Spring owns the shared card-service `HttpClient` and closes it when the application
 context shuts down. Injected `JsonHttp` adapters borrow that client. Standalone
 `new JsonHttp()` instances own their internal client and should be used with

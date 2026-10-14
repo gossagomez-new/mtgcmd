@@ -1,7 +1,6 @@
 package dev.mtgcmd.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.mtgcmd.catalog.*;
 import dev.mtgcmd.game.GameEngine;
 import dev.mtgcmd.store.RoomStore;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,11 +40,6 @@ public class AppConfiguration {
   @Bean
   SecurityFilter security(GuestSessions guests, @Value("${app.origin}") String origin) {
     return new SecurityFilter(guests, origin);
-  }
-
-  @Bean
-  DeckImporter importer(JdbcTemplate jdbc, ObjectMapper mapper, JsonHttp http) {
-    return new DeckImporter(new CardCatalog(jdbc, mapper, http), http::get);
   }
 
   @Bean

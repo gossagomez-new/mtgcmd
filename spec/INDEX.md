@@ -20,6 +20,7 @@ Each specification's `Depends on` metadata is authoritative.
 | [Commander deck rules refactor](commander-deck-rules-refactor.md) | Completed | Medium   | Preserve Commander validation while separating observations                 | [Standard tables](standard-tables.md)                                                                                                            | [ADR-0002](../docs/adr/0002-room-format-profiles.md): existing format rules                                                                                                                                                                                       |
 | [JsonHttp request lifecycle](json-http-send-refactor.md)          | Completed | Medium   | Separate request lifecycle and failure translation                          | [Service failure diagnostics](service-failure-diagnostics.md)                                                                                    | [ADR-0004](../docs/adr/0004-catalog-component-boundaries.md): existing adapter ownership                                                                                                                                                                          |
 | [Resource ownership](resource-ownership.md)                       | Completed | Medium   | Explicit HTTP ownership and deterministic test cleanup                      | [JsonHttp request lifecycle](json-http-send-refactor.md)                                                                                         | [ADR-0006](../docs/adr/0006-http-client-resource-ownership.md): HTTP lifecycle ownership                                                                                                                                                                          |
+| [API controller decomposition](api-controller-decomposition.md)   | Completed | Medium   | Separate API endpoints, deck workflow, drafts, and scoped errors            | [Service failure diagnostics](service-failure-diagnostics.md), [Standard tables](standard-tables.md)                                             | [ADR-0007](../docs/adr/0007-api-component-boundaries.md): API component responsibilities                                                                                                                                                                          |
 
 ## Dependency graph
 
@@ -47,6 +48,9 @@ flowchart TD
     diagnostics -->|depends on| imports
     diagnostics -->|depends on| catalog
     diagnostics -->|depends on| standard
+    api["API controller decomposition"]
+    api -->|depends on| diagnostics
+    api -->|depends on| standard
     transport["JsonHttp request lifecycle"]
     transport -->|depends on| diagnostics
     resources["Resource ownership"]

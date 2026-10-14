@@ -48,9 +48,10 @@ class DiagnosticsTest {
     var rooms = mock(RoomStore.class);
     when(guests.require(any())).thenReturn(new GuestSessions.Guest("guest", "csrf"));
     when(rooms.list("guest")).thenThrow(failure);
-    var api = new ApiController(guests, rooms, null, null, null, null);
-    var mvc = MockMvcBuilders.standaloneSetup(api).build();
-    try (var logs = new LogCapture(ApiController.class)) {
+    var api = new RoomController(guests, rooms, null);
+    var mvc =
+        MockMvcBuilders.standaloneSetup(api).setControllerAdvice(new ApiExceptionHandler()).build();
+    try (var logs = new LogCapture(ApiExceptionHandler.LOGGER_NAME)) {
       var response = mvc.perform(get("/api/rooms")).andReturn().getResponse();
       assertThat(response.getStatus()).isEqualTo(400);
       assertThat(new ObjectMapper().readTree(response.getContentAsString()))
@@ -190,9 +191,9 @@ class DiagnosticsTest {
 
   @Test
   void unexpectedHttpFailureIsLoggedOnceAndKeepsItsGenericResponse() {
-    var api = new ApiController(null, null, null, null, null, null);
+    var api = new ApiExceptionHandler();
     var failure = new IllegalStateException("database unavailable");
-    try (var logs = new LogCapture(ApiController.class)) {
+    try (var logs = new LogCapture(ApiExceptionHandler.LOGGER_NAME)) {
       var response = api.failed(failure);
       assertThat(response.getStatusCode().value()).isEqualTo(500);
       assertThat(response.getBody())
@@ -209,8 +210,8 @@ class DiagnosticsTest {
 
   @Test
   void ordinaryHttpValidationDoesNotProduceFailureLogs() {
-    var api = new ApiController(null, null, null, null, null, null);
-    try (var logs = new LogCapture(ApiController.class)) {
+    var api = new ApiExceptionHandler();
+    try (var logs = new LogCapture(ApiExceptionHandler.LOGGER_NAME)) {
       var response = api.invalid(new IllegalArgumentException("Choose commanders"));
       assertThat(response.getStatusCode().value()).isEqualTo(400);
       assertThat(response.getBody()).isEqualTo(Map.of("message", "Choose commanders"));

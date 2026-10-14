@@ -12,7 +12,11 @@ public final class LogCapture implements AutoCloseable {
   private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
 
   public LogCapture(Class<?> component) {
-    logger = (Logger) LoggerFactory.getLogger(component);
+    this(component.getName());
+  }
+
+  public LogCapture(String category) {
+    logger = (Logger) LoggerFactory.getLogger(category);
     appender.start();
     logger.addAppender(appender);
   }
