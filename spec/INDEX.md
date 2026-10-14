@@ -15,6 +15,7 @@ Each specification's `Depends on` metadata is authoritative.
 | [Service failure diagnostics](service-failure-diagnostics.md) | Completed | Medium   | Typed service failures, preserved causes, and boundary/recovery diagnostics | [Deck import refactor](deck-import-refactor.md), [Multi-face catalog lookup](catalog-multiface-lookup.md), [Standard tables](standard-tables.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing privacy and recovery boundaries                                                                                                                                                                |
 | [Catalog decomposition](catalog-decomposition.md)             | Completed | Medium   | Separate catalog coordination, cache persistence, and Scryfall adaptation   | [Service failure diagnostics](service-failure-diagnostics.md)                                                                                    | [ADR-0004](../docs/adr/0004-catalog-component-boundaries.md): catalog component responsibilities; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing state/privacy boundary                                                                       |
 | [Game-engine decomposition](game-engine-decomposition.md)     | Completed | Medium   | Separate command coordination, access, views, and zone transitions          | [Standard tables](standard-tables.md)                                                                                                            | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): engine responsibilities and functional dispatch; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): state/privacy; [ADR-0002](../docs/adr/0002-room-format-profiles.md): format profiles |
+| [Security filter refactor](security-filter-refactor.md)       | Completed | Medium   | Preserve security behavior while simplifying filter policy                  | [Commander tabletop](commander-tabletop.md)                                                                                                      | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing security/privacy boundary                                                                                                                                                                      |
 
 ## Dependency graph
 
@@ -42,6 +43,8 @@ flowchart TD
     decomposition -->|depends on| diagnostics
     engine["Game-engine decomposition"]
     engine -->|depends on| standard
+    security["Security filter refactor"]
+    security -->|depends on| tabletop
     build -->|depends on| tabletop
 ```
 
