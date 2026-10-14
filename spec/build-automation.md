@@ -50,6 +50,9 @@ asset cleanup. Clean builds cost recompilation but produce predictable outputs.
 9. Require exactly one regular `.jar` in `backend/target` after Maven success;
    missing/ambiguous output exits 1. Report its absolute path without a fixed
    application version. No success message precedes these checks.
+10. As extended by [Advisory Java static analysis](java-static-analysis.md),
+    require backend/target/pmd.txt and report its absolute path. An empty log is
+    valid; PMD findings are advisory.
 
 ### Non-functional requirements
 
@@ -62,7 +65,8 @@ CLI: `build.sh [--skip-tests]` or `build.sh --help`. Options cannot be combined
 or repeated. Exit 0 means the requested build succeeded with a unique artifact;
 exit 2 means usage error; guard failures exit 1; tool failures retain their code.
 Success reports either Java verification completed or Java tests skipped, plus
-the artifact path. Frontend unit tests/lint/browser checks are separate.
+the artifact and PMD findings-log paths. Frontend unit tests/lint/browser checks
+are separate.
 
 ## Technical constraints
 
@@ -74,8 +78,7 @@ not clean application data, database volumes, or unrelated directories.
 
 - Maven never runs after a failed frontend build or missing generated index.
 - Failure and skipped testing never appear as verified success.
-- Application contracts, persisted state, and build tool configuration remain
-  unchanged.
+- Application contracts and persisted state remain unchanged.
 
 ## Edge cases and failures
 
@@ -119,8 +122,9 @@ this build-only change.
 
 ## Architecture decisions
 
-No ADR needed: this is a reversible wrapper over established build tools and
-project conventions, without a new dependency or architectural boundary.
+The original wrapper required no ADR. Its PMD extension follows
+[ADR-0003](../docs/adr/0003-advisory-java-static-analysis.md); requirements and
+verification for that dependency belong to the linked static-analysis specification.
 
 ## Open questions
 

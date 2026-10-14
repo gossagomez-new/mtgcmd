@@ -4,6 +4,7 @@ set -euo pipefail
 usage() {
   printf '%s\n' 'Usage: build.sh [--skip-tests]' '       build.sh --help' \
     '' 'Build React, then clean and verify the Java package.' \
+    'PMD findings are advisory and recorded in backend/target/pmd.txt.' \
     '--skip-tests packages without running the Java tests.'
 }
 
@@ -53,9 +54,16 @@ if (( ${#artifacts[@]} != 1 )); then
   exit 1
 fi
 
+pmd_log="$repo_root/backend/target/pmd.txt"
+if [[ ! -f "$pmd_log" ]]; then
+  printf '%s\n' 'PMD did not produce backend/target/pmd.txt; cannot report a complete build.' >&2
+  exit 1
+fi
+
 if [[ "$skip_tests" == true ]]; then
   printf '%s\n' 'Build complete (Java tests skipped).'
 else
   printf '%s\n' 'Build complete (Java verification completed).'
 fi
 printf 'Artifact: %s\n' "${artifacts[0]}"
+printf 'PMD findings log: %s\n' "$pmd_log"

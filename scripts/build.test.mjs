@@ -34,6 +34,7 @@ if (name === 'npm') {
 } else {
   if (process.argv.includes('clean')) fs.rmSync(path.join(root, 'backend/target'), {recursive: true, force: true});
   fs.mkdirSync(path.join(root, 'backend/target'), {recursive: true});
+  if (process.env.NO_PMD_LOG !== '1') fs.writeFileSync(path.join(root, 'backend/target/pmd.txt'), process.env.PMD_FINDINGS || '');
   const count = Number(process.env.JAR_COUNT || '1');
   for (let i = 0; i < count; i++) fs.writeFileSync(path.join(root, 'backend/target', 'fixture-' + i + '.jar'), 'fixture');
 }
@@ -190,5 +191,29 @@ for (const count of [0, 2]) {
     assert.equal(result.status, 1);
     assert.match(result.stderr, /exactly one.*jar/i);
     assert.doesNotMatch(result.stdout, /Build complete/i);
+  });
+}
+
+for (const args of [[], ["--skip-tests"]]) {
+  for (const findings of [
+    "",
+    "Card.java:7:\tSystemPrintln:\tAvoid printing directly.\n",
+  ]) {
+    test(`reports the PMD log with ${findings ? "findings" : "no findings"} in ${args.length ? "skip" : "default"} mode`, (t) => {
+      const f = fixture(t);
+      const result = f.run(args, { PMD_FINDINGS: findings });
+      assert.equal(result.status, 0, result.stderr);
+      const log = join(f.root, "backend/target/pmd.txt");
+      assert.equal(readFileSync(log, "utf8"), findings);
+      assert.ok(result.stdout.includes(`PMD findings log: ${log}`));
+      assert.match(result.stdout, /Build complete/);
+    });
+  }
+  test(`missing PMD log prevents success in ${args.length ? "skip" : "default"} mode`, (t) => {
+    const f = fixture(t);
+    const result = f.run(args, { NO_PMD_LOG: "1" });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /PMD.*pmd\.txt/i);
+    assert.doesNotMatch(result.stdout, /Build complete/);
   });
 }

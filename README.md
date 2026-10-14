@@ -65,6 +65,29 @@ Dependencies must already be installed; the script does not start services or
 deploy. A failed tool stops the build with its exit code. Missing frontend output
 or missing/ambiguous jars also fail instead of reporting success.
 
+PMD analyzes production and test Java sources before packaging, including with
+`--skip-tests` and in Docker builds. Rule violations are advisory and do not
+abort the build. Every reported finding is recorded in `backend/target/pmd.txt`,
+with file, line, rule, and message; suppressed findings retain PMD's native
+suppression records. The wrapper prints the log's absolute path and requires it
+to exist (an empty log is valid). Analysis or report-writing failures still fail
+the build. Reports are replaced each run and removed by `clean`.
+
+Companion reports are `backend/target/pmd.xml` and
+`backend/target/reports/pmd.html`. Docker generates them in its `backend` build
+stage; they are not included in the runtime image or application jar. To generate
+reports without packaging or running unit tests:
+
+```sh
+mvn -f backend/pom.xml test-compile pmd:pmd
+```
+
+The configuration and rule choices are documented in the
+[static-analysis specification](spec/java-static-analysis.md) and
+[ADR-0003](docs/adr/0003-advisory-java-static-analysis.md). Verify build automation
+with `node --test --test-isolation=none scripts/build.test.mjs`; real Maven
+report fixtures run with `node --test --test-isolation=none scripts/pmd.test.mjs`.
+
 For troubleshooting, the underlying commands are
 `npm --prefix frontend run build` followed by
 `mvn -f backend/pom.xml clean verify`. Maven embeds `frontend/dist` into the jar.
