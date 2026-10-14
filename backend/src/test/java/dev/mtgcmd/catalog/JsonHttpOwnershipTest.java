@@ -24,7 +24,6 @@ class JsonHttpOwnershipTest {
   @Test
   void ownedCloseIsIdempotentAndRejectsFurtherRequests() {
     // Mockito client has no transport resources to close.
-    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     try (var http = owned(client)) {
       http.close();

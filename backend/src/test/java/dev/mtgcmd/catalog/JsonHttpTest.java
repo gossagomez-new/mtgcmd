@@ -22,7 +22,6 @@ import org.junit.jupiter.params.provider.*;
 class JsonHttpTest {
   private JsonHttp withFuture(CompletableFuture<HttpResponse<byte[]>> future) {
     // Mockito client has no transport resources to close.
-    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     when(client.sendAsync(
             any(HttpRequest.class),
@@ -191,7 +190,6 @@ class JsonHttpTest {
 
   private HttpClient returning(CompletableFuture<HttpResponse<byte[]>> future) {
     // Mockito client has no transport resources to close.
-    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     when(client.sendAsync(
             any(HttpRequest.class),

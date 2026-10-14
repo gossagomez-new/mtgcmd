@@ -29,7 +29,6 @@ class DiagnosticsTest {
     var mapper = spy(new ObjectMapper());
     var socket = new GameSocket(mapper, rooms);
     // Mock session allocates no connection; closure interactions are asserted by lifecycle tests.
-    @SuppressWarnings("PMD.CloseResource")
     var session = mock(WebSocketSession.class);
     when(session.getId()).thenReturn("connection");
     when(session.getAttributes()).thenReturn(Map.of("guest", "guest", "room", "room", "seat", 0));

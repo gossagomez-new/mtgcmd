@@ -129,6 +129,21 @@ flows, and Markdown/link checks. Record actual results and blocked checks.
   after closing/restarting the application context.
 - Markdown formatting, local documentation references, and whitespace checks passed.
 
+### Obsolete mock-suppression follow-up
+
+Removed the four `PMD.CloseResource` annotations flagged as unnecessary in
+`JsonHttpOwnershipTest`, `JsonHttpTest`, and `DiagnosticsTest`, retaining their
+ownership comments and the other justified suppressions. This annotation-only
+cleanup changes no behavior and retains the confirmed comprehensive coverage
+target; no new tests or architecture decisions are needed.
+
+Verification on 2026-10-14: `spotless:apply spotless:check verify` passed all 554
+backend tests with no failures, errors, or skips and packaged the jar. Regenerated
+PMD reports zero active `UnnecessaryWarningSuppression` and `CloseResource`
+findings, with no analysis errors; active findings decreased from 3406 to 3402.
+`git diff --check` passed. Browser tests were not rerun for this annotation-only
+test-source change.
+
 ## Architecture decisions
 
 [ADR-0006](../docs/adr/0006-http-client-resource-ownership.md) records lifecycle ownership.
