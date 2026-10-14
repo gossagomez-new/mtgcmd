@@ -11,6 +11,7 @@ import java.util.concurrent.*;
 
 /** Fixed destinations are chosen by adapters; no redirects or unbounded responses. */
 public final class JsonHttp {
+  private final Object requestLock = new Object();
   private final Duration timeout;
   private final int maxBytes;
   private final int spacingMillis;
@@ -51,40 +52,71 @@ public final class JsonHttp {
             .POST(HttpRequest.BodyPublishers.ofString(body)));
   }
 
-  private synchronized String send(HttpRequest.Builder builder) {
+  private String send(HttpRequest.Builder builder) {
+    synchronized (requestLock) {
+      return sendSerialized(builder);
+    }
+  }
+
+  /** Execute the full lifecycle while send holds the private request lock. */
+  private String sendSerialized(HttpRequest.Builder builder) {
     CompletableFuture<HttpResponse<byte[]>> future = null;
     try {
       Thread.sleep(spacingMillis);
-      future =
-          client.sendAsync(
-              builder
-                  .timeout(timeout)
-                  .header("User-Agent", "CommanderTable/0.1")
-                  .header("Accept", "application/json")
-                  .build(),
-              info -> new BoundedBody(maxBytes));
-      var response = future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-      if (response.statusCode() != 200)
-        throw new CardServiceUnavailableException(
-            "Card service returned " + response.statusCode(), null);
-      return new String(response.body(), StandardCharsets.UTF_8);
+      future = execute(builder);
+      return responseText(future.get(timeout.toMillis(), TimeUnit.MILLISECONDS));
     } catch (InterruptedException e) {
-      if (future != null) future.cancel(true);
+      cancel(future);
       Thread.currentThread().interrupt();
       throw new CardServiceInterruptedException("Card request interrupted", e);
     } catch (TimeoutException e) {
-      if (future != null) future.cancel(true);
+      cancel(future);
       throw new CardServiceTimeoutException("Card request timed out; try again later", e);
     } catch (ExecutionException e) {
-      if (e.getCause() instanceof CardServiceException cause) throw cause;
-      if (e.getCause() instanceof HttpTimeoutException)
-        throw new CardServiceTimeoutException("Card request timed out; try again later", e);
-      if (e.getCause() instanceof IOException)
-        throw new CardServiceUnavailableException(
-            "Card service unavailable; retry or use a cached deck", e);
-      if (e.getCause() instanceof RuntimeException cause) throw cause;
-      throw new IllegalStateException("Unexpected card request failure", e);
+      throw translateFailure(e);
     }
+  }
+
+  private CompletableFuture<HttpResponse<byte[]>> execute(HttpRequest.Builder builder) {
+    HttpRequest request =
+        builder
+            .timeout(timeout)
+            .header("User-Agent", "CommanderTable/0.1")
+            .header("Accept", "application/json")
+            .build();
+    return client.sendAsync(request, info -> new BoundedBody(maxBytes));
+  }
+
+  private static String responseText(HttpResponse<byte[]> response) {
+    if (response.statusCode() != 200) {
+      throw new CardServiceUnavailableException(
+          "Card service returned " + response.statusCode(), null);
+    }
+    return new String(response.body(), StandardCharsets.UTF_8);
+  }
+
+  private static void cancel(CompletableFuture<HttpResponse<byte[]>> future) {
+    if (future != null) {
+      future.cancel(true);
+    }
+  }
+
+  private static RuntimeException translateFailure(ExecutionException exception) {
+    Throwable cause = exception.getCause();
+    if (cause instanceof CardServiceException serviceFailure) {
+      return serviceFailure;
+    }
+    if (cause instanceof HttpTimeoutException) {
+      return new CardServiceTimeoutException("Card request timed out; try again later", exception);
+    }
+    if (cause instanceof IOException) {
+      return new CardServiceUnavailableException(
+          "Card service unavailable; retry or use a cached deck", exception);
+    }
+    if (cause instanceof RuntimeException unexpectedFailure) {
+      return unexpectedFailure;
+    }
+    return new IllegalStateException("Unexpected card request failure", exception);
   }
 
   private static final class BoundedBody implements HttpResponse.BodySubscriber<byte[]> {
