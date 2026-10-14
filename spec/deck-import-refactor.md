@@ -139,6 +139,11 @@ import and pasted-export fallback. Results:
   browser startup required execution outside the sandbox.
 - Working-tree whitespace: `git diff --check` passed.
 
+### Fixture readability follow-up
+
+Separate provider layout enumeration from JSON construction while retaining all eight nested/wrapped/array combinations, order, and existing aggregation/suggestion assertions. Production behavior and existing comprehensive test coverage remain unchanged.
+Focused verification: all 93 DeckImporterTest and 59 GameEngineCommandsTest cases passed. Full `spotless:apply spotless:check verify` passed all 554 backend tests, formatting, and packaging. Fresh PMD has no cognitive/cyclomatic/NPath or GodClass findings in DeckImporterTest, GameEngineCommandsTest, or GameCommandData. The first helper extraction introduced a GodClass advisory in the command test; moving preparation into the dedicated fixture removed it. All eight layout cases and 57 format/command cases remain. Browser tests were not rerun for this test-only cleanup.
+
 ## Architecture decisions
 
 No new ADR: internal responsibility extraction and approved input validation

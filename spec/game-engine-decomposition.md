@@ -138,6 +138,11 @@ explicitly instead of claiming success.
 - All five existing browser regression flows passed.
 - PMD reports no GodClass, CognitiveComplexity, CyclomaticComplexity, or NPathComplexity findings in the refactored production components. The command-test data fixture has a cyclomatic-complexity advisory; unrelated findings remain outside scope.
 
+### Fixture readability follow-up
+
+Move command fixture preparation into a dedicated GameCommandData fixture with player, card-state, battlefield, and object helpers while retaining every Commander/Standard command, setup mutation order, revision, and description assertion. Production behavior and existing comprehensive test coverage remain unchanged.
+Focused verification: all 93 DeckImporterTest and 59 GameEngineCommandsTest cases passed. Full `spotless:apply spotless:check verify` passed all 554 backend tests, formatting, and packaging. Fresh PMD has no cognitive/cyclomatic/NPath or GodClass findings in DeckImporterTest, GameEngineCommandsTest, or GameCommandData. The first helper extraction introduced a GodClass advisory in the command test; moving preparation into the dedicated fixture removed it. All eight layout cases and 57 format/command cases remain. Browser tests were not rerun for this test-only cleanup.
+
 ## Architecture decisions
 
 - [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): facade, access,

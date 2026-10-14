@@ -374,19 +374,23 @@ class DeckImporterTest {
   }
 
   static Stream<String> providerLayoutMatrix() {
-    String entry = "{\"quantity\":1,\"card\":{\"name\":\"Island\"}}";
     var layouts = new ArrayList<String>();
     for (boolean nested : List.of(false, true)) {
       for (boolean wrapped : List.of(false, true)) {
         for (boolean array : List.of(false, true)) {
-          String cards = array ? "[" + entry + "]" : "{\"a\":" + entry + "}";
-          String board = wrapped ? "{\"cards\":" + cards + "}" : cards;
-          String boards = "{\"commanders\":" + board + ",\"mainboard\":" + board + "}";
-          layouts.add(nested ? "{\"boards\":" + boards + "}" : boards);
+          layouts.add(providerLayout(nested, wrapped, array));
         }
       }
     }
     return layouts.stream();
+  }
+
+  private static String providerLayout(boolean nested, boolean wrapped, boolean array) {
+    String entry = "{\"quantity\":1,\"card\":{\"name\":\"Island\"}}";
+    String cards = array ? "[" + entry + "]" : "{\"a\":" + entry + "}";
+    String board = wrapped ? "{\"cards\":" + cards + "}" : cards;
+    String boards = "{\"commanders\":" + board + ",\"mainboard\":" + board + "}";
+    return nested ? "{\"boards\":" + boards + "}" : boards;
   }
 
   @ParameterizedTest
