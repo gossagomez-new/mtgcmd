@@ -1,7 +1,8 @@
 # Commander Table
 
-A private four-player Commander tabletop. React/TypeScript supplies the desktop
-table; Java 25 owns state, permissions, and saved games. Players use external
+A private tabletop for four-player Commander and two-player Standard.
+React/TypeScript supplies the desktop table; Java 25 owns state, permissions,
+and saved games. Players use external
 voice and adjudicate card text, priority, mana, damage, and rules themselves.
 
 ## Run locally
@@ -72,14 +73,36 @@ For troubleshooting, the underlying commands are
 Only the packaged app is exposed through the proxy; the Vite development server
 stays local. Back up PostgreSQL before upgrading saved-game formats.
 
+## Table formats
+
+Choose the format when creating a table. Commander remains the default for old
+requests and saved rooms; a table's format cannot change after creation.
+
+| Format | Players | Starting life | Deck | Commanders |
+| --- | --- | --- | --- | --- |
+| Commander | 4 | 40 | 1–250 imported cards; 100-card size is a warning | One or two required |
+| Standard | 2 | 20 | 60–250 main-deck cards required | None |
+
+Standard supports single games. Sideboards are excluded from imports; there is
+no match progression or automated mulligan/draw-step/win enforcement. The host
+chooses who starts, defaulting to the host. Both players draw seven opening cards.
+
+Standard legality and nonbasic four-copy limits are advisory warnings that must
+be accepted before readiness. Basic lands and recognized any-number exceptions
+are exempt; review other card-specific exceptions yourself. Standard previews
+refresh missing or at-least-24-hour-old legality. If a provider is unavailable,
+cached definitions remain usable with verification warnings; unknown uncached
+cards still require resolution. Legality observations are not tournament certification.
+
 ## Playing
 
 - Import a public Moxfield URL or paste a text export using quantity/name lines.
   `Commander`, `Deck`, and `Sideboard` section headers are supported; sideboard
   and considering/maybeboard cards are excluded. Printing annotations from
   common text exports are stripped.
-- Preview the import, choose one or two commanders, load the deck, review
-  warnings, and ready up. The host starts when all four seats are ready.
+- Preview the import, choose one or two commanders for Commander tables, load
+  the deck, review warnings, and ready up. Standard has no commander selection.
+  The host starts when every required seat is ready.
 - Click a card to inspect it and access actions. Drag playable cards onto your
   battlefield or use their action menu. Permanents group automatically by primary
   type, with lands below other permanents; cards retain their order within each
@@ -92,9 +115,9 @@ stays local. Back up PostgreSQL before upgrading saved-game formats.
   button. The server does not interpret their effects.
 - Card menus support face-down play/exile, transformation, targeted reveals,
   token copies/edits, attachments, control changes, and combat markers.
-- Player tools track named counters, commander casts/tax, damage received per
-  commander, poison, dice, and private-zone grants. A grant allows another player
-  to inspect and manipulate your hand and search your library. Revoke it when
+- Player tools track named counters, poison, dice, and private-zone grants;
+  Commander tables also track commander casts/tax and commander damage. A grant
+  allows another player to inspect and manipulate your hand and search your library. Revoke it when
   the effect ends.
 - Corrections are explicit logged actions. There is no automatic undo. A
   disconnect reserves the seat; reconnecting loads committed state. The host
@@ -102,8 +125,8 @@ stays local. Back up PostgreSQL before upgrading saved-game formats.
 
 ## Imports and offline behavior
 
-Scryfall card definitions are fetched in bounded batches and cached in
-PostgreSQL. Loaded games continue without an external catalog connection;
+Scryfall card definitions and format legality observations are fetched in bounded
+batches and cached in PostgreSQL. Loaded games continue without an external catalog connection;
 images remain externally hosted and may be unavailable offline. Unknown names
 require correction. Deck legality checks are warnings, not a complete rules
 validator; commander pairing and eligibility require player review.
@@ -181,4 +204,6 @@ Gisa and Geralf, Sol Ring, and Islands. It never writes to an operator's databas
 - [Build automation specification](spec/build-automation.md)
 - [State ownership and recovery ADR](docs/adr/0001-authoritative-game-state.md)
 - [API and command reference](docs/API.md)
+- [Standard tables specification](spec/standard-tables.md)
+- [Room format profiles decision](docs/adr/0002-room-format-profiles.md)
 - [Repository rules and canonical commands](AGENTS.md)

@@ -407,6 +407,9 @@ small {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
+.duel-opponents {
+  grid-template-columns: minmax(0, 1fr);
+}
 .opponent {
   padding: 14px;
   min-height: 190px;

@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- Status: In progress
+- Status: Completed
 - Priority: High
 - Priority rationale: Support a second format without compromising Commander compatibility or privacy.
 - Depends on: [Commander tabletop](commander-tabletop.md)
@@ -121,7 +121,7 @@ servers are not safe rollback readers of new format snapshots.
 - [x] Both players start at 20 life with seven cards and alternate turns.
 - [x] Stale/unavailable legality produces actionable advisory warnings.
 - [x] Saved Standard games recover while old rooms remain Commander.
-- [ ] Standard UI removes Commander-only controls and retains privacy/card actions.
+- [x] Standard UI removes Commander-only controls and retains privacy/card actions.
 - [x] Full Commander regression checks pass.
 
 ## Verification

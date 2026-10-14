@@ -1,3 +1,5 @@
+export type GameFormat = "COMMANDER" | "STANDARD";
+
 export interface CardDefinition {
   id: string;
   name: string;
@@ -6,6 +8,8 @@ export interface CardDefinition {
   type: string;
   colors: string[];
   legal: boolean;
+  legalities?: Record<string, string>;
+  legalityCheckedAt?: number | null;
   faces: { name: string; image: string; text: string; type: string }[];
 }
 export interface Card {
@@ -42,6 +46,8 @@ export interface Player {
   commanders: { key: string; name: string; casts: number }[];
 }
 export interface Snapshot {
+  format: GameFormat;
+  seatCapacity: number;
   id: string;
   revision: number;
   status: string;

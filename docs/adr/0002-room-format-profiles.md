@@ -79,7 +79,7 @@ No deployment or publishing is authorized by this record.
 
 ## Follow-up actions
 
-- [ ] Complete the frontend UI after implementing profiles, compatibility defaults, and validation.
+- [x] Implement profiles, compatibility defaults, format-aware validation and UI.
 - [x] Verify both formats and legacy cache/snapshot recovery.
 
 ## References

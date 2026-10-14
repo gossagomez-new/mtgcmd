@@ -566,3 +566,187 @@ test("battlefields group types automatically and place lands below other permane
     await Promise.all(contexts.map((context) => context.close()));
   }
 });
+
+test("two Standard players import without commanders, accept warnings, play and reconnect", async ({
+  browser,
+  request,
+}) => {
+  const contexts = await Promise.all(
+    Array.from({ length: 3 }, () => browser.newContext()),
+  );
+  const pages = await Promise.all(contexts.map((context) => context.newPage()));
+  try {
+    const host = pages[0];
+    let connections = 0;
+    host.on("websocket", () => connections++);
+    await host.goto("/");
+    await host.getByLabel("Your name").fill("Standard host");
+    await host.getByLabel("Table format").selectOption("STANDARD");
+    await host
+      .getByRole("button", { name: "Create table", exact: true })
+      .click();
+    await expect(host).toHaveURL(/\/room\//);
+    const roomUrl = host.url();
+    await expect(
+      host.getByText("1 / 2 seats filled", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      host.getByRole("button", { name: "Start game", exact: true }),
+    ).toBeDisabled();
+    await pages[1].goto(roomUrl);
+    await expect(pages[1].getByLabel("Table format")).toHaveCount(0);
+    await pages[1].getByLabel("Your name").fill("Standard opponent");
+    await pages[1]
+      .getByRole("button", { name: "Join table", exact: true })
+      .click();
+    await expect(
+      host.getByText("2 / 2 seats filled", { exact: true }),
+    ).toBeVisible();
+    await pages[2].goto(roomUrl);
+    await pages[2].getByLabel("Your name").fill("Third player");
+    await pages[2]
+      .getByRole("button", { name: "Join table", exact: true })
+      .click();
+    await expect(pages[2].getByRole("alert")).toContainText("Room is full");
+    await host.getByLabel("Decklist").fill("59 Secret A");
+    await host
+      .getByRole("button", { name: "Preview deck", exact: true })
+      .click();
+    await expect(host.getByLabel("Commander", { exact: true })).toHaveCount(0);
+    await host
+      .getByRole("button", { name: "Use this deck", exact: true })
+      .click();
+    await expect(host.getByRole("alert")).toContainText("60–250");
+    await host
+      .getByLabel("Decklist")
+      .fill("55 Secret A\n5 Demo Forbidden\nSideboard\n1 Demo Commander");
+    await host
+      .getByRole("button", { name: "Preview deck", exact: true })
+      .click();
+    await expect(
+      host.getByText("60 cards found", { exact: true }),
+    ).toBeVisible();
+    await host
+      .getByRole("button", { name: "Use this deck", exact: true })
+      .click();
+    await expect(
+      host.getByText("Demo Forbidden is not listed as Standard legal."),
+    ).toBeVisible();
+    await expect(
+      host.getByText(/Demo Forbidden exceeds four copies/),
+    ).toBeVisible();
+    await expect(
+      host.getByRole("button", { name: "Ready to play", exact: true }),
+    ).toBeDisabled();
+    await host.getByLabel("Accept deck warnings").check();
+    await host
+      .getByRole("button", { name: "Ready to play", exact: true })
+      .click();
+    await expect(
+      host.getByText("You are ready", { exact: true }),
+    ).toBeVisible();
+    const opponent = pages[1];
+    await opponent.getByLabel("Decklist").fill("60 Secret B");
+    await opponent
+      .getByRole("button", { name: "Preview deck", exact: true })
+      .click();
+    await opponent
+      .getByRole("button", { name: "Use this deck", exact: true })
+      .click();
+    await expect(opponent.getByLabel("Accept deck warnings")).toHaveCount(0);
+    await opponent
+      .getByRole("button", { name: "Ready to play", exact: true })
+      .click();
+    await expect(
+      opponent.getByText("You are ready", { exact: true }),
+    ).toBeVisible();
+    await host.getByLabel("Starting player").selectOption("1");
+    await host.getByRole("button", { name: "Start game", exact: true }).click();
+    const apiUrl = new URL(
+      `/api/rooms/${new URL(roomUrl).pathname.split("/").pop()}`,
+      roomUrl,
+    ).toString();
+    for (const page of [host, opponent]) {
+      await expect(page.getByTestId("your-life")).toHaveText("20");
+      await expect(page.locator(".opponent")).toHaveCount(1);
+      await expect(
+        page.getByTestId("hand").getByRole("button", { name: /^Inspect / }),
+      ).toHaveCount(7);
+      await expect(
+        page.getByText("Commander damage received", { exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByText("Your commander casts", { exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page
+          .locator(".zone-shortcuts")
+          .getByRole("button", { name: /^command / }),
+      ).toHaveCount(0);
+      const snapshot = (await (
+        await page.request.get(apiUrl)
+      ).json()) as Snapshot;
+      expect(snapshot.active).toBe(1);
+      expect(
+        snapshot.cards.filter(
+          (card) =>
+            card.owner !== snapshot.you &&
+            ["hand", "library"].includes(card.zone),
+        ),
+      ).toHaveLength(0);
+    }
+    await host
+      .getByRole("button", { name: "Lose 1 life", exact: true })
+      .click();
+    await expect(host.getByTestId("your-life")).toHaveText("19");
+    await opponent
+      .getByRole("button", { name: "Draw a card", exact: true })
+      .click();
+    await expect(
+      opponent
+        .getByTestId("hand")
+        .getByRole("button", { name: "Inspect Secret B" }),
+    ).toHaveCount(8);
+    await opponent
+      .getByTestId("hand")
+      .getByRole("button", { name: "Inspect Secret B" })
+      .first()
+      .click();
+    await opponent
+      .getByRole("button", { name: "Play to battlefield", exact: true })
+      .click();
+    await expect(
+      host
+        .getByTestId("opponent-1")
+        .getByRole("group", { name: "Lands", exact: true })
+        .getByRole("button", { name: "Inspect Secret B" }),
+    ).toHaveCount(1);
+    await host.reload();
+    await expect(host.getByTestId("your-life")).toHaveText("19");
+    const previousConnections = connections;
+    await request.post("/__test/restart");
+    await expect
+      .poll(() => connections, { timeout: 30000 })
+      .toBeGreaterThan(previousConnections);
+    await expect(host.getByText("Connected", { exact: true })).toBeVisible({
+      timeout: 30000,
+    });
+    await expect
+      .poll(async () => {
+        try {
+          return (await (await host.request.get(apiUrl)).json()).format;
+        } catch {
+          return null;
+        }
+      })
+      .toBe("STANDARD");
+    await host
+      .getByRole("button", { name: "Draw a card", exact: true })
+      .click();
+    await expect(
+      host.getByTestId("hand").getByRole("button", { name: /^Inspect / }),
+    ).toHaveCount(8);
+  } finally {
+    await Promise.all(contexts.map((context) => context.close()));
+  }
+});

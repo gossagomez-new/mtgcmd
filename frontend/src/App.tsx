@@ -3,6 +3,7 @@ import {
   acceptSnapshot,
   type Card,
   type CardDefinition,
+  type GameFormat,
   type Player,
   type Snapshot,
 } from "./protocol";
@@ -32,7 +33,11 @@ export default function App() {
   const [csrf, setCsrf] = useState("");
   const [room, setRoom] = useState(currentRoom);
   const [view, setView] = useState<Snapshot | null>(null);
-  const [saved, setSaved] = useState<{ id: string; status: string }[]>([]);
+  const [saved, setSaved] = useState<
+    { id: string; status: string; format: GameFormat }[]
+  >([]);
+  const [tableFormat, setTableFormat] = useState<GameFormat>("COMMANDER");
+  const [firstPlayer, setFirstPlayer] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState(localStorage.getItem("table-name") || "");
@@ -108,11 +113,12 @@ export default function App() {
     try {
       const next = await api<Snapshot>(
         room ? `/rooms/${room}/join` : "/rooms",
-        { name },
+        room ? { name } : { name, format: tableFormat },
       );
       localStorage.setItem("table-name", name);
       history.pushState({}, "", `/room/${next.id}`);
       receive(next);
+      setFirstPlayer(next.host);
       setRoom(next.id);
     } catch (e) {
       fail(errorMessage(e));
@@ -130,6 +136,7 @@ export default function App() {
   const disabled =
     !socket.connected || socket.pending || busy || view?.status === "finished";
   const me = view?.players[view.you];
+  const usesCommanders = view?.format !== "STANDARD";
   const canPlay = !disabled && !me?.conceded;
   const inspect = (card: Card) => setSelectedId(card.id);
   const openZone = (seat: number, zone: string) => {
@@ -204,7 +211,7 @@ export default function App() {
           <div className="welcome-copy">
             <p className="eyebrow">YOUR NEXT GAME NIGHT</p>
             <h1>
-              Four friends.
+              Your next game.
               <br />
               One shared table.
             </h1>
@@ -213,7 +220,7 @@ export default function App() {
               chaos.
             </p>
             <div className="welcome-details">
-              <span>01 / Bring a Commander deck</span>
+              <span>01 / Bring a Commander or Standard deck</span>
               <span>02 / Share the table link</span>
               <span>03 / Play together on voice</span>
             </div>
@@ -224,7 +231,7 @@ export default function App() {
             <p>
               {room
                 ? "Your friends saved you a place."
-                : "A private tabletop for your four-player pod."}
+                : "Choose a four-player Commander pod or a two-player Standard duel."}
             </p>
             <form onSubmit={enter}>
               <label>
@@ -237,6 +244,24 @@ export default function App() {
                   placeholder="Planeswalker name"
                 />
               </label>
+              {!room && (
+                <label>
+                  Table format
+                  <select
+                    value={tableFormat}
+                    onChange={(event) =>
+                      setTableFormat(event.target.value as GameFormat)
+                    }
+                  >
+                    <option value="COMMANDER">
+                      Commander · 4 players · 40 life
+                    </option>
+                    <option value="STANDARD">
+                      Standard · 2 players · 20 life
+                    </option>
+                  </select>
+                </label>
+              )}
               <button className="primary wide" disabled={!csrf || busy}>
                 {busy ? "Connecting…" : room ? "Join table" : "Create table"}
               </button>
@@ -246,7 +271,11 @@ export default function App() {
                 <h3>Your saved tables</h3>
                 {saved.map((s) => (
                   <a key={s.id} href={`/room/${s.id}`}>
-                    {s.id.slice(0, 8)} <span>{s.status} ↗</span>
+                    {s.id.slice(0, 8)}{" "}
+                    <span>
+                      {s.format === "STANDARD" ? "Standard" : "Commander"} ·{" "}
+                      {s.status} ↗
+                    </span>
                   </a>
                 ))}
               </div>
@@ -261,14 +290,20 @@ export default function App() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">BEFORE THE FIRST DRAW</p>
-              <h1>Gather your pod.</h1>
+              <h1>
+                {usesCommanders
+                  ? "Gather your pod."
+                  : "Prepare your Standard duel."}
+              </h1>
             </div>
-            <span>{view.players.length} / 4 seats filled</span>
+            <span>
+              {view.players.length} / {view.seatCapacity} seats filled
+            </span>
           </div>
           <div className="lobby-layout">
             <section className="panel pod">
               <h2>The table</h2>
-              {Array.from({ length: 4 }, (_, i) => {
+              {Array.from({ length: view.seatCapacity }, (_, i) => {
                 const p = view.players[i];
                 return (
                   <div className="seat-row" key={i}>
@@ -298,21 +333,44 @@ export default function App() {
                 bookkeeping; you handle the rules.
               </p>
               {view.you === view.host && (
-                <button
-                  className="primary wide"
-                  disabled={
-                    disabled ||
-                    view.players.length !== 4 ||
-                    !view.players.every((p) => p.ready)
-                  }
-                  onClick={() => act("START")}
-                >
-                  Start game
-                </button>
+                <>
+                  {!usesCommanders && (
+                    <label>
+                      Starting player
+                      <select
+                        value={firstPlayer}
+                        disabled={disabled}
+                        onChange={(event) =>
+                          setFirstPlayer(Number(event.target.value))
+                        }
+                      >
+                        {view.players.map((player) => (
+                          <option key={player.seat} value={player.seat}>
+                            {player.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <button
+                    className="primary wide"
+                    disabled={
+                      disabled ||
+                      view.players.length !== view.seatCapacity ||
+                      !view.players.every((player) => player.ready)
+                    }
+                    onClick={() =>
+                      act("START", usesCommanders ? {} : { firstPlayer })
+                    }
+                  >
+                    Start game
+                  </button>
+                </>
               )}
             </section>
             <section className="panel deck-panel">
               <DeckImport
+                format={view.format}
                 disabled={disabled}
                 preview={(text, url) =>
                   api<Draft>(`/rooms/${room}/decks/preview`, { text, url })
@@ -335,7 +393,9 @@ export default function App() {
         <main className="game-layout">
           <div className="table-area">
             <div className="board-scroll">
-              <div className="opponents">
+              <div
+                className={`opponents ${usesCommanders ? "" : "duel-opponents"}`}
+              >
                 {view.players
                   .filter((p) => p.seat !== view.you)
                   .map((p) => (
@@ -494,7 +554,12 @@ export default function App() {
                   </div>
                 </div>
                 <div className="zone-shortcuts">
-                  {["library", "graveyard", "exile", "command"].map((zone) => (
+                  {[
+                    "library",
+                    "graveyard",
+                    "exile",
+                    ...(usesCommanders ? ["command"] : []),
+                  ].map((zone) => (
                     <button
                       key={zone}
                       disabled={zone === "library" && !canPlay}
@@ -565,6 +630,7 @@ export default function App() {
               <p className="eyebrow">TABLE TOOLS</p>
               {me && (
                 <PlayerCounters
+                  usesCommanders={usesCommanders}
                   player={me}
                   players={view.players}
                   act={act}
@@ -763,11 +829,13 @@ function ZoneViewer({
 }
 
 function DeckImport({
+  format,
   disabled,
   preview,
   load,
   fail,
 }: {
+  format: GameFormat;
   disabled: boolean;
   preview: (text: string, url: string) => Promise<Draft>;
   load: (draft: Draft, commanders: string[]) => Promise<void>;
@@ -778,13 +846,22 @@ function DeckImport({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [commanders, setCommanders] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
+  const usesCommanders = format !== "STANDARD";
   return (
     <>
       <p className="eyebrow">YOUR DECK</p>
-      <h2>Bring your commander.</h2>
+      <h2>
+        {usesCommanders ? "Bring your commander." : "Bring your Standard deck."}
+      </h2>
       <p className="hint">
         Paste a deck export or import a public Moxfield link.
       </p>
+      {!usesCommanders && (
+        <p className="hint">
+          60–250 main-deck cards. No commanders; sideboards are excluded.
+          Legality and copy-limit warnings require your review.
+        </p>
+      )}
       <label>
         Moxfield URL
         <input
@@ -806,7 +883,11 @@ function DeckImport({
             setText(e.target.value);
             setDraft(null);
           }}
-          placeholder={"Commander\n1 Gisa and Geralf\n\nDeck\n1 Sol Ring\n…"}
+          placeholder={
+            usesCommanders
+              ? "Commander\n1 Gisa and Geralf\n\nDeck\n1 Sol Ring\n…"
+              : "Deck\n24 Island\n4 Card name\n…"
+          }
         />
       </label>
       <button
@@ -816,7 +897,7 @@ function DeckImport({
           try {
             const result = await preview(text, url);
             setDraft(result);
-            setCommanders(result.suggested);
+            setCommanders(usesCommanders ? result.suggested : []);
           } catch (e) {
             if (url && errorMessage(e).toLowerCase().includes("paste"))
               setUrl("");
@@ -831,49 +912,56 @@ function DeckImport({
       {draft && (
         <div className="deck-preview">
           <h3>{draft.count} cards found</h3>
-          <label>
-            Commander
-            <select
-              value={commanders[0] || ""}
-              onChange={(e) =>
-                setCommanders([
-                  e.target.value,
-                  ...(commanders[1] ? [commanders[1]] : []),
-                ])
-              }
-            >
-              <option value="">Choose commander</option>
-              {draft.choices.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Second commander (optional)
-            <select
-              value={commanders[1] || ""}
-              onChange={(e) =>
-                setCommanders(
-                  [commanders[0] || "", e.target.value].filter(Boolean),
-                )
-              }
-            >
-              <option value="">None</option>
-              {draft.choices
-                .filter((c) => c.id !== commanders[0])
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+          {usesCommanders && (
+            <>
+              <label>
+                Commander
+                <select
+                  value={commanders[0] || ""}
+                  onChange={(e) =>
+                    setCommanders([
+                      e.target.value,
+                      ...(commanders[1] ? [commanders[1]] : []),
+                    ])
+                  }
+                >
+                  <option value="">Choose commander</option>
+                  {draft.choices.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Second commander (optional)
+                <select
+                  value={commanders[1] || ""}
+                  onChange={(e) =>
+                    setCommanders(
+                      [commanders[0] || "", e.target.value].filter(Boolean),
+                    )
+                  }
+                >
+                  <option value="">None</option>
+                  {draft.choices
+                    .filter((c) => c.id !== commanders[0])
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </>
+          )}
           <button
             className="primary"
-            disabled={disabled || !commanders.length || !commanders[0]}
-            onClick={() => void load(draft, commanders)}
+            disabled={
+              disabled ||
+              (usesCommanders && (!commanders.length || !commanders[0]))
+            }
+            onClick={() => void load(draft, usesCommanders ? commanders : [])}
           >
             Use this deck
           </button>
@@ -984,7 +1072,11 @@ function PlayerArea({
         >
           Library {player.counts.library || 0}
         </button>
-        {["graveyard", "exile", "command"].map((z) => (
+        {[
+          "graveyard",
+          "exile",
+          ...(view.format === "STANDARD" ? [] : ["command"]),
+        ].map((z) => (
           <button key={z} onClick={() => openZone(player.seat, z)}>
             {z} {player.counts[z] || 0}
           </button>
@@ -1169,11 +1261,13 @@ function PermanentGroup({
 }
 
 function PlayerCounters({
+  usesCommanders,
   player,
   players,
   act,
   disabled,
 }: {
+  usesCommanders: boolean;
   player: Player;
   players: Player[];
   act: Action;
@@ -1216,36 +1310,44 @@ function PlayerCounters({
         />
         <button disabled={disabled || !name.trim()}>+</button>
       </form>
-      <details>
-        <summary>Commander damage received</summary>
-        {players
-          .flatMap((p) => p.commanders)
-          .map((c) => (
-            <CounterRow
-              key={c.key}
-              label={c.name}
-              value={player.counters[`damage:${c.key}`] || 0}
-              disabled={disabled}
-              change={(delta) =>
-                act("COUNTER", { name: `damage:${c.key}`, delta })
-              }
-            />
-          ))}
-      </details>
-      <details>
-        <summary>Your commander casts</summary>
-        {player.commanders.map((c) => (
-          <div key={c.key}>
-            <CounterRow
-              label={c.name}
-              value={c.casts}
-              disabled={disabled}
-              change={(delta) => act("COMMANDER_CAST", { key: c.key, delta })}
-            />
-            <small>Additional commander tax: {Math.max(0, c.casts) * 2}</small>
-          </div>
-        ))}
-      </details>
+      {usesCommanders && (
+        <>
+          <details>
+            <summary>Commander damage received</summary>
+            {players
+              .flatMap((p) => p.commanders)
+              .map((c) => (
+                <CounterRow
+                  key={c.key}
+                  label={c.name}
+                  value={player.counters[`damage:${c.key}`] || 0}
+                  disabled={disabled}
+                  change={(delta) =>
+                    act("COUNTER", { name: `damage:${c.key}`, delta })
+                  }
+                />
+              ))}
+          </details>
+          <details>
+            <summary>Your commander casts</summary>
+            {player.commanders.map((c) => (
+              <div key={c.key}>
+                <CounterRow
+                  label={c.name}
+                  value={c.casts}
+                  disabled={disabled}
+                  change={(delta) =>
+                    act("COMMANDER_CAST", { key: c.key, delta })
+                  }
+                />
+                <small>
+                  Additional commander tax: {Math.max(0, c.casts) * 2}
+                </small>
+              </div>
+            ))}
+          </details>
+        </>
+      )}
     </>
   );
 }

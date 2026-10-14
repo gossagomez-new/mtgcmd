@@ -10,7 +10,7 @@ Each specification's `Depends on` metadata is authoritative.
 | [Multi-face catalog lookup](catalog-multiface-lookup.md) | Completed | High | Resolve full multi-face card names through Scryfall identifiers | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing authoritative state boundary |
 | [Card and library UX](tabletop-card-and-library-ux.md) | Completed | Medium | Standard tap orientation and private library name filtering | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing privacy boundary |
 | [Battlefield grouping](battlefield-grouping.md) | Completed | Medium | Automatic permanent type groups with lands below | [Commander tabletop](commander-tabletop.md) | [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing state and privacy boundary |
-| [Standard tables](standard-tables.md) | In progress | High | Two-player Standard with format-aware validation | [Commander tabletop](commander-tabletop.md) | [ADR-0002](../docs/adr/0002-room-format-profiles.md): immutable format profiles and legacy defaults; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): authority and privacy |
+| [Standard tables](standard-tables.md) | Completed | High | Two-player Standard with format-aware validation | [Commander tabletop](commander-tabletop.md) | [ADR-0002](../docs/adr/0002-room-format-profiles.md): immutable format profiles and legacy defaults; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): authority and privacy |
 
 ## Dependency graph
 
