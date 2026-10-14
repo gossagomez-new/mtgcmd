@@ -10,35 +10,72 @@ import java.util.List;
 import java.util.concurrent.*;
 
 /** Fixed destinations are chosen by adapters; no redirects or unbounded responses. */
-public final class JsonHttp {
+public final class JsonHttp implements AutoCloseable {
   private final Object requestLock = new Object();
   private final Duration timeout;
   private final int maxBytes;
   private final int spacingMillis;
   private final HttpClient client;
+  private final boolean ownsClient;
+  private boolean closed;
 
   public JsonHttp() {
     this(Duration.ofSeconds(15), 5_000_000, 110);
   }
 
+  /** Create an adapter owning its internally allocated HTTP client. */
   public JsonHttp(Duration timeout, int maxBytes, int spacingMillis) {
     this(
         timeout,
         maxBytes,
         spacingMillis,
-        HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(8))
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build());
+        createOwnedClient(timeout, maxBytes, spacingMillis),
+        true);
   }
 
   JsonHttp(Duration timeout, int maxBytes, int spacingMillis, HttpClient client) {
-    if (timeout.isNegative() || timeout.isZero() || maxBytes < 1 || spacingMillis < 0)
-      throw new IllegalArgumentException("Invalid HTTP limits");
+    this(timeout, maxBytes, spacingMillis, client, false);
+  }
+
+  private JsonHttp(
+      Duration timeout, int maxBytes, int spacingMillis, HttpClient client, boolean ownsClient) {
+    validateLimits(timeout, maxBytes, spacingMillis);
     this.timeout = timeout;
     this.maxBytes = maxBytes;
     this.spacingMillis = spacingMillis;
-    this.client = client;
+    this.client = java.util.Objects.requireNonNull(client, "client");
+    this.ownsClient = ownsClient;
+  }
+
+  private static void validateLimits(Duration timeout, int maxBytes, int spacingMillis) {
+    if (timeout.isNegative() || timeout.isZero() || maxBytes < 1 || spacingMillis < 0) {
+      throw new IllegalArgumentException("Invalid HTTP limits");
+    }
+  }
+
+  private static HttpClient createOwnedClient(Duration timeout, int maxBytes, int spacingMillis) {
+    validateLimits(timeout, maxBytes, spacingMillis);
+    return HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(8))
+        .followRedirects(HttpClient.Redirect.NEVER)
+        .build();
+  }
+
+  /** Borrow a caller-owned client; closing this adapter leaves that client reusable. */
+  public JsonHttp(HttpClient client) {
+    this(Duration.ofSeconds(15), 5_000_000, 110, client);
+  }
+
+  /** Close an owned client once, after admitted work finishes; borrowed clients are untouched. */
+  @Override
+  public void close() {
+    if (!ownsClient) return;
+    synchronized (requestLock) {
+      if (!closed) {
+        closed = true;
+        client.close();
+      }
+    }
   }
 
   public String get(URI uri) {
@@ -54,6 +91,7 @@ public final class JsonHttp {
 
   private String send(HttpRequest.Builder builder) {
     synchronized (requestLock) {
+      if (closed) throw new IllegalStateException("HTTP adapter is closed");
       return sendSerialized(builder);
     }
   }

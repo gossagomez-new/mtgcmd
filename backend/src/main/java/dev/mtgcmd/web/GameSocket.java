@@ -33,6 +33,8 @@ public final class GameSocket extends TextWebSocketHandler {
   }
 
   protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+    // Borrowed registry connection: close callbacks and transport failures own termination.
+    @SuppressWarnings("PMD.CloseResource")
     WebSocketSession target = sessions.get(session.getId());
     if (target == null) return;
     try {
@@ -78,6 +80,8 @@ public final class GameSocket extends TextWebSocketHandler {
     }
   }
 
+  // Registry entries borrow live framework connections; broadcasting must not terminate them.
+  @SuppressWarnings("PMD.CloseResource")
   public void broadcast(String room) {
     for (WebSocketSession s : sessions.values()) if (room.equals(room(s))) sendView(s);
   }

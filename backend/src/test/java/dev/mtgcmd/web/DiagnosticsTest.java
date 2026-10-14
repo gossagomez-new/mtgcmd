@@ -28,6 +28,8 @@ class DiagnosticsTest {
     var rooms = mock(RoomStore.class);
     var mapper = spy(new ObjectMapper());
     var socket = new GameSocket(mapper, rooms);
+    // Mock session allocates no connection; closure interactions are asserted by lifecycle tests.
+    @SuppressWarnings("PMD.CloseResource")
     var session = mock(WebSocketSession.class);
     when(session.getId()).thenReturn("connection");
     when(session.getAttributes()).thenReturn(Map.of("guest", "guest", "room", "room", "seat", 0));
@@ -221,6 +223,8 @@ class DiagnosticsTest {
     var rooms = mock(RoomStore.class);
     var mapper = new ObjectMapper();
     var socket = new GameSocket(mapper, rooms);
+    // Mock session allocates no connection; closure interactions are asserted by lifecycle tests.
+    @SuppressWarnings("PMD.CloseResource")
     var session = mock(WebSocketSession.class);
     when(session.getId()).thenReturn("connection");
     when(session.getAttributes()).thenReturn(Map.of("guest", "guest", "room", "room", "seat", 0));
@@ -245,5 +249,18 @@ class DiagnosticsTest {
                           && text.getPayload()
                               .contains("Action failed. Refresh before retrying.")));
     }
+  }
+
+  @Test
+  void normalSocketClosureRemovesRegistryEntryWithoutPrematureClosure() throws Exception {
+    var fixture = socketFixture();
+    verify(fixture.session(), never()).close(any(CloseStatus.class));
+    fixture.socket().broadcast("room");
+    verify(fixture.session()).sendMessage(any());
+    clearInvocations(fixture.session());
+    fixture.socket().afterConnectionClosed(fixture.session(), CloseStatus.NORMAL);
+    fixture.socket().broadcast("room");
+    verify(fixture.session(), never()).sendMessage(any());
+    verify(fixture.rooms(), times(2)).view("guest", "room");
   }
 }

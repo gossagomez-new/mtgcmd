@@ -19,6 +19,7 @@ Each specification's `Depends on` metadata is authoritative.
 | [PMD report analysis](pmd-report-analysis.md)                     | Completed | Medium   | Deterministic PMD summaries and contextual review                           | [Advisory Java static analysis](java-static-analysis.md)                                                                                         | [ADR-0003](../docs/adr/0003-advisory-java-static-analysis.md): advisory reporting                                                                                                                                                                                 |
 | [Commander deck rules refactor](commander-deck-rules-refactor.md) | Completed | Medium   | Preserve Commander validation while separating observations                 | [Standard tables](standard-tables.md)                                                                                                            | [ADR-0002](../docs/adr/0002-room-format-profiles.md): existing format rules                                                                                                                                                                                       |
 | [JsonHttp request lifecycle](json-http-send-refactor.md)          | Completed | Medium   | Separate request lifecycle and failure translation                          | [Service failure diagnostics](service-failure-diagnostics.md)                                                                                    | [ADR-0004](../docs/adr/0004-catalog-component-boundaries.md): existing adapter ownership                                                                                                                                                                          |
+| [Resource ownership](resource-ownership.md)                       | Completed | Medium   | Explicit HTTP ownership and deterministic test cleanup                      | [JsonHttp request lifecycle](json-http-send-refactor.md)                                                                                         | [ADR-0006](../docs/adr/0006-http-client-resource-ownership.md): HTTP lifecycle ownership                                                                                                                                                                          |
 
 ## Dependency graph
 
@@ -48,6 +49,8 @@ flowchart TD
     diagnostics -->|depends on| standard
     transport["JsonHttp request lifecycle"]
     transport -->|depends on| diagnostics
+    resources["Resource ownership"]
+    resources -->|depends on| transport
     decomposition["Catalog decomposition"]
     decomposition -->|depends on| diagnostics
     engine["Game-engine decomposition"]

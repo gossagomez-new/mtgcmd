@@ -44,11 +44,6 @@ public class AppConfiguration {
   }
 
   @Bean
-  JsonHttp jsonHttp() {
-    return new JsonHttp();
-  }
-
-  @Bean
   DeckImporter importer(JdbcTemplate jdbc, ObjectMapper mapper, JsonHttp http) {
     return new DeckImporter(new CardCatalog(jdbc, mapper, http), http::get);
   }

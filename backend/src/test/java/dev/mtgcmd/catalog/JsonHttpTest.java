@@ -21,6 +21,8 @@ import org.junit.jupiter.params.provider.*;
 
 class JsonHttpTest {
   private JsonHttp withFuture(CompletableFuture<HttpResponse<byte[]>> future) {
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     when(client.sendAsync(
             any(HttpRequest.class),
@@ -40,6 +42,8 @@ class JsonHttpTest {
   @ParameterizedTest
   @MethodSource("asynchronousFailures")
   void asynchronousTransportFailuresKeepTheirOriginalCause(Throwable cause, Class<?> category) {
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = withFuture(CompletableFuture.failedFuture(cause));
     Throwable failure = catchThrowable(() -> http.get(URI.create("https://example.test")));
     assertThat(failure).isExactlyInstanceOf(category).hasCauseInstanceOf(ExecutionException.class);
@@ -54,6 +58,8 @@ class JsonHttpTest {
     Exception cause =
         interrupted ? new InterruptedException("cancelled") : new TimeoutException("deadline");
     when(future.get(anyLong(), eq(TimeUnit.MILLISECONDS))).thenThrow(cause);
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = withFuture(future);
     try {
       Throwable failure = catchThrowable(() -> http.get(URI.create("https://example.test")));
@@ -73,10 +79,14 @@ class JsonHttpTest {
   @Test
   void asynchronousTypedFailureIsNotWrappedAndProgrammingFailureIsNotMisclassified() {
     var serviceFailure = new InvalidCardServiceResponseException("too large", null);
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = withFuture(CompletableFuture.failedFuture(serviceFailure));
     assertThat(catchThrowable(() -> http.get(URI.create("https://example.test"))))
         .isSameAs(serviceFailure);
     var bug = new NullPointerException("subscriber bug");
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     JsonHttp failing = withFuture(CompletableFuture.failedFuture(bug));
     assertThat(catchThrowable(() -> failing.get(URI.create("https://example.test")))).isSameAs(bug);
   }
@@ -84,91 +94,104 @@ class JsonHttpTest {
   @Test
   void boundsWholeResponseAndRejectsRedirects() throws Exception {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    // finally stops the server, interrupts the pool, and verifies bounded termination.
+    @SuppressWarnings("PMD.CloseResource")
     var pool = Executors.newVirtualThreadPerTaskExecutor();
-    server.setExecutor(pool);
-    server.createContext(
-        "/large",
-        exchange -> {
-          byte[] bytes = new byte[256];
-          exchange.sendResponseHeaders(200, bytes.length);
-          exchange.getResponseBody().write(bytes);
-          exchange.close();
-        });
-    server.createContext(
-        "/redirect",
-        exchange -> {
-          exchange.getResponseHeaders().add("Location", "/large");
-          exchange.sendResponseHeaders(302, -1);
-          exchange.close();
-        });
-    server.start();
     try {
-      JsonHttp http = new JsonHttp(Duration.ofSeconds(1), 128, 0);
-      URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
-      Throwable large = catchThrowable(() -> http.get(base.resolve("/large")));
-      assertThat(large).hasMessageContaining("too large");
-      assertThat(large.getClass().getSimpleName()).isEqualTo("InvalidCardServiceResponseException");
-      Throwable redirect = catchThrowable(() -> http.get(base.resolve("/redirect")));
-      assertThat(redirect).hasMessageContaining("302");
-      assertThat(redirect.getClass().getSimpleName()).isEqualTo("CardServiceUnavailableException");
+      server.setExecutor(pool);
+      server.createContext(
+          "/large",
+          exchange -> {
+            byte[] bytes = new byte[256];
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+          });
+      server.createContext(
+          "/redirect",
+          exchange -> {
+            exchange.getResponseHeaders().add("Location", "/large");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+          });
+      server.start();
+      try (JsonHttp http = new JsonHttp(Duration.ofSeconds(1), 128, 0)) {
+        URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+        Throwable large = catchThrowable(() -> http.get(base.resolve("/large")));
+        assertThat(large).hasMessageContaining("too large");
+        assertThat(large.getClass().getSimpleName())
+            .isEqualTo("InvalidCardServiceResponseException");
+        Throwable redirect = catchThrowable(() -> http.get(base.resolve("/redirect")));
+        assertThat(redirect).hasMessageContaining("302");
+        assertThat(redirect.getClass().getSimpleName())
+            .isEqualTo("CardServiceUnavailableException");
+      }
     } finally {
       server.stop(0);
       pool.shutdownNow();
+      assertThat(pool.awaitTermination(2, TimeUnit.SECONDS)).isTrue();
     }
   }
 
   @Test
   void timeoutCoversSlowBodyAfterHeadersHaveArrived() throws Exception {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    // finally stops the server, interrupts the pool, and verifies bounded termination.
+    @SuppressWarnings("PMD.CloseResource")
     var pool = Executors.newVirtualThreadPerTaskExecutor();
-    server.setExecutor(pool);
-    server.createContext(
-        "/slow",
-        exchange -> {
-          exchange.sendResponseHeaders(200, 0);
-          exchange.getResponseBody().flush();
-          try {
-            Thread.sleep(700);
-            exchange.getResponseBody().write("{}".getBytes());
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-          } finally {
-            exchange.close();
-          }
-        });
-    server.start();
     try {
-      JsonHttp http = new JsonHttp(Duration.ofMillis(100), 128, 0);
-      Throwable failure =
-          catchThrowable(
-              () ->
-                  http.get(
-                      URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/slow")));
-      assertThat(failure).hasMessageContaining("timed out").hasCauseInstanceOf(Exception.class);
-      assertThat(failure.getClass().getSimpleName()).isEqualTo("CardServiceTimeoutException");
+      server.setExecutor(pool);
+      server.createContext(
+          "/slow",
+          exchange -> {
+            exchange.sendResponseHeaders(200, 0);
+            exchange.getResponseBody().flush();
+            try {
+              Thread.sleep(700);
+              exchange.getResponseBody().write("{}".getBytes());
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } finally {
+              exchange.close();
+            }
+          });
+      server.start();
+      try (JsonHttp http = new JsonHttp(Duration.ofMillis(100), 128, 0)) {
+        Throwable failure =
+            catchThrowable(
+                () ->
+                    http.get(
+                        URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/slow")));
+        assertThat(failure).hasMessageContaining("timed out").hasCauseInstanceOf(Exception.class);
+        assertThat(failure.getClass().getSimpleName()).isEqualTo("CardServiceTimeoutException");
+      }
     } finally {
       server.stop(0);
       pool.shutdownNow();
+      assertThat(pool.awaitTermination(2, TimeUnit.SECONDS)).isTrue();
     }
   }
 
   @Test
   void interruptionRetainsItsCauseAndRestoresInterruptStatus() {
-    JsonHttp http = new JsonHttp();
-    Thread.currentThread().interrupt();
-    try {
-      Throwable failure = catchThrowable(() -> http.get(URI.create("https://example.test")));
-      assertThat(failure)
-          .hasMessage("Card request interrupted")
-          .hasCauseInstanceOf(InterruptedException.class);
-      assertThat(failure.getClass().getSimpleName()).isEqualTo("CardServiceInterruptedException");
-      assertThat(Thread.currentThread().isInterrupted()).isTrue();
-    } finally {
-      Thread.interrupted();
+    try (JsonHttp http = new JsonHttp()) {
+      Thread.currentThread().interrupt();
+      try {
+        Throwable failure = catchThrowable(() -> http.get(URI.create("https://example.test")));
+        assertThat(failure)
+            .hasMessage("Card request interrupted")
+            .hasCauseInstanceOf(InterruptedException.class);
+        assertThat(failure.getClass().getSimpleName()).isEqualTo("CardServiceInterruptedException");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
     }
   }
 
   private HttpClient returning(CompletableFuture<HttpResponse<byte[]>> future) {
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     when(client.sendAsync(
             any(HttpRequest.class),
@@ -189,8 +212,12 @@ class JsonHttpTest {
   @ValueSource(booleans = {false, true})
   void requestConfigurationAndBodyRemainCompatible(boolean post) throws Exception {
     var future = spy(CompletableFuture.completedFuture(response(200, "é雪")));
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = returning(future);
     Duration timeout = Duration.ofSeconds(2);
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = new JsonHttp(timeout, 128, 0, client);
     URI uri = URI.create("https://example.test/cards");
     String actual = post ? http.post(uri, "{\"name\":\"é\"}") : http.get(uri);
@@ -285,7 +312,11 @@ class JsonHttpTest {
 
   @Test
   void interruptionDuringSpacingNeverStartsRequest() {
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = new JsonHttp(Duration.ofSeconds(1), 128, 10, client);
     Thread.currentThread().interrupt();
     try {
@@ -304,6 +335,8 @@ class JsonHttpTest {
   @ValueSource(ints = {0, 128, 129})
   void responseSubscriberEnforcesExactBoundary(int size) throws Exception {
     var future = CompletableFuture.completedFuture(response(200, ""));
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = returning(future);
     withFutureClient(client).get(URI.create("https://example.test"));
     @SuppressWarnings("unchecked")
@@ -334,6 +367,8 @@ class JsonHttpTest {
   void concurrentCallsRemainSerializedUntilTheFirstResponseCompletes() throws Exception {
     var firstResponse = new CompletableFuture<HttpResponse<byte[]>>();
     var secondResponse = CompletableFuture.completedFuture(response(200, "second"));
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     var firstStarted = new CountDownLatch(1);
     when(client.sendAsync(
@@ -345,6 +380,8 @@ class JsonHttpTest {
               return firstResponse;
             })
         .thenReturn(secondResponse);
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = new JsonHttp(Duration.ofSeconds(5), 128, 0, client);
     var first = new FutureTask<>(() -> http.get(URI.create("https://example.test/first")));
     var second = new FutureTask<>(() -> http.get(URI.create("https://example.test/second")));
@@ -377,6 +414,8 @@ class JsonHttpTest {
 
   @Test
   void synchronousFailurePropagatesAndDoesNotStrandLaterCalls() {
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     var bug = new IllegalStateException("synchronous failure");
     when(client.sendAsync(
@@ -384,6 +423,8 @@ class JsonHttpTest {
             org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<byte[]>>any()))
         .thenThrow(bug)
         .thenReturn(CompletableFuture.completedFuture(response(200, "recovered")));
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = withFutureClient(client);
     assertThat(catchThrowable(() -> http.get(URI.create("https://example.test")))).isSameAs(bug);
     assertThat(http.get(URI.create("https://example.test"))).isEqualTo("recovered");
@@ -391,6 +432,8 @@ class JsonHttpTest {
 
   @Test
   void externalMonitorDoesNotBlockRequestExecution() throws Exception {
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = withFuture(CompletableFuture.completedFuture(response(200, "accepted")));
     try (var pool = Executors.newSingleThreadExecutor()) {
       synchronized (http) {
@@ -406,6 +449,8 @@ class JsonHttpTest {
   @ValueSource(strings = {"timeout", "interrupt", "async", "status", "synchronous"})
   @SuppressWarnings("unchecked")
   void failedRequestReleasesLockForAnotherThread(String failureType) throws Exception {
+    // Mockito client has no transport resources to close.
+    @SuppressWarnings("PMD.CloseResource")
     var client = mock(HttpClient.class);
     CompletableFuture<HttpResponse<byte[]>> failed = mock(CompletableFuture.class);
     switch (failureType) {
@@ -431,6 +476,8 @@ class JsonHttpTest {
     } else {
       stubbing.thenReturn(failed).thenReturn(next);
     }
+    // Adapter borrows a Mockito client; it owns no transport resources.
+    @SuppressWarnings("PMD.CloseResource")
     var http = withFutureClient(client);
     try {
       assertThat(catchThrowable(() -> http.get(URI.create("https://example.test")))).isNotNull();

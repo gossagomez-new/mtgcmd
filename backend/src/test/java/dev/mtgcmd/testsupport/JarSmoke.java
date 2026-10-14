@@ -33,12 +33,11 @@ public final class JarSmoke {
               .redirectErrorStream(true)
               .redirectOutput(Path.of("/tmp/mtgcmd-jar-smoke.log").toFile())
               .start();
-      try {
-        var client =
-            HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(2))
-                .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL))
-                .build();
+      try (var client =
+          HttpClient.newBuilder()
+              .connectTimeout(Duration.ofSeconds(2))
+              .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL))
+              .build()) {
         HttpResponse<String> index = null;
         for (int attempt = 0; attempt < 100; attempt++) {
           try {
