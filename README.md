@@ -81,8 +81,9 @@ stays local. Back up PostgreSQL before upgrading saved-game formats.
 - Preview the import, choose one or two commanders, load the deck, review
   warnings, and ready up. The host starts when all four seats are ready.
 - Click a card to inspect it and access actions. Drag playable cards onto your
-  battlefield; drag existing permanents to reposition them. Menus provide the
-  same actions without dragging.
+  battlefield or use their action menu. Permanents group automatically by primary
+  type, with lands below other permanents; cards retain their order within each
+  group. Battlefield cards use automatic placement rather than free positioning.
 - Use zone viewers to search a library or inspect graveyard/exile/command cards.
   Library cards are numbered in order; move selections to the top or bottom to
   reorder them. Shuffle closes searches and removes temporary reveals.

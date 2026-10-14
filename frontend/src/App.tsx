@@ -7,6 +7,7 @@ import {
   type Snapshot,
 } from "./protocol";
 import { useGameSocket } from "./useGameSocket";
+import { groupBattlefield, type BattlefieldGroup } from "./battlefield";
 
 type Action = (type: string, data?: Record<string, unknown>) => void;
 type Draft = {
@@ -990,13 +991,13 @@ function PlayerArea({
         ))}
       </div>
       <div className="opponent-field">
-        {view.cards
-          .filter(
-            (c) => c.zone === "battlefield" && c.controller === player.seat,
-          )
-          .map((c) => (
-            <CardButton key={c.id} card={c} inspect={inspect} />
-          ))}
+        <BattlefieldGroups
+          cards={view.cards.filter(
+            (card) =>
+              card.zone === "battlefield" && card.controller === player.seat,
+          )}
+          inspect={inspect}
+        />
         {!player.counts.battlefield && (
           <span className="empty-state">Battlefield</span>
         )}
@@ -1041,7 +1042,7 @@ function CardButton({
       className={`card ${card.tapped ? "tapped" : ""} ${card.faceDown ? "face-down" : ""}`}
       aria-label={`Inspect ${name}`}
       onClick={() => inspect(card)}
-      draggable={card.editable}
+      draggable={card.editable && card.zone !== "battlefield"}
       onDragStart={(e) => {
         e.dataTransfer.setData("application/card", card.id);
         e.dataTransfer.effectAllowed = "move";
@@ -1101,31 +1102,12 @@ function Battlefield({
         e.preventDefault();
         const cardId = e.dataTransfer.getData("application/card");
         if (!cardId) return;
-        const c = cards.find((c) => c.id === cardId);
-        if (!c) act("MOVE", { cardId, zone: "battlefield" });
-        else {
-          const rect = e.currentTarget.getBoundingClientRect();
-          act("POSITION", {
-            cardId,
-            x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
-            y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
-          });
+        if (!cards.some((card) => card.id === cardId)) {
+          act("MOVE", { cardId, zone: "battlefield" });
         }
       }}
     >
-      {cards.map((c) => (
-        <div
-          key={c.id}
-          className={c.x || c.y ? "positioned-card" : ""}
-          style={
-            c.x || c.y
-              ? { left: `${c.x * 80}%`, top: `${c.y * 40}%` }
-              : undefined
-          }
-        >
-          <CardButton card={c} inspect={inspect} />
-        </div>
-      ))}
+      <BattlefieldGroups cards={cards} inspect={inspect} />
       {!cards.length && (
         <div className="field-empty">
           <span>◈</span>
@@ -1136,6 +1118,56 @@ function Battlefield({
     </div>
   );
 }
+function BattlefieldGroups({
+  cards,
+  inspect,
+}: {
+  cards: Card[];
+  inspect: (card: Card) => void;
+}) {
+  const groups = groupBattlefield(cards);
+  if (!groups.length) return null;
+  const nonlands = groups.filter((group) => group.type !== "land");
+  const lands = groups.find((group) => group.type === "land");
+  return (
+    <div className="battlefield-layout">
+      {nonlands.length > 0 && (
+        <div className="battlefield-nonlands">
+          {nonlands.map((group) => (
+            <PermanentGroup key={group.type} group={group} inspect={inspect} />
+          ))}
+        </div>
+      )}
+      {lands && <PermanentGroup group={lands} inspect={inspect} />}
+    </div>
+  );
+}
+
+function PermanentGroup({
+  group,
+  inspect,
+}: {
+  group: BattlefieldGroup;
+  inspect: (card: Card) => void;
+}) {
+  return (
+    <section
+      className={`battlefield-group ${group.type === "land" ? "battlefield-lands" : ""}`}
+      role="group"
+      aria-label={group.label}
+    >
+      <h4>{group.label}</h4>
+      <div className="battlefield-group-cards">
+        {group.cards.map((card) => (
+          <div className="battlefield-card-slot" key={card.id}>
+            <CardButton card={card} inspect={inspect} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PlayerCounters({
   player,
   players,

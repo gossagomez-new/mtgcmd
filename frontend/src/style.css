@@ -444,9 +444,7 @@ small {
   background: transparent;
 }
 .opponent-field {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  --battlefield-slot-size: 96px;
   min-height: 85px;
   padding: 9px 0;
 }
@@ -557,14 +555,50 @@ small {
 }
 .battlefield {
   min-height: 210px;
-  position: relative;
   display: flex;
-  gap: 26px;
-  flex-wrap: wrap;
+  flex-direction: column;
   padding: 10px 5px;
 }
-.positioned-card {
-  position: absolute;
+.battlefield-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+.battlefield-nonlands {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+.battlefield-group {
+  min-width: 0;
+  max-width: 100%;
+}
+.battlefield-group h4 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.battlefield-group-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.battlefield-card-slot {
+  width: var(--battlefield-slot-size, 154px);
+  height: var(--battlefield-slot-size, 154px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.battlefield-lands {
+  border-top: 1px solid #3a4e56;
+  padding-top: 12px;
 }
 .field-empty {
   margin: auto;

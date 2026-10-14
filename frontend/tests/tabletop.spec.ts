@@ -410,3 +410,159 @@ test("private library search filters locally and retains library positions", asy
     await Promise.all(contexts.map((context) => context.close()));
   }
 });
+
+test("battlefields group types automatically and place lands below other permanents", async ({
+  browser,
+}) => {
+  const contexts = await Promise.all(
+    Array.from({ length: 4 }, () => browser.newContext()),
+  );
+  const pages = await Promise.all(contexts.map((context) => context.newPage()));
+  try {
+    await pages[0].goto("/");
+    await pages[0].getByLabel("Your name").fill("Grouping host");
+    await pages[0]
+      .getByRole("button", { name: "Create table", exact: true })
+      .click();
+    await expect(pages[0]).toHaveURL(/\/room\//);
+    const roomUrl = pages[0].url();
+    for (let i = 1; i < 4; i++) {
+      await pages[i].goto(roomUrl);
+      await pages[i].getByLabel("Your name").fill(`Grouping player ${i}`);
+      await pages[i]
+        .getByRole("button", { name: "Join table", exact: true })
+        .click();
+    }
+    for (let i = 0; i < 4; i++)
+      await importDeck(pages[i], String.fromCharCode(65 + i));
+    await pages[0]
+      .getByRole("button", { name: "Start game", exact: true })
+      .click();
+    const page = pages[0];
+    const field = page.getByTestId("your-battlefield");
+    const otherField = pages[1]
+      .getByTestId("opponent-0")
+      .locator(".opponent-field");
+    await expect(
+      page
+        .getByTestId("hand")
+        .getByRole("button", { name: "Inspect Secret A" }),
+    ).toHaveCount(7);
+    const apiUrl = new URL(
+      `/api/rooms/${new URL(roomUrl).pathname.split("/").pop()}`,
+      roomUrl,
+    ).toString();
+    const { csrf } = await (
+      await page.request.get(new URL("/api/session", roomUrl).toString())
+    ).json();
+    async function command(type: string, data: Record<string, unknown>) {
+      const snapshot = (await (
+        await page.request.get(apiUrl)
+      ).json()) as Snapshot;
+      const response = await page.request.post(`${apiUrl}/commands`, {
+        headers: { "X-CSRF-Token": csrf, Origin: new URL(roomUrl).origin },
+        data: {
+          id: crypto.randomUUID(),
+          revision: snapshot.revision,
+          type,
+          data,
+        },
+      });
+      const result = await response.json();
+      expect(response.ok(), JSON.stringify(result)).toBeTruthy();
+      return result as Snapshot;
+    }
+    await command("TOKEN", {
+      name: "First creature",
+      type: "Creature — Elf",
+      text: "1/1",
+    });
+    await command("TOKEN", {
+      name: "Middle artifact",
+      type: "Artifact",
+      text: "",
+    });
+    const state = await command("TOKEN", {
+      name: "Second creature",
+      type: "Artifact Creature — Golem",
+      text: "2/2",
+    });
+    const expected = [
+      "Inspect First creature",
+      "Inspect Second creature",
+      "Inspect Middle artifact",
+    ];
+    for (const root of [field, otherField]) {
+      await expect
+        .poll(() =>
+          root
+            .locator(".card")
+            .evaluateAll((elements) =>
+              elements.map((element) => element.getAttribute("aria-label")),
+            ),
+        )
+        .toEqual(expected);
+    }
+    const first = state.cards.find(
+      (card) => card.definition?.name === "First creature",
+    )!;
+    await command("POSITION", { cardId: first.id, x: 0.9, y: 0.9 });
+    await expect(field.locator(".positioned-card")).toHaveCount(0);
+    const creatureGroup = field.getByRole("group", {
+      name: "Creatures",
+      exact: true,
+    });
+    await expect(creatureGroup.getByRole("button")).toHaveCount(2);
+    const handCard = page
+      .getByTestId("hand")
+      .getByRole("button", { name: "Inspect Secret A" })
+      .first();
+    const transfer = await page.evaluateHandle(() => new DataTransfer());
+    await handCard.dispatchEvent("dragstart", { dataTransfer: transfer });
+    await field.dispatchEvent("drop", { dataTransfer: transfer });
+    const landGroup = field.getByRole("group", { name: "Lands", exact: true });
+    await expect(
+      landGroup.getByRole("button", { name: "Inspect Secret A" }),
+    ).toHaveCount(1);
+    await expect(
+      otherField
+        .getByRole("group", { name: "Lands", exact: true })
+        .getByRole("button", { name: "Inspect Secret A" }),
+    ).toHaveCount(1);
+    for (const root of [field, otherField]) {
+      const lands = await root
+        .getByRole("group", { name: "Lands", exact: true })
+        .boundingBox();
+      const artifacts = await root
+        .getByRole("group", { name: "Artifacts", exact: true })
+        .boundingBox();
+      expect(lands!.y).toBeGreaterThanOrEqual(artifacts!.y + artifacts!.height);
+    }
+    await expect(creatureGroup.getByRole("button").first()).toHaveAttribute(
+      "draggable",
+      "false",
+    );
+    await creatureGroup
+      .getByRole("button", { name: "Inspect First creature" })
+      .click();
+    await page.getByRole("button", { name: "Tap", exact: true }).click();
+    const tapped = creatureGroup.getByRole("button", {
+      name: "Inspect First creature",
+    });
+    await tapped.hover();
+    await expectRotation(tapped, 90);
+    await expectRotation(
+      otherField.getByRole("button", { name: "Inspect First creature" }),
+      90,
+    );
+    await page.getByRole("button", { name: "Untap", exact: true }).click();
+    await expectRotation(tapped, 0);
+    await page.getByRole("button", { name: "Close inspector" }).click();
+    await page.screenshot({
+      path: "test-results/battlefield-grouping.png",
+      fullPage: true,
+    });
+  } finally {
+    await Promise.all(contexts.map((context) => context.close()));
+  }
+});
