@@ -8,51 +8,66 @@ final class CommandInput {
 
   private CommandInput() {}
 
-  static String clean(String value, String name, int limit) {
+  static String clean(final String value, final String name, final int limit) {
     require(value != null && !value.isBlank() && value.length() <= limit, INVALID + name);
     return value.trim();
   }
 
-  static String string(Map<String, Object> d, String key, int limit) {
-    require(d.get(key) instanceof String, INVALID + key);
-    return clean((String) d.get(key), key, limit);
+  static String string(final Map<String, Object> data, final String key, final int limit) {
+    require(data.get(key) instanceof String, INVALID + key);
+    return clean((String) data.get(key), key, limit);
   }
 
-  static String optionalString(Map<String, Object> d, String key, int limit) {
-    if (!d.containsKey(key)) return "";
-    require(d.get(key) instanceof String && ((String) d.get(key)).length() <= limit, INVALID + key);
-    return ((String) d.get(key)).trim();
+  static String optionalString(final Map<String, Object> data, final String key, final int limit) {
+    if (!data.containsKey(key)) {
+      return "";
+    }
+    require(
+        data.get(key) instanceof String && ((String) data.get(key)).length() <= limit,
+        INVALID + key);
+    return ((String) data.get(key)).trim();
   }
 
-  static boolean bool(Map<String, Object> d, String key, boolean fallback) {
-    if (!d.containsKey(key)) return fallback;
-    require(d.get(key) instanceof Boolean, INVALID + key);
-    return (Boolean) d.get(key);
+  static boolean bool(final Map<String, Object> data, final String key, final boolean fallback) {
+    if (!data.containsKey(key)) {
+      return fallback;
+    }
+    require(data.get(key) instanceof Boolean, INVALID + key);
+    return (Boolean) data.get(key);
   }
 
-  static int integer(Map<String, Object> d, String key, int fallback, int min, int max) {
-    if (!d.containsKey(key)) {
+  static int integer(
+      final Map<String, Object> data,
+      final String key,
+      final int fallback,
+      final int min,
+      final int max) {
+    if (!data.containsKey(key)) {
       require(fallback >= min && fallback <= max, INVALID + key);
       return fallback;
     }
-    require(d.get(key) instanceof Number, INVALID + key);
-    return exactInteger((Number) d.get(key), key, min, max);
+    require(data.get(key) instanceof Number, INVALID + key);
+    return exactInteger((Number) data.get(key), key, min, max);
   }
 
-  static int exactInteger(Number n, String key, int min, int max) {
-    double v = n.doubleValue();
-    require(Double.isFinite(v) && v == Math.rint(v) && v >= min && v <= max, INVALID + key);
-    return (int) v;
+  static int exactInteger(final Number value, final String key, final int min, final int max) {
+    final double number = value.doubleValue();
+    require(
+        Double.isFinite(number) && number == Math.rint(number) && number >= min && number <= max,
+        INVALID + key);
+    return (int) number;
   }
 
-  static double decimal(Map<String, Object> d, String key) {
-    require(d.get(key) instanceof Number, INVALID + key);
-    double v = ((Number) d.get(key)).doubleValue();
-    require(Double.isFinite(v) && v >= 0 && v <= 1, INVALID + key);
-    return v;
+  static double decimal(final Map<String, Object> data, final String key) {
+    require(data.get(key) instanceof Number, INVALID + key);
+    final double number = ((Number) data.get(key)).doubleValue();
+    require(Double.isFinite(number) && number >= 0 && number <= 1, INVALID + key);
+    return number;
   }
 
-  static void require(boolean condition, String message) {
-    if (!condition) throw new IllegalArgumentException(message);
+  static void require(final boolean condition, final String message) {
+    if (!condition) {
+      throw new IllegalArgumentException(message);
+    }
   }
 }

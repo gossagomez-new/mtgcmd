@@ -13,41 +13,41 @@ import java.util.*;
 final class ObjectActions {
   private final GameAccess access;
 
-  ObjectActions(GameAccess access) {
+  ObjectActions(final GameAccess access) {
     this.access = access;
   }
 
-  String token(Game g, int seat, Map<String, Object> d) {
+  String token(final Game game, final int seat, final Map<String, Object> data) {
 
-    String name = string(d, "name", 100),
-        text = optionalString(d, "text", 2000),
-        type = optionalString(d, "type", 200);
-    require(g.cards.size() < 2000, "Table has too many objects");
-    Card c = new Card();
-    c.definition =
+    final String name = string(data, "name", 100),
+        text = optionalString(data, "text", 2000),
+        type = optionalString(data, "type", 200);
+    require(game.cards.size() < 2000, "Table has too many objects");
+    final Card card = new Card();
+    card.definition =
         new Definition(
             UUID.randomUUID().toString(), name, "", text, type, List.of(), true, List.of());
-    c.owner = seat;
-    c.controller = seat;
-    c.zoneOwner = seat;
-    c.zone = BATTLEFIELD;
-    c.token = true;
-    g.cards.add(c);
+    card.owner = seat;
+    card.controller = seat;
+    card.zoneOwner = seat;
+    card.zone = BATTLEFIELD;
+    card.token = true;
+    game.cards.add(card);
 
     return "token";
   }
 
-  String editToken(Game g, int seat, Map<String, Object> d) {
+  String editToken(final Game game, final int seat, final Map<String, Object> data) {
 
-    Card c = access.editable(g, seat, d);
-    require(c.token, "Only token characteristics can be edited");
-    c.definition =
+    final Card card = access.editable(game, seat, data);
+    require(card.token, "Only token characteristics can be edited");
+    card.definition =
         new Definition(
-            c.definition.id(),
-            string(d, "name", 100),
-            c.definition.image(),
-            optionalString(d, "text", 2000),
-            optionalString(d, "type", 200),
+            card.definition.id(),
+            string(data, "name", 100),
+            card.definition.image(),
+            optionalString(data, "text", 2000),
+            optionalString(data, "type", 200),
             List.of(),
             true,
             List.of());
@@ -55,47 +55,47 @@ final class ObjectActions {
     return "edit token";
   }
 
-  String copy(Game g, int seat, Map<String, Object> d) {
+  String copy(final Game game, final int seat, final Map<String, Object> data) {
 
-    Card source = find(g, string(d, "cardId", 80));
-    require(access.canSeeDefinition(g, seat, source), "No permission to inspect this card");
+    final Card source = find(game, string(data, "cardId", 80));
+    require(access.canSeeDefinition(game, seat, source), "No permission to inspect this card");
     require(!isPrivate(source), "Copy a public card");
-    require(g.cards.size() < 2000, "Table has too many objects");
-    Card c = new Card();
-    c.definition = source.definition;
-    c.face = source.face;
-    c.owner = seat;
-    c.controller = seat;
-    c.zoneOwner = seat;
-    c.zone = BATTLEFIELD;
-    c.token = true;
-    g.cards.add(c);
+    require(game.cards.size() < 2000, "Table has too many objects");
+    final Card card = new Card();
+    card.definition = source.definition;
+    card.face = source.face;
+    card.owner = seat;
+    card.controller = seat;
+    card.zoneOwner = seat;
+    card.zone = BATTLEFIELD;
+    card.token = true;
+    game.cards.add(card);
 
     return "copy";
   }
 
-  String ability(Game g, int seat, Map<String, Object> d) {
+  String ability(final Game game, final int seat, final Map<String, Object> data) {
 
-    require(g.abilities.size() < 200, "Stack is full");
-    Ability a = new Ability();
-    a.controller = seat;
-    a.text = string(d, "text", 500);
-    a.stackOrder = g.revision + 1;
-    g.abilities.add(a);
+    require(game.abilities.size() < 200, "Stack is full");
+    final Ability ability = new Ability();
+    ability.controller = seat;
+    ability.text = string(data, "text", 500);
+    ability.stackOrder = game.revision + 1;
+    game.abilities.add(ability);
 
     return "ability";
   }
 
-  String resolveAbility(Game g, int seat, Map<String, Object> d) {
+  String resolveAbility(final Game game, final int seat, final Map<String, Object> data) {
 
-    String id = string(d, "abilityId", 80);
-    Ability a =
-        g.abilities.stream()
-            .filter(x -> x.id.equals(id))
+    final String identifier = string(data, "abilityId", 80);
+    final Ability ability =
+        game.abilities.stream()
+            .filter(x -> x.id.equals(identifier))
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Unknown ability"));
-    require(a.controller == seat, "No permission to resolve this ability");
-    g.abilities.remove(a);
+    require(ability.controller == seat, "No permission to resolve this ability");
+    game.abilities.remove(ability);
 
     return "resolve ability";
   }

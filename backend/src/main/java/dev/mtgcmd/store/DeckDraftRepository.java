@@ -12,12 +12,12 @@ public final class DeckDraftRepository {
   private final JdbcTemplate jdbc;
   private final ObjectMapper mapper;
 
-  public DeckDraftRepository(JdbcTemplate jdbc, ObjectMapper mapper) {
+  public DeckDraftRepository(final JdbcTemplate jdbc, final ObjectMapper mapper) {
     this.jdbc = jdbc;
     this.mapper = mapper;
   }
 
-  public void save(String guest, String draftId, List<Game.Definition> cards)
+  public void save(final String guest, final String draftId, final List<Game.Definition> cards)
       throws JsonProcessingException {
     jdbc.update(
         "DELETE FROM deck_drafts WHERE guest_hash=? AND created_at<now()-interval '1 day'", guest);
@@ -28,15 +28,17 @@ public final class DeckDraftRepository {
         mapper.writeValueAsString(cards));
   }
 
-  public List<Game.Definition> requireAvailable(String guest, String draftId)
+  public List<Game.Definition> requireAvailable(final String guest, final String draftId)
       throws JsonProcessingException {
-    var rows =
+    final List<String> rows =
         jdbc.queryForList(
             "SELECT cards::text FROM deck_drafts WHERE id=? AND guest_hash=? AND created_at>now()-interval '1 day'",
             String.class,
             draftId,
             guest);
-    if (rows.isEmpty()) throw new IllegalArgumentException("Deck preview expired; preview again");
+    if (rows.isEmpty()) {
+      throw new IllegalArgumentException("Deck preview expired; preview again");
+    }
     return mapper.readValue(rows.getFirst(), new TypeReference<>() {});
   }
 }

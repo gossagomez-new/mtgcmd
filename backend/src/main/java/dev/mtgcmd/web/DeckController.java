@@ -1,5 +1,7 @@
 package dev.mtgcmd.web;
 
+import dev.mtgcmd.catalog.DeckImporter.Draft;
+import dev.mtgcmd.web.DeckImportService.StoredPreview;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +15,8 @@ public final class DeckController {
   private final DeckImportService imports;
   private final GameSocket socket;
 
-  public DeckController(GuestSessions guests, DeckImportService imports, GameSocket socket) {
+  public DeckController(
+      final GuestSessions guests, final DeckImportService imports, final GameSocket socket) {
     this.guests = guests;
     this.imports = imports;
     this.socket = socket;
@@ -25,9 +28,13 @@ public final class DeckController {
 
   @PostMapping("/rooms/{id}/decks/preview")
   public Map<String, Object> preview(
-      HttpServletRequest r, @PathVariable String id, @RequestBody Import request) throws Exception {
-    var preview = imports.preview(guest(r), id, request.text(), request.url());
-    var draft = preview.draft();
+      final HttpServletRequest httpRequest,
+      @PathVariable("id") final String roomId,
+      @RequestBody final Import request)
+      throws Exception {
+    final StoredPreview preview =
+        imports.preview(guest(httpRequest), roomId, request.text(), request.url());
+    final Draft draft = preview.draft();
     return Map.of(
         "draftId",
         preview.draftId(),
@@ -41,20 +48,23 @@ public final class DeckController {
 
   @PostMapping("/rooms/{id}/deck")
   public Map<String, Object> deck(
-      HttpServletRequest r, @PathVariable String id, @RequestBody Deck request) throws Exception {
-    var view =
+      final HttpServletRequest httpRequest,
+      @PathVariable("id") final String roomId,
+      @RequestBody final Deck request)
+      throws Exception {
+    final Map<String, Object> view =
         imports.load(
-            guest(r),
-            id,
+            guest(httpRequest),
+            roomId,
             request.draftId(),
             request.commanders(),
             request.commandId(),
             request.revision());
-    socket.broadcast(id);
+    socket.broadcast(roomId);
     return view;
   }
 
-  private String guest(HttpServletRequest r) {
-    return guests.require(r).hash();
+  private String guest(final HttpServletRequest httpRequest) {
+    return guests.require(httpRequest).hash();
   }
 }

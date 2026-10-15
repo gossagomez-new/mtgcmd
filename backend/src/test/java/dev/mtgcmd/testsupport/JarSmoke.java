@@ -1,24 +1,26 @@
 package dev.mtgcmd.testsupport;
 
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import java.net.*;
 import java.net.http.*;
 import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
+import java.util.regex.Matcher;
 
 /** Explicit artifact smoke check; live catalog requests run only with --live-import. */
 public final class JarSmoke {
-  public static void main(String[] args) throws Exception {
-    Path jar = Path.of(args[0]).toAbsolutePath();
+  public static void main(final String[] args) throws Exception {
+    final Path jar = Path.of(args[0]).toAbsolutePath();
     try (EmbeddedPostgres postgres = EmbeddedPostgres.builder().setPort(0).start()) {
-      int port;
-      try (var available = new java.net.ServerSocket(0)) {
+      final int port;
+      try (ServerSocket available = new ServerSocket(0)) {
         port = available.getLocalPort();
       }
-      String origin = "http://127.0.0.1:" + port;
-      Process server =
+      final String origin = "http://127.0.0.1:" + port;
+      final Process server =
           new ProcessBuilder(
                   Path.of(System.getProperty("java.home"), "bin", "java").toString(),
                   "-jar",
@@ -33,7 +35,7 @@ public final class JarSmoke {
               .redirectErrorStream(true)
               .redirectOutput(Path.of("/tmp/mtgcmd-jar-smoke.log").toFile())
               .start();
-      try (var client =
+      try (HttpClient client =
           HttpClient.newBuilder()
               .connectTimeout(Duration.ofSeconds(2))
               .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL))
@@ -42,18 +44,22 @@ public final class JarSmoke {
         for (int attempt = 0; attempt < 100; attempt++) {
           try {
             index = get(client, origin + "/");
-            if (index.statusCode() == 200) break;
+            if (index.statusCode() == 200) {
+              break;
+            }
           } catch (Exception ignored) {
           }
-          if (!server.isAlive())
+          if (!server.isAlive()) {
             throw new IllegalStateException(
                 "Packaged server exited; see /tmp/mtgcmd-jar-smoke.log");
+          }
           Thread.sleep(200);
         }
         require(
             index != null && index.statusCode() == 200 && index.body().contains("id=\"root\""),
             "Packaged React index missing");
-        var script = java.util.regex.Pattern.compile("src=\"([^\"]+\\.js)\"").matcher(index.body());
+        final Matcher script =
+            java.util.regex.Pattern.compile("src=\"([^\"]+\\.js)\"").matcher(index.body());
         require(script.find(), "Bundled JavaScript missing");
         require(
             get(client, origin + script.group(1)).statusCode() == 200,
@@ -61,10 +67,10 @@ public final class JarSmoke {
         require(
             get(client, origin + "/__test/restart").statusCode() == 404,
             "Test-only restart endpoint leaked into production");
-        var mapper = new ObjectMapper();
-        String csrf =
+        final ObjectMapper mapper = new ObjectMapper();
+        final String csrf =
             mapper.readTree(get(client, origin + "/api/session").body()).path("csrf").asText();
-        var room =
+        final JsonNode room =
             mapper.readTree(
                 post(
                         client,
@@ -73,12 +79,12 @@ public final class JarSmoke {
                         "/api/rooms",
                         mapper.writeValueAsString(Map.of("name", "Artifact check")))
                     .body());
-        String roomId = room.path("id").asText();
+        final String roomId = room.path("id").asText();
         require(!roomId.isBlank(), "Room creation failed");
         require(
             get(client, origin + "/room/" + roomId).statusCode() == 200, "SPA room route missing");
-        if (args.length > 1 && args[1].equals("--live-import")) {
-          var preview =
+        if (args.length > 1 && "--live-import".equals(Objects.requireNonNull(args[1]))) {
+          final JsonNode preview =
               mapper.readTree(
                   post(
                           client,
@@ -91,7 +97,7 @@ public final class JarSmoke {
                                   "Commander\n1 Gisa and Geralf\nDeck\n1 Sol Ring\n98 Island")))
                       .body());
           require(preview.path("count").asInt() == 100, "Live catalog import failed");
-          var loaded =
+          final JsonNode loaded =
               mapper.readTree(
                   post(
                           client,
@@ -118,20 +124,28 @@ public final class JarSmoke {
             "JAR SMOKE: React index/assets, room route, guest session, API, and production-only packaging passed");
       } finally {
         server.destroy();
-        if (!server.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)) server.destroyForcibly();
+        if (!server.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)) {
+          server.destroyForcibly();
+        }
       }
     }
   }
 
-  private static HttpResponse<String> get(HttpClient client, String url) throws Exception {
+  private static HttpResponse<String> get(final HttpClient client, final String url)
+      throws Exception {
     return client.send(
         HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(3)).GET().build(),
         HttpResponse.BodyHandlers.ofString());
   }
 
   private static HttpResponse<String> post(
-      HttpClient client, String origin, String csrf, String path, String body) throws Exception {
-    var response =
+      final HttpClient client,
+      final String origin,
+      final String csrf,
+      final String path,
+      final String body)
+      throws Exception {
+    final HttpResponse<String> response =
         client.send(
             HttpRequest.newBuilder(URI.create(origin + path))
                 .timeout(Duration.ofSeconds(30))
@@ -145,7 +159,9 @@ public final class JarSmoke {
     return response;
   }
 
-  private static void require(boolean condition, String message) {
-    if (!condition) throw new IllegalStateException(message);
+  private static void require(final boolean condition, final String message) {
+    if (!condition) {
+      throw new IllegalStateException(message);
+    }
   }
 }

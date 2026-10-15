@@ -18,7 +18,7 @@ public class CardHttpConfiguration {
   }
 
   @Bean
-  JsonHttp jsonHttp(HttpClient cardHttpClient) {
+  JsonHttp jsonHttp(final HttpClient cardHttpClient) {
     return new JsonHttp(cardHttpClient);
   }
 }

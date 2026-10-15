@@ -14,18 +14,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @Configuration
 public class DeckImportConfiguration {
   @Bean
-  DeckImporter importer(JdbcTemplate jdbc, ObjectMapper mapper, JsonHttp http) {
+  DeckImporter importer(final JdbcTemplate jdbc, final ObjectMapper mapper, final JsonHttp http) {
     return new DeckImporter(new CardCatalog(jdbc, mapper, http), http::get);
   }
 
   @Bean
-  DeckDraftRepository deckDrafts(JdbcTemplate jdbc, ObjectMapper mapper) {
+  DeckDraftRepository deckDrafts(final JdbcTemplate jdbc, final ObjectMapper mapper) {
     return new DeckDraftRepository(jdbc, mapper);
   }
 
   @Bean
   DeckImportService deckImports(
-      RoomStore rooms, DeckImporter importer, DeckDraftRepository drafts) {
+      final RoomStore rooms, final DeckImporter importer, final DeckDraftRepository drafts) {
     return new DeckImportService(rooms, importer, drafts);
   }
 }

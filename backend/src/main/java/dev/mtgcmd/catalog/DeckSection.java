@@ -13,7 +13,7 @@ enum DeckSection {
   private final boolean commander;
   private final Set<String> headers;
 
-  DeckSection(boolean included, boolean commander, String... headers) {
+  DeckSection(final boolean included, final boolean commander, final String... headers) {
     this.included = included;
     this.commander = commander;
     this.headers = Set.of(headers);
@@ -27,8 +27,8 @@ enum DeckSection {
     return commander;
   }
 
-  static Optional<DeckSection> fromHeader(String value) {
-    String header = value.toLowerCase(Locale.ROOT).replace(":", "");
+  static Optional<DeckSection> fromHeader(final String value) {
+    final String header = value.toLowerCase(Locale.ROOT).replace(":", "");
     return Arrays.stream(values()).filter(section -> section.headers.contains(header)).findFirst();
   }
 }

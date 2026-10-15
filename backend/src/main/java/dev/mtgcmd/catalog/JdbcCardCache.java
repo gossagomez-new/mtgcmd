@@ -13,17 +13,19 @@ final class JdbcCardCache implements CardCache {
   private final JdbcTemplate jdbc;
   private final ObjectMapper mapper;
 
-  JdbcCardCache(JdbcTemplate jdbc, ObjectMapper mapper) {
+  JdbcCardCache(final JdbcTemplate jdbc, final ObjectMapper mapper) {
     this.jdbc = jdbc;
     this.mapper = mapper;
   }
 
   @Override
-  public Optional<Definition> find(String name) {
-    List<String> rows =
+  public Optional<Definition> find(final String name) {
+    final List<String> rows =
         jdbc.queryForList(
             "SELECT definition::text FROM catalog WHERE name=?", String.class, CardNames.key(name));
-    if (rows.isEmpty()) return Optional.empty();
+    if (rows.isEmpty()) {
+      return Optional.empty();
+    }
     try {
       return Optional.of(mapper.readValue(rows.getFirst(), Definition.class));
     } catch (JsonProcessingException e) {
@@ -32,7 +34,7 @@ final class JdbcCardCache implements CardCache {
   }
 
   @Override
-  public void store(String name, Definition definition) {
+  public void store(final String name, final Definition definition) {
     try {
       jdbc.update(
           "INSERT INTO catalog(name,definition) VALUES (?,CAST(? AS jsonb)) ON CONFLICT(name) DO UPDATE SET definition=EXCLUDED.definition,updated_at=now()",

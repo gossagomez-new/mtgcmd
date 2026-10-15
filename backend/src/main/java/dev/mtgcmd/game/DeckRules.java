@@ -8,7 +8,10 @@ final class DeckRules {
   private DeckRules() {}
 
   static List<String> validate(
-      GameFormat format, List<Definition> deck, List<String> commanders, Clock clock) {
+      final GameFormat format,
+      final List<Definition> deck,
+      final List<String> commanders,
+      final Clock clock) {
     check(
         deck != null
             && deck.size() >= format.minimumDeckSize()
@@ -22,31 +25,35 @@ final class DeckRules {
   }
 
   private static List<String> standard(
-      List<Definition> deck, List<String> commanders, Clock clock) {
+      final List<Definition> deck, final List<String> commanders, final Clock clock) {
     check(commanders == null || commanders.isEmpty(), "Standard does not use commanders");
-    List<String> warnings = new ArrayList<>();
-    Map<String, Integer> copies = new HashMap<>();
-    for (Definition def : deck) {
-      if (!CardLegality.fresh(def, "standard", clock))
+    final List<String> warnings = new ArrayList<>();
+    final Map<String, Integer> copies = new HashMap<>();
+    for (final Definition def : deck) {
+      if (!CardLegality.fresh(def, "standard", clock)) {
         warnings.add(
             "Standard legality for "
                 + def.name()
                 + " could not be verified; check current legality before playing.");
-      else if (!"legal".equals(def.legalities().get("standard")))
+      } else if (!"legal".equals(def.legalities().get("standard"))) {
         warnings.add(def.name() + " is not listed as Standard legal.");
-      int count = copies.merge(def.id(), 1, Integer::sum);
-      boolean basic = Arrays.asList(def.type().split("—", 2)[0].split("\\s+")).contains("Basic");
+      }
+      final int count = copies.merge(def.id(), 1, Integer::sum);
+      final boolean basic =
+          Arrays.asList(def.type().split("—", 2)[0].split("\\s+")).contains("Basic");
       if (count > 4
           && !basic
-          && !def.text().toLowerCase(Locale.ROOT).contains("any number of cards named"))
+          && !def.text().toLowerCase(Locale.ROOT).contains("any number of cards named")) {
         warnings.add(def.name() + " exceeds four copies; check any card-specific deck exception.");
+      }
     }
     return warnings.stream().distinct().toList();
   }
 
-  private static List<String> commander(List<Definition> deck, List<String> commanders) {
-    List<Definition> selected = resolveCommanders(deck, commanders);
-    List<String> warnings = new ArrayList<>();
+  private static List<String> commander(
+      final List<Definition> deck, final List<String> commanders) {
+    final List<Definition> selected = resolveCommanders(deck, commanders);
+    final List<String> warnings = new ArrayList<>();
     appendDeckSizeWarning(deck.size(), warnings);
     appendCommanderWarnings(selected, warnings);
     appendCardWarnings(deck, combinedColorIdentity(selected), warnings);
@@ -54,7 +61,7 @@ final class DeckRules {
   }
 
   private static List<Definition> resolveCommanders(
-      List<Definition> deck, List<String> commanders) {
+      final List<Definition> deck, final List<String> commanders) {
     check(
         commanders != null && !commanders.isEmpty() && commanders.size() <= 2,
         "Choose one or two commanders");
@@ -62,22 +69,23 @@ final class DeckRules {
     return commanders.stream().map(id -> findCommander(deck, id)).toList();
   }
 
-  private static Definition findCommander(List<Definition> deck, String id) {
+  private static Definition findCommander(final List<Definition> deck, final String identifier) {
     return deck.stream()
-        .filter(card -> card.id().equals(id))
+        .filter(card -> card.id().equals(identifier))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Commander must be in the deck"));
   }
 
-  private static void appendDeckSizeWarning(int size, List<String> warnings) {
+  private static void appendDeckSizeWarning(final int size, final List<String> warnings) {
     if (size != 100) {
       warnings.add(
           "Deck contains " + size + " cards; Commander normally uses 100 including commanders.");
     }
   }
 
-  private static void appendCommanderWarnings(List<Definition> selected, List<String> warnings) {
-    for (Definition card : selected) {
+  private static void appendCommanderWarnings(
+      final List<Definition> selected, final List<String> warnings) {
+    for (final Definition card : selected) {
       if (!card.type().contains("Legendary") || !card.type().contains("Creature")) {
         warnings.add("Check commander eligibility for " + card.name() + ".");
       }
@@ -87,36 +95,38 @@ final class DeckRules {
     }
   }
 
-  private static Set<String> combinedColorIdentity(List<Definition> selected) {
-    Set<String> identity = new HashSet<>();
-    for (Definition card : selected) {
+  private static Set<String> combinedColorIdentity(final List<Definition> selected) {
+    final Set<String> identity = new HashSet<>();
+    for (final Definition card : selected) {
       identity.addAll(card.colors());
     }
     return identity;
   }
 
   private static void appendCardWarnings(
-      List<Definition> deck, Set<String> identity, List<String> warnings) {
-    Set<String> seen = new HashSet<>();
-    for (Definition card : deck) {
+      final List<Definition> deck, final Set<String> identity, final List<String> warnings) {
+    final Set<String> seen = new HashSet<>();
+    for (final Definition card : deck) {
       if (!card.legal()) {
         warnings.add(card.name() + " is not listed as Commander legal.");
       }
       if (!identity.containsAll(card.colors())) {
         warnings.add(card.name() + " exceeds the chosen color identity.");
       }
-      boolean duplicate = !seen.add(card.id());
+      final boolean duplicate = !seen.add(card.id());
       if (duplicate && !allowsRepeatedCopies(card)) {
         warnings.add("Check singleton exception for " + card.name() + ".");
       }
     }
   }
 
-  private static boolean allowsRepeatedCopies(Definition card) {
+  private static boolean allowsRepeatedCopies(final Definition card) {
     return card.type().contains("Basic") || card.text().contains("any number of cards named");
   }
 
-  private static void check(boolean condition, String message) {
-    if (!condition) throw new IllegalArgumentException(message);
+  private static void check(final boolean condition, final String message) {
+    if (!condition) {
+      throw new IllegalArgumentException(message);
+    }
   }
 }

@@ -16,14 +16,15 @@ class CardHttpConfigurationTest {
   void contextOwnsConfiguredClientWhileAdapterBorrowsIt() throws Exception {
     // Client is owned and closed by the lexical Spring context below.
     @SuppressWarnings("PMD.CloseResource")
-    HttpClient client;
-    try (var context = new AnnotationConfigApplicationContext(CardHttpConfiguration.class)) {
+    final HttpClient client;
+    try (AnnotationConfigApplicationContext context =
+        new AnnotationConfigApplicationContext(CardHttpConfiguration.class)) {
       client = context.getBean(HttpClient.class);
       assertThat(client.connectTimeout()).contains(Duration.ofSeconds(8));
       assertThat(client.followRedirects()).isEqualTo(HttpClient.Redirect.NEVER);
       // Spring owns this borrowed adapter and its shared client.
       @SuppressWarnings("PMD.CloseResource")
-      var adapter = context.getBean(JsonHttp.class);
+      final JsonHttp adapter = context.getBean(JsonHttp.class);
       adapter.close();
       assertThat(client.isTerminated()).isFalse();
     }
@@ -40,8 +41,8 @@ class CardHttpConfigurationTest {
 
   @Test
   void failedContextStartupClosesItsCreatedClient() throws Exception {
-    var observed = new AtomicReference<HttpClient>();
-    try (var context = new AnnotationConfigApplicationContext()) {
+    final AtomicReference<HttpClient> observed = new AtomicReference<>();
+    try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
       context
           .getBeanFactory()
           .addBeanPostProcessor(
@@ -49,8 +50,10 @@ class CardHttpConfigurationTest {
                 // This callback observes a Spring-owned bean; it must not close it during
                 // initialization.
                 @SuppressWarnings("PMD.CloseResource")
-                public Object postProcessAfterInitialization(Object bean, String name) {
-                  if (bean instanceof HttpClient client) observed.set(client);
+                public Object postProcessAfterInitialization(final Object bean, String name) {
+                  if (bean instanceof HttpClient client) {
+                    observed.set(client);
+                  }
                   return bean;
                 }
               });

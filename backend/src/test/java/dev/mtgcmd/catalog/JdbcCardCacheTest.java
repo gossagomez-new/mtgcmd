@@ -15,13 +15,17 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class JdbcCardCacheTest {
+  private static final String ISLAND_NAME = "Island";
+
+  private static final String ISLAND_KEY = "island";
+
   private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
   private final ObjectMapper mapper = new ObjectMapper();
   private final JdbcCardCache cache = new JdbcCardCache(jdbc, mapper);
   private final Definition definition =
       new Definition(
           "id",
-          "Island",
+          ISLAND_NAME,
           "",
           "",
           "Basic Land",
@@ -33,13 +37,13 @@ class JdbcCardCacheTest {
 
   @Test
   void missingEntryIsAnEmptyOptional() {
-    when(jdbc.queryForList(anyString(), eq(String.class), eq("island"))).thenReturn(List.of());
+    when(jdbc.queryForList(anyString(), eq(String.class), eq(ISLAND_KEY))).thenReturn(List.of());
     assertThat(cache.find("  ISLAND  ")).isEmpty();
   }
 
   @Test
   void normalizedLookupRestoresDefinitionAndLegalityMetadata() throws Exception {
-    when(jdbc.queryForList(anyString(), eq(String.class), eq("island")))
+    when(jdbc.queryForList(anyString(), eq(String.class), eq(ISLAND_KEY)))
         .thenReturn(List.of(mapper.writeValueAsString(definition)));
     assertThat(cache.find("  ISLAND  ")).contains(definition);
   }
@@ -47,16 +51,16 @@ class JdbcCardCacheTest {
   @Test
   void storeBindsNormalizedAliasAndCompleteJsonDefinition() throws Exception {
     cache.store("  ISLAND  ", definition);
-    var payload = ArgumentCaptor.forClass(String.class);
-    verify(jdbc).update(anyString(), eq("island"), payload.capture());
+    final ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+    verify(jdbc).update(anyString(), eq(ISLAND_KEY), payload.capture());
     assertThat(mapper.readValue(payload.getValue(), Definition.class)).isEqualTo(definition);
   }
 
   @Test
   void corruptStoredJsonPreservesTheOriginalCause() {
-    when(jdbc.queryForList(anyString(), eq(String.class), eq("island")))
+    when(jdbc.queryForList(anyString(), eq(String.class), eq(ISLAND_KEY)))
         .thenReturn(List.of("{bad"));
-    assertThatThrownBy(() -> cache.find("Island"))
+    assertThatThrownBy(() -> cache.find(ISLAND_NAME))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("Invalid cached card")
         .hasCauseInstanceOf(JsonProcessingException.class);
@@ -64,16 +68,18 @@ class JdbcCardCacheTest {
 
   @Test
   void failedReadsPropagateWithoutBeingClassifiedAsProviderFailures() {
-    var failure = new DataAccessResourceFailureException("read failed");
-    when(jdbc.queryForList(anyString(), eq(String.class), eq("island"))).thenThrow(failure);
-    assertThat(catchThrowable(() -> cache.find("Island"))).isSameAs(failure);
+    final DataAccessResourceFailureException failure =
+        new DataAccessResourceFailureException("read failed");
+    when(jdbc.queryForList(anyString(), eq(String.class), eq(ISLAND_KEY))).thenThrow(failure);
+    assertThat(catchThrowable(() -> cache.find(ISLAND_NAME))).isSameAs(failure);
   }
 
   @Test
   void failedWritesPreserveExistingServiceMessageAndDatabaseCause() {
-    var failure = new DataAccessResourceFailureException("write failed");
+    final DataAccessResourceFailureException failure =
+        new DataAccessResourceFailureException("write failed");
     doThrow(failure).when(jdbc).update(anyString(), anyString(), anyString());
-    assertThatThrownBy(() -> cache.store("Island", definition))
+    assertThatThrownBy(() -> cache.store(ISLAND_NAME, definition))
         .isInstanceOf(CardServiceUnavailableException.class)
         .hasMessage("Card catalog unavailable; try again later")
         .hasCause(failure);
@@ -81,11 +87,11 @@ class JdbcCardCacheTest {
 
   @Test
   void failedSerializationPreservesCauseAndDoesNotWrite() throws Exception {
-    var failingMapper = mock(ObjectMapper.class);
-    var failure = new JsonProcessingException("serialize failed") {};
+    final ObjectMapper failingMapper = mock(ObjectMapper.class);
+    final JsonProcessingException failure = new JsonProcessingException("serialize failed") {};
     when(failingMapper.writeValueAsString(definition)).thenThrow(failure);
-    var failing = new JdbcCardCache(jdbc, failingMapper);
-    assertThatThrownBy(() -> failing.store("Island", definition))
+    final JdbcCardCache failing = new JdbcCardCache(jdbc, failingMapper);
+    assertThatThrownBy(() -> failing.store(ISLAND_NAME, definition))
         .isInstanceOf(CardServiceUnavailableException.class)
         .hasCause(failure);
     verifyNoInteractions(jdbc);

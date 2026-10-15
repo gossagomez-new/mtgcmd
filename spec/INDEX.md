@@ -22,6 +22,8 @@ Each specification's `Depends on` metadata is authoritative.
 | [Resource ownership](resource-ownership.md)                       | Completed | Medium   | Explicit HTTP ownership and deterministic test cleanup                      | [JsonHttp request lifecycle](json-http-send-refactor.md)                                                                                         | [ADR-0006](../docs/adr/0006-http-client-resource-ownership.md): HTTP lifecycle ownership                                                                                                                                                                          |
 | [API controller decomposition](api-controller-decomposition.md)   | Completed | Medium   | Separate API endpoints, deck workflow, drafts, and scoped errors            | [Service failure diagnostics](service-failure-diagnostics.md), [Standard tables](standard-tables.md)                                             | [ADR-0007](../docs/adr/0007-api-component-boundaries.md): API component responsibilities                                                                                                                                                                          |
 
+| [Java source conventions](java-source-conventions.md) | Completed | Medium | Consistent Java style and selective documentation | [Advisory Java static analysis](java-static-analysis.md) | [ADR-0008](../docs/adr/0008-java-source-conventions.md): Java conventions and selective documentation |
+
 ## Dependency graph
 
 ```mermaid
@@ -30,6 +32,8 @@ flowchart TD
     build["Build automation"]
     analysis["Advisory Java static analysis"]
     analysis -->|depends on| build
+    conventions["Java source conventions"]
+    conventions -->|depends on| analysis
     pmdreview["PMD report analysis"]
     pmdreview -->|depends on| analysis
     imports["Deck import refactor"]

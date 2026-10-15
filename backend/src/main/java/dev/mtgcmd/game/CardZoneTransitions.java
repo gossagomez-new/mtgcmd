@@ -11,29 +11,44 @@ import java.util.*;
 final class CardZoneTransitions {
   private final SecureRandom random;
 
-  CardZoneTransitions(SecureRandom random) {
+  CardZoneTransitions(final SecureRandom random) {
     this.random = random;
   }
 
-  void move(Game game, Card card, String destination, boolean top, boolean faceDown) {
-    String previousZone = card.zone;
+  void move(
+      final Game game,
+      final Card card,
+      final String destination,
+      final boolean top,
+      final boolean faceDown) {
+    final String previousZone = card.zone;
     detachReferences(game, card.id);
     resetTransientState(card);
     assignDestination(card, destination, faceDown);
-    if (Set.of(LIBRARY, HAND).contains(previousZone) || isPrivate(card)) rekey(game, card);
+    if (Set.of(LIBRARY, HAND).contains(previousZone) || isPrivate(card)) {
+      rekey(game, card);
+    }
     game.cards.remove(card);
-    if (card.token && !destination.equals(BATTLEFIELD) && !destination.equals(STACK)) return;
+    if (card.token
+        && !BATTLEFIELD.equals(Objects.requireNonNull(destination))
+        && !STACK.equals(Objects.requireNonNull(destination))) {
+      return;
+    }
     insertAtDestination(game, card, destination, top);
   }
 
-  private void detachReferences(Game game, String oldId) {
-    for (Card other : game.cards) {
-      if (oldId.equals(other.attachedTo)) other.attachedTo = null;
-      if (other.combat.equals("blocks:" + oldId)) other.combat = "";
+  private void detachReferences(final Game game, final String oldId) {
+    for (final Card other : game.cards) {
+      if (oldId.equals(other.attachedTo)) {
+        other.attachedTo = null;
+      }
+      if (other.combat.equals("blocks:" + oldId)) {
+        other.combat = "";
+      }
     }
   }
 
-  private void resetTransientState(Card card) {
+  private void resetTransientState(final Card card) {
     card.attachedTo = null;
     card.combat = "";
     card.counters.clear();
@@ -44,43 +59,56 @@ final class CardZoneTransitions {
     card.revealedTo.clear();
   }
 
-  private void assignDestination(Card card, String destination, boolean faceDown) {
+  private void assignDestination(
+      final Card card, final String destination, final boolean faceDown) {
     card.zone = destination;
     card.faceDown = faceDown;
-    if (!destination.equals(BATTLEFIELD) && !destination.equals(STACK))
+    if (!BATTLEFIELD.equals(Objects.requireNonNull(destination))
+        && !STACK.equals(Objects.requireNonNull(destination))) {
       card.controller = card.owner;
+    }
     card.zoneOwner =
-        destination.equals(BATTLEFIELD) || destination.equals(STACK) ? card.controller : card.owner;
+        BATTLEFIELD.equals(Objects.requireNonNull(destination))
+                || STACK.equals(Objects.requireNonNull(destination))
+            ? card.controller
+            : card.owner;
   }
 
-  private void insertAtDestination(Game game, Card card, String destination, boolean top) {
-    if (top && destination.equals(LIBRARY)) {
+  private void insertAtDestination(
+      final Game game, final Card card, final String destination, final boolean top) {
+    if (top && LIBRARY.equals(Objects.requireNonNull(destination))) {
       int index = 0;
       while (index < game.cards.size()
-          && !(game.cards.get(index).zone.equals(LIBRARY)
-              && game.cards.get(index).zoneOwner == card.zoneOwner)) index++;
+          && !(LIBRARY.equals(Objects.requireNonNull(game.cards.get(index).zone))
+              && game.cards.get(index).zoneOwner == card.zoneOwner)) {
+        index++;
+      }
       game.cards.add(index, card);
-    } else game.cards.add(card);
+    } else {
+      game.cards.add(card);
+    }
   }
 
-  void shuffle(Game g, int owner) {
-    List<Card> library = zone(g, owner, LIBRARY);
+  void shuffle(final Game game, final int owner) {
+    final List<Card> library = zone(game, owner, LIBRARY);
     Collections.shuffle(library, random);
-    g.cards.removeAll(library);
-    for (Card c : library) {
-      rekey(g, c);
+    game.cards.removeAll(library);
+    for (final Card c : library) {
+      rekey(game, c);
       c.revealedTo.clear();
     }
-    g.cards.addAll(library);
-    g.searches.entrySet().removeIf(e -> e.getValue() == owner);
+    game.cards.addAll(library);
+    game.searches.entrySet().removeIf(e -> e.getValue() == owner);
   }
 
-  private void rekey(Game g, Card c) {
-    String old = c.id;
-    c.id = UUID.randomUUID().toString();
-    g.cards.forEach(
+  private void rekey(final Game game, final Card card) {
+    final String old = card.id;
+    card.id = UUID.randomUUID().toString();
+    game.cards.forEach(
         other -> {
-          if (old.equals(other.attachedTo)) other.attachedTo = null;
+          if (old.equals(other.attachedTo)) {
+            other.attachedTo = null;
+          }
         });
   }
 }

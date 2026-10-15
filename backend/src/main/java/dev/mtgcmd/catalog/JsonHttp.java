@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.*;
 
 /** Fixed destinations are chosen by adapters; no redirects or unbounded responses. */
@@ -24,7 +25,7 @@ public final class JsonHttp implements AutoCloseable {
   }
 
   /** Create an adapter owning its internally allocated HTTP client. */
-  public JsonHttp(Duration timeout, int maxBytes, int spacingMillis) {
+  public JsonHttp(final Duration timeout, final int maxBytes, final int spacingMillis) {
     this(
         timeout,
         maxBytes,
@@ -33,27 +34,37 @@ public final class JsonHttp implements AutoCloseable {
         true);
   }
 
-  JsonHttp(Duration timeout, int maxBytes, int spacingMillis, HttpClient client) {
+  JsonHttp(
+      final Duration timeout,
+      final int maxBytes,
+      final int spacingMillis,
+      final HttpClient client) {
     this(timeout, maxBytes, spacingMillis, client, false);
   }
 
   private JsonHttp(
-      Duration timeout, int maxBytes, int spacingMillis, HttpClient client, boolean ownsClient) {
+      final Duration timeout,
+      final int maxBytes,
+      final int spacingMillis,
+      final HttpClient client,
+      final boolean ownsClient) {
     validateLimits(timeout, maxBytes, spacingMillis);
     this.timeout = timeout;
     this.maxBytes = maxBytes;
     this.spacingMillis = spacingMillis;
-    this.client = java.util.Objects.requireNonNull(client, "client");
+    this.client = Objects.requireNonNull(client, "client");
     this.ownsClient = ownsClient;
   }
 
-  private static void validateLimits(Duration timeout, int maxBytes, int spacingMillis) {
+  private static void validateLimits(
+      final Duration timeout, final int maxBytes, final int spacingMillis) {
     if (timeout.isNegative() || timeout.isZero() || maxBytes < 1 || spacingMillis < 0) {
       throw new IllegalArgumentException("Invalid HTTP limits");
     }
   }
 
-  private static HttpClient createOwnedClient(Duration timeout, int maxBytes, int spacingMillis) {
+  private static HttpClient createOwnedClient(
+      final Duration timeout, final int maxBytes, final int spacingMillis) {
     validateLimits(timeout, maxBytes, spacingMillis);
     return HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(8))
@@ -62,14 +73,16 @@ public final class JsonHttp implements AutoCloseable {
   }
 
   /** Borrow a caller-owned client; closing this adapter leaves that client reusable. */
-  public JsonHttp(HttpClient client) {
+  public JsonHttp(final HttpClient client) {
     this(Duration.ofSeconds(15), 5_000_000, 110, client);
   }
 
   /** Close an owned client once, after admitted work finishes; borrowed clients are untouched. */
   @Override
   public void close() {
-    if (!ownsClient) return;
+    if (!ownsClient) {
+      return;
+    }
     synchronized (requestLock) {
       if (!closed) {
         closed = true;
@@ -78,26 +91,28 @@ public final class JsonHttp implements AutoCloseable {
     }
   }
 
-  public String get(URI uri) {
+  public String get(final URI uri) {
     return send(HttpRequest.newBuilder(uri).GET());
   }
 
-  public String post(URI uri, String body) {
+  public String post(final URI uri, final String body) {
     return send(
         HttpRequest.newBuilder(uri)
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(body)));
   }
 
-  private String send(HttpRequest.Builder builder) {
+  private String send(final HttpRequest.Builder builder) {
     synchronized (requestLock) {
-      if (closed) throw new IllegalStateException("HTTP adapter is closed");
+      if (closed) {
+        throw new IllegalStateException("HTTP adapter is closed");
+      }
       return sendSerialized(builder);
     }
   }
 
   /** Execute the full lifecycle while send holds the private request lock. */
-  private String sendSerialized(HttpRequest.Builder builder) {
+  private String sendSerialized(final HttpRequest.Builder builder) {
     CompletableFuture<HttpResponse<byte[]>> future = null;
     try {
       Thread.sleep(spacingMillis);
@@ -115,8 +130,8 @@ public final class JsonHttp implements AutoCloseable {
     }
   }
 
-  private CompletableFuture<HttpResponse<byte[]>> execute(HttpRequest.Builder builder) {
-    HttpRequest request =
+  private CompletableFuture<HttpResponse<byte[]>> execute(final HttpRequest.Builder builder) {
+    final HttpRequest request =
         builder
             .timeout(timeout)
             .header("User-Agent", "CommanderTable/0.1")
@@ -125,7 +140,7 @@ public final class JsonHttp implements AutoCloseable {
     return client.sendAsync(request, info -> new BoundedBody(maxBytes));
   }
 
-  private static String responseText(HttpResponse<byte[]> response) {
+  private static String responseText(final HttpResponse<byte[]> response) {
     if (response.statusCode() != 200) {
       throw new CardServiceUnavailableException(
           "Card service returned " + response.statusCode(), null);
@@ -133,14 +148,14 @@ public final class JsonHttp implements AutoCloseable {
     return new String(response.body(), StandardCharsets.UTF_8);
   }
 
-  private static void cancel(CompletableFuture<HttpResponse<byte[]>> future) {
+  private static void cancel(final CompletableFuture<HttpResponse<byte[]>> future) {
     if (future != null) {
       future.cancel(true);
     }
   }
 
-  private static RuntimeException translateFailure(ExecutionException exception) {
-    Throwable cause = exception.getCause();
+  private static RuntimeException translateFailure(final ExecutionException exception) {
+    final Throwable cause = exception.getCause();
     if (cause instanceof CardServiceException serviceFailure) {
       return serviceFailure;
     }
@@ -165,7 +180,7 @@ public final class JsonHttp implements AutoCloseable {
     private long received;
     private boolean done;
 
-    BoundedBody(int limit) {
+    BoundedBody(final int limit) {
       this.limit = limit;
     }
 
@@ -173,23 +188,29 @@ public final class JsonHttp implements AutoCloseable {
       return delegate.getBody();
     }
 
-    public void onSubscribe(Flow.Subscription subscription) {
+    public void onSubscribe(final Flow.Subscription subscription) {
       this.subscription = subscription;
       delegate.onSubscribe(subscription);
     }
 
-    public void onNext(List<ByteBuffer> buffers) {
-      if (done) return;
-      for (ByteBuffer buffer : buffers) received += buffer.remaining();
+    public void onNext(final List<ByteBuffer> buffers) {
+      if (done) {
+        return;
+      }
+      for (final ByteBuffer buffer : buffers) {
+        received += buffer.remaining();
+      }
       if (received > limit) {
         done = true;
         subscription.cancel();
         delegate.onError(
             new InvalidCardServiceResponseException("Card service response too large", null));
-      } else delegate.onNext(buffers);
+      } else {
+        delegate.onNext(buffers);
+      }
     }
 
-    public void onError(Throwable error) {
+    public void onError(final Throwable error) {
       if (!done) {
         done = true;
         delegate.onError(error);

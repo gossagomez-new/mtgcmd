@@ -14,15 +14,17 @@ public final class GuestSessions {
   private final boolean secure;
   private final SecureRandom random = new SecureRandom();
 
-  public GuestSessions(JdbcTemplate jdbc, boolean secure) {
+  public GuestSessions(final JdbcTemplate jdbc, final boolean secure) {
     this.jdbc = jdbc;
     this.secure = secure;
   }
 
-  public Guest bootstrap(HttpServletRequest request, HttpServletResponse response) {
+  public Guest bootstrap(final HttpServletRequest request, final HttpServletResponse response) {
     Guest guest = find(request);
-    if (guest != null) return guest;
-    String token = secret();
+    if (guest != null) {
+      return guest;
+    }
+    final String token = secret();
     guest = new Guest(RoomStore.hash(token), secret());
     jdbc.update(
         "INSERT INTO guests(token_hash,csrf_token) VALUES (?,?)", guest.hash(), guest.csrf());
@@ -39,27 +41,34 @@ public final class GuestSessions {
     return guest;
   }
 
-  public Guest require(HttpServletRequest request) {
-    Guest guest = find(request);
-    if (guest == null) throw new RoomStore.Forbidden("Refresh to establish a guest session");
+  public Guest require(final HttpServletRequest request) {
+    final Guest guest = find(request);
+    if (guest == null) {
+      throw new RoomStore.Forbidden("Refresh to establish a guest session");
+    }
     return guest;
   }
 
-  private Guest find(HttpServletRequest request) {
-    if (request.getCookies() == null) return null;
-    for (Cookie cookie : request.getCookies())
-      if (cookie.getName().equals("table_guest") && cookie.getValue().matches("[a-f0-9]{64}")) {
-        String hash = RoomStore.hash(cookie.getValue());
-        List<String> rows =
+  private Guest find(final HttpServletRequest request) {
+    if (request.getCookies() == null) {
+      return null;
+    }
+    for (final Cookie cookie : request.getCookies()) {
+      if ("table_guest".equals(cookie.getName()) && cookie.getValue().matches("[a-f0-9]{64}")) {
+        final String hash = RoomStore.hash(cookie.getValue());
+        final List<String> rows =
             jdbc.queryForList(
                 "SELECT csrf_token FROM guests WHERE token_hash=?", String.class, hash);
-        if (!rows.isEmpty()) return new Guest(hash, rows.getFirst());
+        if (!rows.isEmpty()) {
+          return new Guest(hash, rows.getFirst());
+        }
       }
+    }
     return null;
   }
 
   private String secret() {
-    byte[] bytes = new byte[32];
+    final byte[] bytes = new byte[32];
     random.nextBytes(bytes);
     return HexFormat.of().formatHex(bytes);
   }

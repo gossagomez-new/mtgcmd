@@ -2,6 +2,7 @@ package dev.mtgcmd.game;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import org.junit.jupiter.api.Test;
@@ -10,7 +11,7 @@ class GameAccessViewTest {
   private final GameAccess access = new GameAccess();
   private final GameEngineCommandsTest fixtures = new GameEngineCommandsTest();
 
-  private Game.Card card(Game game, int owner, String zone) {
+  private Game.Card card(final Game game, final int owner, final String zone) {
     return game.cards.stream()
         .filter(c -> c.owner == owner && c.zone.equals(zone))
         .findFirst()
@@ -19,8 +20,8 @@ class GameAccessViewTest {
 
   @Test
   void grantsSearchAndRevealHaveDistinctVisibilityAndEditingEffects() {
-    Game game = fixtures.playing(GameFormat.COMMANDER);
-    Game.Card library = card(game, 1, "library");
+    final Game game = fixtures.playing(GameFormat.COMMANDER);
+    final Game.Card library = card(game, 1, "library");
     assertThat(access.visible(game, 0, library)).isFalse();
     assertThat(access.mayEdit(game, 0, library)).isFalse();
     game.grants.put(1, new HashSet<>(Set.of(0)));
@@ -38,8 +39,8 @@ class GameAccessViewTest {
 
   @Test
   void publicFaceDownCardIsVisibleButInspectionAndEditingDependOnDifferentPolicies() {
-    Game game = fixtures.playing(GameFormat.STANDARD);
-    Game.Card permanent = card(game, 0, "hand");
+    final Game game = fixtures.playing(GameFormat.STANDARD);
+    final Game.Card permanent = card(game, 0, "hand");
     permanent.zone = "battlefield";
     permanent.faceDown = true;
     assertThat(access.visible(game, 1, permanent)).isTrue();
@@ -54,15 +55,15 @@ class GameAccessViewTest {
 
   @Test
   void projectionPreservesWireFieldsAndDoesNotMutateTheGame() {
-    Game game = fixtures.playing(GameFormat.COMMANDER);
-    Game.Card hand = card(game, 1, "hand");
-    Game.Card permanent = card(game, 0, "command");
+    final Game game = fixtures.playing(GameFormat.COMMANDER);
+    final Game.Card hand = card(game, 1, "hand");
+    final Game.Card permanent = card(game, 0, "command");
     permanent.zone = "battlefield";
     permanent.faceDown = true;
-    var mapper = new ObjectMapper();
-    var before = mapper.valueToTree(game);
-    var views = new GameViewMapper(access);
-    Map<String, Object> view = views.forPlayer(game, 1);
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode before = mapper.valueToTree(game);
+    final GameViewMapper views = new GameViewMapper(access);
+    final Map<String, Object> view = views.forPlayer(game, 1);
     assertThat(view.keySet())
         .containsExactlyInAnyOrder(
             "id",
@@ -81,10 +82,10 @@ class GameAccessViewTest {
             "players",
             "cards",
             "abilities");
-    var json = mapper.valueToTree(view);
+    final JsonNode json = mapper.valueToTree(view);
     assertThat(json.path("cards").toString()).contains(hand.id);
     assertThat(views.forPlayer(game, 2).toString()).doesNotContain(hand.id);
-    var hidden =
+    final JsonNode hidden =
         java.util.stream.StreamSupport.stream(json.path("cards").spliterator(), false)
             .filter(node -> node.path("id").asText().equals(permanent.id))
             .findFirst()
@@ -92,7 +93,7 @@ class GameAccessViewTest {
     assertThat(hidden.has("definition")).isFalse();
     assertThat(hidden.path("commanderKey").isNull()).isTrue();
     assertThat(hidden.path("editable").asBoolean()).isFalse();
-    assertThat(mapper.<com.fasterxml.jackson.databind.JsonNode>valueToTree(game)).isEqualTo(before);
+    assertThat(mapper.<JsonNode>valueToTree(game)).isEqualTo(before);
     assertThatThrownBy(() -> views.forPlayer(game, -1)).hasMessage("Unknown seat");
   }
 }

@@ -20,31 +20,32 @@ public final class CardCatalog implements DeckImporter.Catalog {
 
   private record ResolutionPlan(Map<String, Definition> found, List<String> pending) {}
 
-  public CardCatalog(JdbcTemplate jdbc, ObjectMapper mapper, JsonHttp http) {
+  public CardCatalog(final JdbcTemplate jdbc, final ObjectMapper mapper, final JsonHttp http) {
     this(jdbc, mapper, http, Clock.systemUTC());
   }
 
-  public CardCatalog(JdbcTemplate jdbc, ObjectMapper mapper, JsonHttp http, Clock clock) {
+  public CardCatalog(
+      final JdbcTemplate jdbc, final ObjectMapper mapper, final JsonHttp http, final Clock clock) {
     this(new JdbcCardCache(jdbc, mapper), new ScryfallCardSource(http, mapper, clock), clock);
   }
 
-  CardCatalog(CardCache cache, ScryfallCardSource source, Clock clock) {
+  CardCatalog(final CardCache cache, final ScryfallCardSource source, final Clock clock) {
     this.cache = cache;
     this.source = source;
     this.clock = clock;
   }
 
-  public List<Definition> resolve(List<String> names) {
+  public List<Definition> resolve(final List<String> names) {
     return resolve(names, GameFormat.COMMANDER);
   }
 
   @Override
-  public List<Definition> resolve(List<String> names, GameFormat format) {
-    ResolutionPlan plan = planLookup(names, format);
+  public List<Definition> resolve(final List<String> names, final GameFormat format) {
+    final ResolutionPlan plan = planLookup(names, format);
     for (int offset = 0;
         offset < plan.pending().size();
         offset += ScryfallCardSource.MAX_BATCH_SIZE) {
-      List<String> batch =
+      final List<String> batch =
           plan.pending()
               .subList(
                   offset,
@@ -54,30 +55,35 @@ public final class CardCatalog implements DeckImporter.Catalog {
     return names.stream().map(name -> plan.found().get(CardNames.key(name))).toList();
   }
 
-  private ResolutionPlan planLookup(List<String> names, GameFormat format) {
-    Map<String, Definition> found = new HashMap<>();
-    Set<String> pending = new LinkedHashSet<>();
-    for (String name : names) {
-      Optional<Definition> cached = cache.find(name);
+  private ResolutionPlan planLookup(final List<String> names, final GameFormat format) {
+    final Map<String, Definition> found = new HashMap<>();
+    final Set<String> pending = new LinkedHashSet<>();
+    for (final String name : names) {
+      final Optional<Definition> cached = cache.find(name);
       cached.ifPresent(definition -> found.put(CardNames.key(name), definition));
-      if (needsLookup(cached, format)) pending.add(name);
+      if (needsLookup(cached, format)) {
+        pending.add(name);
+      }
     }
     return new ResolutionPlan(found, new ArrayList<>(pending));
   }
 
-  private boolean needsLookup(Optional<Definition> cached, GameFormat format) {
+  private boolean needsLookup(final Optional<Definition> cached, final GameFormat format) {
     return cached.isEmpty()
         || (format == GameFormat.STANDARD && !CardLegality.fresh(cached.get(), "standard", clock));
   }
 
-  private void resolveBatch(List<String> batch, GameFormat format, Map<String, Definition> found) {
-    ScryfallCardSource.LookupResult result;
+  private void resolveBatch(
+      final List<String> batch, final GameFormat format, final Map<String, Definition> found) {
+    final ScryfallCardSource.LookupResult result;
     try {
       result = fetchBatch(batch, format);
     } catch (CardServiceInterruptedException e) {
       throw e;
     } catch (CardServiceException e) {
-      if (!canUseCachedBatch(batch, format, found)) throw e;
+      if (!canUseCachedBatch(batch, format, found)) {
+        throw e;
+      }
       LOG.warn("Catalog refresh failed; using cached definitions", e);
       return;
     }
@@ -85,41 +91,44 @@ public final class CardCatalog implements DeckImporter.Catalog {
     requireResolved(batch, found);
   }
 
-  private ScryfallCardSource.LookupResult fetchBatch(List<String> batch, GameFormat format) {
-    ScryfallCardSource.LookupResult result = source.lookupBatch(batch);
-    if (format == GameFormat.STANDARD && !result.supportedEnvelope())
+  private ScryfallCardSource.LookupResult fetchBatch(
+      final List<String> batch, final GameFormat format) {
+    final ScryfallCardSource.LookupResult result = source.lookupBatch(batch);
+    if (format == GameFormat.STANDARD && !result.supportedEnvelope()) {
       throw new InvalidCardServiceResponseException(
           "Card catalog returned an unsupported response", null);
+    }
     return result;
   }
 
   private boolean canUseCachedBatch(
-      List<String> batch, GameFormat format, Map<String, Definition> found) {
+      final List<String> batch, final GameFormat format, final Map<String, Definition> found) {
     return format == GameFormat.STANDARD
         && batch.stream().allMatch(name -> found.containsKey(CardNames.key(name)));
   }
 
   private void persistAndMerge(
-      ScryfallCardSource.LookupResult result, Map<String, Definition> found) {
-    for (ScryfallCardSource.MatchedCard card : result.cards()) {
+      final ScryfallCardSource.LookupResult result, final Map<String, Definition> found) {
+    for (final ScryfallCardSource.MatchedCard card : result.cards()) {
       cache.store(card.definition().name(), card.definition());
-      for (String alias : card.aliases()) {
+      for (final String alias : card.aliases()) {
         found.put(CardNames.key(alias), card.definition());
         cache.store(alias, card.definition());
       }
     }
   }
 
-  private void requireResolved(List<String> batch, Map<String, Definition> found) {
-    for (String name : batch) {
-      if (!found.containsKey(CardNames.key(name)))
+  private void requireResolved(final List<String> batch, final Map<String, Definition> found) {
+    for (final String name : batch) {
+      if (!found.containsKey(CardNames.key(name))) {
         throw new IllegalArgumentException(
             "Unknown card: " + name + ". Check spelling or use the full printed name.");
+      }
     }
   }
 
   /** Compatibility entry point for provider definition mapping. */
-  public static Definition definition(JsonNode card) {
+  public static Definition definition(final JsonNode card) {
     return ScryfallCardSource.definition(card, System.currentTimeMillis());
   }
 }

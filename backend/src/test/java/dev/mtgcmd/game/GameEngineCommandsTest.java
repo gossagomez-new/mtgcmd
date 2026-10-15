@@ -2,6 +2,7 @@ package dev.mtgcmd.game;
 
 import static org.assertj.core.api.Assertions.*;
 
+import dev.mtgcmd.game.Game.Definition;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -9,14 +10,18 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 
 class GameEngineCommandsTest {
+  private static final String START_COMMAND = "START";
+
+  private static final String UNKNOWN_COMMAND = "UNKNOWN";
+
   private final GameEngine engine = new GameEngine();
   private final GameCommandData commandData = new GameCommandData(engine);
 
   static Stream<Arguments> commands() {
-    List<String> types =
+    final List<String> types =
         List.of(
             "READY",
-            "START",
+            START_COMMAND,
             "DRAW",
             "SHUFFLE",
             "SEARCH",
@@ -49,14 +54,14 @@ class GameEngineCommandsTest {
             format ->
                 types.stream()
                     .filter(
-                        type -> format == GameFormat.COMMANDER || !type.equals("COMMANDER_CAST"))
+                        type -> format == GameFormat.COMMANDER || !"COMMANDER_CAST".equals(type))
                     .map(type -> Arguments.of(format, type)));
   }
 
-  Game ready(GameFormat format) {
-    Game game = new Game();
+  Game ready(final GameFormat format) {
+    final Game game = new Game();
     game.format = format;
-    var definition =
+    final Definition definition =
         new Game.Definition(
             "island",
             "Island",
@@ -80,13 +85,13 @@ class GameEngineCommandsTest {
     return game;
   }
 
-  Game playing(GameFormat format) {
-    Game game = ready(format);
-    apply(game, 0, "START", Map.of());
+  Game playing(final GameFormat format) {
+    final Game game = ready(format);
+    apply(game, 0, START_COMMAND, Map.of());
     return game;
   }
 
-  void apply(Game game, int seat, String type, Map<String, Object> data) {
+  void apply(final Game game, final int seat, final String type, final Map<String, Object> data) {
     engine.apply(
         game, seat, new Game.Command(UUID.randomUUID().toString(), game.revision, type, data));
   }
@@ -94,15 +99,16 @@ class GameEngineCommandsTest {
   @ParameterizedTest
   @MethodSource("commands")
   void everyCommandAdvancesExactlyOneRevisionAndRecordsItsExistingDescription(
-      GameFormat format, String type) {
-    Game game = type.equals("READY") || type.equals("START") ? ready(format) : playing(format);
-    Map<String, Object> data = commandData.forCommand(game, type);
-    long initialRevision = game.revision;
-    int entries = game.log.size();
+      final GameFormat format, final String type) {
+    final Game game =
+        "READY".equals(type) || START_COMMAND.equals(type) ? ready(format) : playing(format);
+    final Map<String, Object> data = commandData.forCommand(game, type);
+    final long initialRevision = game.revision;
+    final int entries = game.log.size();
     apply(game, 0, type, data);
     assertThat(game.revision).isEqualTo(initialRevision + 1);
     assertThat(game.log).hasSize(entries + 1);
-    String description =
+    final String description =
         switch (type) {
           case "DRAW" -> "drew 1 card(s)";
           case "SHUFFLE" -> "shuffled a library";
@@ -110,42 +116,52 @@ class GameEngineCommandsTest {
           case "PHASE" -> "advanced to Upkeep";
           default -> type.toLowerCase(Locale.ROOT).replace('_', ' ');
         };
-    if (type.equals("DICE")) assertThat(game.log.getLast()).matches("Player 0: rolled [1-6]");
-    else assertThat(game.log.getLast()).isEqualTo("Player 0: " + description);
+    if ("DICE".equals(type)) {
+      assertThat(game.log.getLast()).matches("Player 0: rolled [1-6]");
+    } else {
+      assertThat(game.log.getLast()).isEqualTo("Player 0: " + description);
+    }
   }
 
   @Test
   void validationPrecedenceAndRejectedCommandBookkeepingRemainCompatible() {
-    Game game = ready(GameFormat.COMMANDER);
-    long initialRevision = game.revision;
+    final Game game = ready(GameFormat.COMMANDER);
+    final long initialRevision = game.revision;
     List<String> log = List.copyOf(game.log);
     assertThatThrownBy(() -> engine.apply(game, -1, null)).hasMessage("Invalid command");
     assertThatThrownBy(
             () ->
                 engine.apply(
-                    game, -1, new Game.Command("id", initialRevision - 1, "UNKNOWN", Map.of())))
+                    game,
+                    -1,
+                    new Game.Command("id", initialRevision - 1, UNKNOWN_COMMAND, Map.of())))
         .hasMessage("Stale revision");
-    assertThatThrownBy(() -> apply(game, -1, "UNKNOWN", Map.of())).hasMessage("Unknown seat");
-    assertThatThrownBy(() -> apply(game, 0, "UNKNOWN", Map.of())).hasMessage("Game is not playing");
+    assertThatThrownBy(() -> apply(game, -1, UNKNOWN_COMMAND, Map.of())).hasMessage("Unknown seat");
+    assertThatThrownBy(() -> apply(game, 0, UNKNOWN_COMMAND, Map.of()))
+        .hasMessage("Game is not playing");
     assertThat(game.revision).isEqualTo(initialRevision);
     assertThat(game.log).containsExactlyElementsOf(log);
-    apply(game, 0, "START", Map.of());
+    apply(game, 0, START_COMMAND, Map.of());
     apply(game, 1, "CONCEDE", Map.of());
-    long revision = game.revision;
+    final long revision = game.revision;
     log = List.copyOf(game.log);
-    assertThatThrownBy(() -> apply(game, 1, "UNKNOWN", Map.of())).hasMessage("You have conceded");
+    assertThatThrownBy(() -> apply(game, 1, UNKNOWN_COMMAND, Map.of()))
+        .hasMessage("You have conceded");
     assertThatThrownBy(() -> apply(game, 1, "FINISH", Map.of()))
         .hasMessage("Only the host can finish");
-    assertThatThrownBy(() -> apply(game, 0, "UNKNOWN", Map.of())).hasMessage("Unknown command");
+    assertThatThrownBy(() -> apply(game, 0, UNKNOWN_COMMAND, Map.of()))
+        .hasMessage("Unknown command");
     assertThat(game.revision).isEqualTo(revision);
     assertThat(game.log).containsExactlyElementsOf(log);
   }
 
   @Test
   void concededHostCanFinishAndLogHistoryRemainsBounded() {
-    Game game = playing(GameFormat.STANDARD);
+    final Game game = playing(GameFormat.STANDARD);
     game.log.clear();
-    for (int i = 0; i < 105; i++) apply(game, 0, "COUNTER", Map.of("name", "life", "delta", 0));
+    for (int i = 0; i < 105; i++) {
+      apply(game, 0, "COUNTER", Map.of("name", "life", "delta", 0));
+    }
     assertThat(game.log).hasSize(100);
     apply(game, 0, "CONCEDE", Map.of());
     apply(game, 0, "FINISH", Map.of());

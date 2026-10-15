@@ -19,20 +19,22 @@ public final class TestServer {
   public static void main(String[] args) throws Exception {
     postgres = EmbeddedPostgres.builder().setPort(0).start();
     start();
-    JdbcTemplate jdbc = context.getBean(JdbcTemplate.class);
-    ObjectMapper mapper = context.getBean(ObjectMapper.class);
-    for (String name :
+    final JdbcTemplate jdbc = context.getBean(JdbcTemplate.class);
+    final ObjectMapper mapper = context.getBean(ObjectMapper.class);
+    for (final String name :
         List.of(
             "Demo Commander", "Secret A", "Secret B", "Secret C", "Secret D", "Demo Forbidden")) {
-      Definition card =
+      final Definition card =
           new Definition(
               name,
               name,
               "",
               "Browser-test fixture",
-              name.equals("Demo Commander")
+              "Demo Commander".equals(Objects.requireNonNull(name))
                   ? "Legendary Creature"
-                  : name.equals("Demo Forbidden") ? "Sorcery" : "Basic Land",
+                  : "Demo Forbidden".equals(Objects.requireNonNull(name))
+                      ? "Sorcery"
+                      : "Basic Land",
               List.of(),
               true,
               List.of(),
@@ -40,7 +42,7 @@ public final class TestServer {
                   "commander",
                   "legal",
                   "standard",
-                  name.equals("Demo Forbidden") ? "banned" : "legal"),
+                  "Demo Forbidden".equals(Objects.requireNonNull(name)) ? "banned" : "legal"),
               System.currentTimeMillis());
       jdbc.update(
           "INSERT INTO catalog(name,definition) VALUES (?,CAST(? AS jsonb))",

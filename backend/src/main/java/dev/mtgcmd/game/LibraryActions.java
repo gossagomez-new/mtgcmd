@@ -9,55 +9,62 @@ import java.util.*;
 
 /** Library tabletop commands; revision and logging belong to the facade. */
 final class LibraryActions {
+  private static final String TARGET_FIELD = "target";
+
   private final GameAccess access;
   private final CardZoneTransitions transitions;
 
-  LibraryActions(GameAccess access, CardZoneTransitions transitions) {
+  LibraryActions(final GameAccess access, final CardZoneTransitions transitions) {
     this.access = access;
     this.transitions = transitions;
   }
 
-  String draw(Game g, int seat, Map<String, Object> d) {
+  String draw(final Game game, final int seat, final Map<String, Object> data) {
 
-    int target = integer(d, "target", seat, 0, g.players.size() - 1),
-        count = integer(d, "count", 1, 1, 100);
-    access.privatePermission(g, seat, target);
-    List<Card> library = zone(g, target, LIBRARY);
+    final int target = integer(data, TARGET_FIELD, seat, 0, game.players.size() - 1),
+        count = integer(data, "count", 1, 1, 100);
+    access.privatePermission(game, seat, target);
+    final List<Card> library = zone(game, target, LIBRARY);
     require(library.size() >= count, "Not enough cards in library");
-    for (Card c : library.subList(0, count)) transitions.move(g, c, HAND, false, false);
+    for (final Card c : library.subList(0, count)) {
+      transitions.move(game, c, HAND, false, false);
+    }
     return "drew " + count + " card(s)";
   }
 
-  String shuffle(Game g, int seat, Map<String, Object> d) {
+  String shuffle(final Game game, final int seat, final Map<String, Object> data) {
 
-    int target = integer(d, "target", seat, 0, g.players.size() - 1);
-    access.privatePermission(g, seat, target);
-    transitions.shuffle(g, target);
+    final int target = integer(data, TARGET_FIELD, seat, 0, game.players.size() - 1);
+    access.privatePermission(game, seat, target);
+    transitions.shuffle(game, target);
     return "shuffled a library";
   }
 
-  String search(Game g, int seat, Map<String, Object> d) {
+  String search(final Game game, final int seat, final Map<String, Object> data) {
 
-    int target = integer(d, "target", seat, 0, g.players.size() - 1);
-    access.privatePermission(g, seat, target);
-    g.searches.put(seat, target);
+    final int target = integer(data, TARGET_FIELD, seat, 0, game.players.size() - 1);
+    access.privatePermission(game, seat, target);
+    game.searches.put(seat, target);
     return "opened a private library search";
   }
 
-  String closeSearch(Game g, int seat, Map<String, Object> d) {
-    g.searches.remove(seat);
+  String closeSearch(final Game game, final int seat, Map<String, Object> data) {
+    game.searches.remove(seat);
     return "close search";
   }
 
-  String grant(Game g, int seat, Map<String, Object> d) {
+  String grant(final Game game, final int seat, final Map<String, Object> data) {
 
-    int target = integer(d, "target", -1, 0, g.players.size() - 1);
-    player(g, target);
-    Set<Integer> grants = g.grants.computeIfAbsent(seat, x -> new HashSet<>());
-    if (bool(d, "allow", true)) grants.add(target);
-    else {
+    final int target = integer(data, TARGET_FIELD, -1, 0, game.players.size() - 1);
+    player(game, target);
+    final Set<Integer> grants = game.grants.computeIfAbsent(seat, x -> new HashSet<>());
+    if (bool(data, "allow", true)) {
+      grants.add(target);
+    } else {
       grants.remove(target);
-      if (Objects.equals(g.searches.get(target), seat)) g.searches.remove(target);
+      if (Objects.equals(game.searches.get(target), seat)) {
+        game.searches.remove(target);
+      }
     }
 
     return "grant";

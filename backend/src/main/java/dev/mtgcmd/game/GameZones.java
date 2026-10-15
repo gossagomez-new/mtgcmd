@@ -1,6 +1,7 @@
 package dev.mtgcmd.game;
 
 import java.util.List;
+import java.util.Objects;
 
 /** Wire-compatible zone names shared by actions, transitions, and projections. */
 final class GameZones {
@@ -16,7 +17,9 @@ final class GameZones {
 
   private GameZones() {}
 
-  static boolean isPrivate(Game.Card card) {
-    return card.zone.equals(LIBRARY) || card.zone.equals(HAND);
+  static boolean isPrivate(final Game.Card card) {
+    // Missing zone state must fail before access checks can classify the card as public.
+    final String zone = Objects.requireNonNull(card.zone);
+    return LIBRARY.equals(zone) || HAND.equals(zone);
   }
 }

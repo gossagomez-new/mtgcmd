@@ -4,17 +4,22 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.net.URI;
-import java.net.http.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Builder;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.MockedStatic;
 
 class JsonHttpOwnershipTest {
-  private JsonHttp owned(HttpClient client) {
-    try (var construction = mockStatic(HttpClient.class)) {
-      var builder = mock(HttpClient.Builder.class, RETURNS_SELF);
+  private static final String PROVIDER_URL = "https://example.test";
+
+  private JsonHttp owned(final HttpClient client) {
+    try (MockedStatic<HttpClient> construction = mockStatic(HttpClient.class)) {
+      final Builder builder = mock(HttpClient.Builder.class, RETURNS_SELF);
       when(builder.build()).thenReturn(client);
       construction.when(HttpClient::newBuilder).thenReturn(builder);
       return new JsonHttp();
@@ -24,12 +29,12 @@ class JsonHttpOwnershipTest {
   @Test
   void ownedCloseIsIdempotentAndRejectsFurtherRequests() {
     // Mockito client has no transport resources to close.
-    var client = mock(HttpClient.class);
-    try (var http = owned(client)) {
+    final HttpClient client = mock(HttpClient.class);
+    try (JsonHttp http = owned(client)) {
       http.close();
       http.close();
       verify(client, times(1)).close();
-      assertThatThrownBy(() -> http.get(URI.create("https://example.test")))
+      assertThatThrownBy(() -> http.get(URI.create(PROVIDER_URL)))
           .isInstanceOf(IllegalStateException.class)
           .hasMessage("HTTP adapter is closed");
       verify(client, never()).sendAsync(any(), any());
@@ -40,10 +45,10 @@ class JsonHttpOwnershipTest {
   void closeFailurePropagatesWithoutClosingTwice() {
     // Mockito client has no transport resources to close.
     @SuppressWarnings("PMD.CloseResource")
-    var client = mock(HttpClient.class);
-    var failure = new IllegalStateException("close failed");
+    final HttpClient client = mock(HttpClient.class);
+    final IllegalStateException failure = new IllegalStateException("close failed");
     doThrow(failure).when(client).close();
-    try (var http = owned(client)) {
+    try (JsonHttp http = owned(client)) {
       assertThatThrownBy(http::close).isSameAs(failure);
       http.close();
       verify(client, times(1)).close();
@@ -55,18 +60,18 @@ class JsonHttpOwnershipTest {
   void borrowedCloseDoesNotCloseOrDisableTheClient() {
     // Mockito client has no transport resources to close.
     @SuppressWarnings("PMD.CloseResource")
-    var client = mock(HttpClient.class);
-    HttpResponse<byte[]> response = mock(HttpResponse.class);
+    final HttpClient client = mock(HttpClient.class);
+    final HttpResponse<byte[]> response = mock(HttpResponse.class);
     when(response.statusCode()).thenReturn(200);
     when(response.body()).thenReturn(new byte[0]);
     when(client.sendAsync(
             any(), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<byte[]>>any()))
         .thenReturn(CompletableFuture.completedFuture(response));
-    try (var http = new JsonHttp(client)) {
-      http.get(URI.create("https://example.test"));
+    try (JsonHttp http = new JsonHttp(client)) {
+      http.get(URI.create(PROVIDER_URL));
       http.close();
       http.close();
-      http.get(URI.create("https://example.test"));
+      http.get(URI.create(PROVIDER_URL));
       verify(client, never()).close();
       verify(client, times(2)).sendAsync(any(), any());
     }
@@ -74,8 +79,9 @@ class JsonHttpOwnershipTest {
 
   @ParameterizedTest
   @CsvSource({"0,128,0", "1000,0,0", "1000,128,-1"})
-  void invalidOwnedLimitsDoNotAllocateClient(long millis, int maxBytes, int spacing) {
-    try (var construction = mockStatic(HttpClient.class)) {
+  void invalidOwnedLimitsDoNotAllocateClient(
+      final long millis, final int maxBytes, final int spacing) {
+    try (MockedStatic<HttpClient> construction = mockStatic(HttpClient.class)) {
       assertThatThrownBy(() -> new JsonHttp(Duration.ofMillis(millis), maxBytes, spacing))
           .hasMessage("Invalid HTTP limits");
       construction.verifyNoInteractions();
@@ -86,7 +92,7 @@ class JsonHttpOwnershipTest {
   void invalidBorrowedLimitsLeaveCallerResourceUntouched() {
     // Mockito client has no transport resources to close.
     @SuppressWarnings("PMD.CloseResource")
-    var client = mock(HttpClient.class);
+    final HttpClient client = mock(HttpClient.class);
     assertThatThrownBy(() -> new JsonHttp(Duration.ZERO, 128, 0, client))
         .hasMessage("Invalid HTTP limits");
     verifyNoInteractions(client);
@@ -97,9 +103,9 @@ class JsonHttpOwnershipTest {
   void ownedCloseWaitsForAdmittedRequestBeforeClosingClient() throws Exception {
     // Mockito client has no transport resources to close.
     @SuppressWarnings("PMD.CloseResource")
-    var client = mock(HttpClient.class);
-    var pending = new CompletableFuture<HttpResponse<byte[]>>();
-    var submitted = new CountDownLatch(1);
+    final HttpClient client = mock(HttpClient.class);
+    final CompletableFuture<HttpResponse<byte[]>> pending = new CompletableFuture<>();
+    final CountDownLatch submitted = new CountDownLatch(1);
     when(client.sendAsync(
             any(), org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<byte[]>>any()))
         .thenAnswer(
@@ -107,26 +113,27 @@ class JsonHttpOwnershipTest {
               submitted.countDown();
               return pending;
             });
-    try (var http = owned(client)) {
-      var request = new FutureTask<>(() -> http.get(URI.create("https://example.test")));
-      var closing =
-          new FutureTask<Void>(
+    try (JsonHttp http = owned(client)) {
+      final FutureTask<String> request = new FutureTask<>(() -> http.get(URI.create(PROVIDER_URL)));
+      final FutureTask<Void> closing =
+          new FutureTask<>(
               () -> {
                 http.close();
                 return null;
               });
-      Thread requester = new Thread(request);
-      Thread closer = new Thread(closing);
+      final Thread requester = new Thread(request);
+      final Thread closer = new Thread(closing);
       try {
         requester.start();
         assertThat(submitted.await(2, TimeUnit.SECONDS)).isTrue();
         closer.start();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-        while (closer.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline)
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (closer.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) {
           Thread.onSpinWait();
+        }
         assertThat(closer.getState()).isEqualTo(Thread.State.BLOCKED);
         verify(client, never()).close();
-        HttpResponse<byte[]> response = mock(HttpResponse.class);
+        final HttpResponse<byte[]> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(200);
         when(response.body()).thenReturn(new byte[0]);
         pending.complete(response);

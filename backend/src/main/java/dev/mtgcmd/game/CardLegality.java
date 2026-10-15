@@ -9,9 +9,9 @@ public final class CardLegality {
 
   private CardLegality() {}
 
-  public static boolean fresh(Game.Definition card, String format, Clock clock) {
-    Long observed = card.legalityCheckedAt();
-    long now = clock.millis();
+  public static boolean fresh(final Game.Definition card, final String format, final Clock clock) {
+    final Long observed = card.legalityCheckedAt();
+    final long now = clock.millis();
     return observed != null
         && observed <= now
         && observed > now - MAX_AGE_MILLIS

@@ -2,6 +2,8 @@ package dev.mtgcmd.game;
 
 import java.util.*;
 
+// Short data names are persisted and exposed on the wire; retain snapshot compatibility.
+@SuppressWarnings("PMD.ShortVariable")
 public final class Game {
   public String id = UUID.randomUUID().toString();
   public long revision;
@@ -54,14 +56,14 @@ public final class Game {
     }
 
     public Definition(
-        String id,
-        String name,
-        String image,
-        String text,
-        String type,
-        List<String> colors,
-        boolean legal,
-        List<Face> faces) {
+        final String id,
+        final String name,
+        final String image,
+        final String text,
+        final String type,
+        final List<String> colors,
+        final boolean legal,
+        final List<Face> faces) {
       this(id, name, image, text, type, colors, legal, faces, Map.of(), null);
     }
   }

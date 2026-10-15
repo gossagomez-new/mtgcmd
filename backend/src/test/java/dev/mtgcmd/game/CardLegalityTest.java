@@ -9,9 +9,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class CardLegalityTest {
+  private static final String LEGAL_STATUS = "legal";
+
+  private static final String STANDARD_FORMAT = "standard";
+
   private final Clock clock = Clock.fixed(Instant.parse("2026-10-14T12:00:00Z"), ZoneOffset.UTC);
 
-  private Game.Definition definition(String status, Long observed) {
+  private Game.Definition definition(final String status, final Long observed) {
     return new Game.Definition(
         "id",
         "Card",
@@ -21,31 +25,35 @@ class CardLegalityTest {
         List.of(),
         true,
         List.of(),
-        status == null ? Map.of() : Map.of("standard", status),
+        status == null ? Map.of() : Map.of(STANDARD_FORMAT, status),
         observed);
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"legal", "banned", "not_legal", "restricted"})
-  void recognizesKnownFreshObservationsEvenWhenNotLegal(String status) {
-    assertThat(CardLegality.fresh(definition(status, clock.millis()), "standard", clock)).isTrue();
+  @ValueSource(strings = {LEGAL_STATUS, "banned", "not_legal", "restricted"})
+  void recognizesKnownFreshObservationsEvenWhenNotLegal(final String status) {
+    assertThat(CardLegality.fresh(definition(status, clock.millis()), STANDARD_FORMAT, clock))
+        .isTrue();
   }
 
   @Test
   void missingAndUnrecognizedStatusCannotCountAsVerification() {
-    for (String status : Arrays.asList(null, "", "unknown")) {
-      assertThat(CardLegality.fresh(definition(status, clock.millis()), "standard", clock))
+    for (final String status : Arrays.asList(null, "", "unknown")) {
+      assertThat(CardLegality.fresh(definition(status, clock.millis()), STANDARD_FORMAT, clock))
           .isFalse();
     }
-    assertThat(CardLegality.fresh(definition("legal", null), "standard", clock)).isFalse();
-    assertThat(CardLegality.fresh(definition("legal", clock.millis()), "commander", clock))
+    assertThat(CardLegality.fresh(definition(LEGAL_STATUS, null), STANDARD_FORMAT, clock))
+        .isFalse();
+    assertThat(CardLegality.fresh(definition(LEGAL_STATUS, clock.millis()), "commander", clock))
         .isFalse();
   }
 
   @ParameterizedTest
   @ValueSource(longs = {-1, 0, 86399999, 86400000, 86400001})
-  void freshnessIsStrictlyLessThanTwentyFourHoursAndRejectsFutureTimes(long age) {
-    assertThat(CardLegality.fresh(definition("legal", clock.millis() - age), "standard", clock))
+  void freshnessIsStrictlyLessThanTwentyFourHoursAndRejectsFutureTimes(final long age) {
+    assertThat(
+            CardLegality.fresh(
+                definition(LEGAL_STATUS, clock.millis() - age), STANDARD_FORMAT, clock))
         .isEqualTo(age >= 0 && age < 86400000);
   }
 }

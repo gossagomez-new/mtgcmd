@@ -10,7 +10,7 @@ public class DeckImporter {
   public interface Catalog {
     List<Definition> resolve(List<String> names);
 
-    default List<Definition> resolve(List<String> names, GameFormat format) {
+    default List<Definition> resolve(final List<String> names, GameFormat format) {
       return resolve(names);
     }
   }
@@ -27,33 +27,36 @@ public class DeckImporter {
   private final TextDeckParser textParser = new TextDeckParser();
   private final MoxfieldDeckSource moxfieldSource;
 
-  public DeckImporter(Catalog catalog, Fetcher fetcher) {
+  public DeckImporter(final Catalog catalog, final Fetcher fetcher) {
     this.catalog = catalog;
     this.moxfieldSource = new MoxfieldDeckSource(fetcher);
   }
 
-  public Draft preview(String text, String url) {
+  public Draft preview(final String text, final String url) {
     return preview(text, url, GameFormat.COMMANDER);
   }
 
-  public Draft preview(String text, String url, GameFormat format) {
-    ParsedDeck deck =
+  public Draft preview(final String text, final String url, final GameFormat format) {
+    final ParsedDeck deck =
         url != null && !url.isBlank() ? moxfieldSource.parse(url) : textParser.parse(text);
     deck.validateTotal();
-    List<Definition> resolved = catalog.resolve(deck.names(), format);
-    if (resolved.size() != deck.entries().size())
+    final List<Definition> resolved = catalog.resolve(deck.names(), format);
+    if (resolved.size() != deck.entries().size()) {
       throw new IllegalArgumentException("Some card names could not be resolved");
+    }
     return assembleDraft(deck, resolved);
   }
 
-  private Draft assembleDraft(ParsedDeck deck, List<Definition> resolved) {
-    List<Definition> cards = new ArrayList<>();
-    List<String> commanderIds = new ArrayList<>();
+  private Draft assembleDraft(final ParsedDeck deck, final List<Definition> resolved) {
+    final List<Definition> cards = new ArrayList<>();
+    final List<String> commanderIds = new ArrayList<>();
     for (int i = 0; i < deck.entries().size(); i++) {
-      ParsedDeck.Entry entry = deck.entries().get(i);
-      Definition definition = resolved.get(i);
+      final ParsedDeck.Entry entry = deck.entries().get(i);
+      final Definition definition = resolved.get(i);
       cards.addAll(Collections.nCopies(entry.quantity(), definition));
-      if (entry.commander()) commanderIds.add(definition.id());
+      if (entry.commander()) {
+        commanderIds.add(definition.id());
+      }
     }
     return new Draft(
         cards, resolved.stream().distinct().toList(), commanderIds.stream().distinct().toList());

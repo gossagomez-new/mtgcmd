@@ -22,17 +22,17 @@ public final class GameEngine {
     this(Clock.systemUTC());
   }
 
-  public GameEngine(Clock clock) {
+  public GameEngine(final Clock clock) {
     this.clock = clock;
-    SecureRandom random = new SecureRandom();
-    GameAccess access = new GameAccess();
-    CardZoneTransitions transitions = new CardZoneTransitions(random);
+    final SecureRandom random = new SecureRandom();
+    final GameAccess access = new GameAccess();
+    final CardZoneTransitions transitions = new CardZoneTransitions(random);
     views = new GameViewMapper(access);
-    LifecycleActions lifecycleActions = new LifecycleActions(transitions);
-    LibraryActions libraryActions = new LibraryActions(access, transitions);
-    PermanentActions permanentActions = new PermanentActions(access, transitions);
-    ObjectActions objectActions = new ObjectActions(access);
-    CounterActions counterActions = new CounterActions(access, random);
+    final LifecycleActions lifecycleActions = new LifecycleActions(transitions);
+    final LibraryActions libraryActions = new LibraryActions(access, transitions);
+    final PermanentActions permanentActions = new PermanentActions(access, transitions);
+    final ObjectActions objectActions = new ObjectActions(access);
+    final CounterActions counterActions = new CounterActions(access, random);
     handlers =
         Map.ofEntries(
             Map.entry("READY", lifecycleActions::ready),
@@ -66,60 +66,65 @@ public final class GameEngine {
             Map.entry("DICE", counterActions::dice));
   }
 
-  public void join(Game g, String name) {
-    require(g.status.equals("lobby"), "Game has already started");
-    require(g.players.size() < g.format().seatCapacity(), "Room is full");
-    Player p = new Player();
-    p.seat = g.players.size();
-    p.name = clean(name, "name", 40);
-    p.counters.put("life", g.format().startingLife());
-    g.players.add(p);
-    g.revision++;
-    log(g, p.name + " joined seat " + (p.seat + 1));
+  public void join(final Game game, final String name) {
+    require("lobby".equals(Objects.requireNonNull(game.status)), "Game has already started");
+    require(game.players.size() < game.format().seatCapacity(), "Room is full");
+    final Player player = new Player();
+    player.seat = game.players.size();
+    player.name = clean(name, "name", 40);
+    player.counters.put("life", game.format().startingLife());
+    game.players.add(player);
+    game.revision++;
+    log(game, player.name + " joined seat " + (player.seat + 1));
   }
 
-  public void load(Game g, int seat, List<Definition> deck, List<String> commanders) {
-    require(g.status.equals("lobby"), "Decks cannot change after start");
-    List<String> warnings = DeckRules.validate(g.format(), deck, commanders, clock);
-    Player p = player(g, seat);
-    p.deck = new ArrayList<>(deck);
-    p.commanders = commanders == null ? new ArrayList<>() : new ArrayList<>(commanders);
-    p.warnings = warnings.stream().distinct().toList();
-    p.ready = false;
-    p.acceptedWarnings = false;
-    g.revision++;
-    p.deckRevision = g.revision;
-    log(g, p.name + " imported a deck (" + deck.size() + " cards)");
+  public void load(
+      final Game game, final int seat, final List<Definition> deck, final List<String> commanders) {
+    require("lobby".equals(Objects.requireNonNull(game.status)), "Decks cannot change after start");
+    final List<String> warnings = DeckRules.validate(game.format(), deck, commanders, clock);
+    final Player player = player(game, seat);
+    player.deck = new ArrayList<>(deck);
+    player.commanders = commanders == null ? new ArrayList<>() : new ArrayList<>(commanders);
+    player.warnings = warnings.stream().distinct().toList();
+    player.ready = false;
+    player.acceptedWarnings = false;
+    game.revision++;
+    player.deckRevision = game.revision;
+    log(game, player.name + " imported a deck (" + deck.size() + " cards)");
   }
 
-  public void apply(Game g, int seat, Command command) {
+  public void apply(final Game game, final int seat, final Command command) {
     require(command != null && command.data() != null && command.type() != null, "Invalid command");
-    require(command.revision() == g.revision, "Stale revision");
-    Player actor = player(g, seat);
-    admit(g, actor, command.type());
-    CommandHandler handler = handlers.get(command.type());
+    require(command.revision() == game.revision, "Stale revision");
+    final Player actor = player(game, seat);
+    admit(game, actor, command.type());
+    final CommandHandler handler = handlers.get(command.type());
     require(handler != null, "Unknown command");
-    String description = handler.execute(g, seat, command.data());
-    g.revision++;
-    log(g, actor.name + ": " + description);
+    final String description = handler.execute(game, seat, command.data());
+    game.revision++;
+    log(game, actor.name + ": " + description);
   }
 
-  private void admit(Game game, Player actor, String type) {
-    if (type.equals("READY") || type.equals("START")) return;
-    require(game.status.equals("playing"), "Game is not playing");
-    require(!actor.conceded || type.equals("FINISH"), "You have conceded");
+  private void admit(final Game game, final Player actor, final String type) {
+    if ("READY".equals(type) || "START".equals(type)) {
+      return;
+    }
+    require("playing".equals(Objects.requireNonNull(game.status)), "Game is not playing");
+    require(!actor.conceded || "FINISH".equals(type), "You have conceded");
   }
 
-  public Map<String, Object> view(Game game, int seat) {
+  public Map<String, Object> view(final Game game, final int seat) {
     return views.forPlayer(game, seat);
   }
 
-  public static String clean(String value, String name, int limit) {
+  public static String clean(final String value, final String name, final int limit) {
     return CommandInput.clean(value, name, limit);
   }
 
-  private static void log(Game g, String text) {
-    g.log.add(text);
-    if (g.log.size() > 100) g.log.removeFirst();
+  private static void log(final Game game, final String text) {
+    game.log.add(text);
+    if (game.log.size() > 100) {
+      game.log.removeFirst();
+    }
   }
 }

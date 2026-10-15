@@ -9,15 +9,17 @@ record ParsedDeck(List<Entry> entries) {
     entries = List.copyOf(entries);
   }
 
-  static ParsedDeck from(List<Entry> source) {
-    Map<String, Entry> merged = new LinkedHashMap<>();
+  static ParsedDeck from(final List<Entry> source) {
+    final Map<String, Entry> merged = new LinkedHashMap<>();
     long total = 0;
-    for (Entry entry : source) {
-      if (!DeckImportLimits.validQuantity(entry.quantity()))
+    for (final Entry entry : source) {
+      if (!DeckImportLimits.validQuantity(entry.quantity())) {
         throw new IllegalArgumentException(DeckImportLimits.CARD_COUNT_ERROR);
+      }
       total += entry.quantity();
-      if (total > DeckImportLimits.MAX_CARDS)
+      if (total > DeckImportLimits.MAX_CARDS) {
         throw new IllegalArgumentException(DeckImportLimits.CARD_COUNT_ERROR);
+      }
       merged.merge(
           entry.name(),
           entry,
@@ -35,8 +37,9 @@ record ParsedDeck(List<Entry> entries) {
   }
 
   void validateTotal() {
-    long total = entries.stream().mapToLong(Entry::quantity).sum();
-    if (total < 1 || total > DeckImportLimits.MAX_CARDS)
+    final long total = entries.stream().mapToLong(Entry::quantity).sum();
+    if (total < 1 || total > DeckImportLimits.MAX_CARDS) {
       throw new IllegalArgumentException(DeckImportLimits.CARD_COUNT_ERROR);
+    }
   }
 }

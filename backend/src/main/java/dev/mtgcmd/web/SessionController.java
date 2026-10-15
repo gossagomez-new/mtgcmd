@@ -10,12 +10,13 @@ import org.springframework.web.bind.annotation.*;
 public final class SessionController {
   private final GuestSessions guests;
 
-  public SessionController(GuestSessions guests) {
+  public SessionController(final GuestSessions guests) {
     this.guests = guests;
   }
 
   @GetMapping("/session")
-  public Map<String, String> session(HttpServletRequest request, HttpServletResponse response) {
+  public Map<String, String> session(
+      final HttpServletRequest request, final HttpServletResponse response) {
     return Map.of("csrf", guests.bootstrap(request, response).csrf());
   }
 }

@@ -11,11 +11,11 @@ public enum GameFormat {
   private final boolean commanders;
 
   GameFormat(
-      int seatCapacity,
-      int startingLife,
-      int minimumDeckSize,
-      int maximumDeckSize,
-      boolean commanders) {
+      final int seatCapacity,
+      final int startingLife,
+      final int minimumDeckSize,
+      final int maximumDeckSize,
+      final boolean commanders) {
     this.seatCapacity = seatCapacity;
     this.startingLife = startingLife;
     this.minimumDeckSize = minimumDeckSize;

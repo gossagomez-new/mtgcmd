@@ -22,7 +22,10 @@ public class RoomStore {
   private final GameEngine engine;
 
   public RoomStore(
-      JdbcTemplate jdbc, TransactionTemplate transactions, ObjectMapper mapper, GameEngine engine) {
+      final JdbcTemplate jdbc,
+      final TransactionTemplate transactions,
+      final ObjectMapper mapper,
+      final GameEngine engine) {
     this.jdbc = jdbc;
     this.transactions = transactions;
     this.mapper =
@@ -34,68 +37,80 @@ public class RoomStore {
     this.engine = engine;
   }
 
-  public Map<String, Object> create(String guest, String name) {
+  public Map<String, Object> create(final String guest, final String name) {
     return create(guest, name, GameFormat.COMMANDER);
   }
 
-  public Map<String, Object> create(String guest, String name, GameFormat format) {
+  public Map<String, Object> create(
+      final String guest, final String name, final GameFormat format) {
     return transactions.execute(
         ignored -> {
-          Game g = new Game();
-          g.format = format == null ? GameFormat.COMMANDER : format;
-          engine.join(g, name);
-          jdbc.update("INSERT INTO rooms(id,snapshot) VALUES (?,CAST(? AS jsonb))", g.id, json(g));
-          jdbc.update("INSERT INTO members(room_id,guest_hash,seat) VALUES (?,?,0)", g.id, guest);
-          event(g, 0);
-          return engine.view(g, 0);
+          final Game game = new Game();
+          game.format = format == null ? GameFormat.COMMANDER : format;
+          engine.join(game, name);
+          jdbc.update(
+              "INSERT INTO rooms(id,snapshot) VALUES (?,CAST(? AS jsonb))", game.id, json(game));
+          jdbc.update(
+              "INSERT INTO members(room_id,guest_hash,seat) VALUES (?,?,0)", game.id, guest);
+          event(game, 0);
+          return engine.view(game, 0);
         });
   }
 
-  public Map<String, Object> join(String guest, String id, String name) {
+  public Map<String, Object> join(final String guest, final String roomId, final String name) {
     return transactions.execute(
         ignored -> {
-          Game g = read(id, true);
-          List<Integer> seats =
+          final Game game = read(roomId, true);
+          final List<Integer> seats =
               jdbc.queryForList(
                   "SELECT seat FROM members WHERE room_id=? AND guest_hash=?",
                   Integer.class,
-                  id,
+                  roomId,
                   guest);
-          if (!seats.isEmpty()) return engine.view(g, seats.getFirst());
-          engine.join(g, name);
-          int seat = g.players.size() - 1;
+          if (!seats.isEmpty()) {
+            return engine.view(game, seats.getFirst());
+          }
+          engine.join(game, name);
+          final int seat = game.players.size() - 1;
           jdbc.update(
-              "INSERT INTO members(room_id,guest_hash,seat) VALUES (?,?,?)", id, guest, seat);
-          save(g);
-          event(g, seat);
-          return engine.view(g, seat);
+              "INSERT INTO members(room_id,guest_hash,seat) VALUES (?,?,?)", roomId, guest, seat);
+          save(game);
+          event(game, seat);
+          return engine.view(game, seat);
         });
   }
 
-  public GameFormat format(String guest, String id) {
-    seat(guest, id);
-    return read(id, false).format();
+  public GameFormat format(final String guest, final String identifier) {
+    seat(guest, identifier);
+    return read(identifier, false).format();
   }
 
-  public Map<String, Object> view(String guest, String id) {
-    int seat = seat(guest, id);
-    return engine.view(read(id, false), seat);
+  public Map<String, Object> view(final String guest, final String roomId) {
+    final int seat = seat(guest, roomId);
+    return engine.view(read(roomId, false), seat);
   }
 
-  public int seat(String guest, String id) {
-    List<Integer> seats =
+  public int seat(final String guest, final String roomId) {
+    final List<Integer> seats =
         jdbc.queryForList(
-            "SELECT seat FROM members WHERE room_id=? AND guest_hash=?", Integer.class, id, guest);
-    if (seats.isEmpty()) throw new Forbidden("You are not a room member");
+            "SELECT seat FROM members WHERE room_id=? AND guest_hash=?",
+            Integer.class,
+            roomId,
+            guest);
+    if (seats.isEmpty()) {
+      throw new Forbidden("You are not a room member");
+    }
     return seats.getFirst();
   }
 
-  public Map<String, Object> execute(String guest, String id, Game.Command command) {
-    if (command == null || command.type() == null || command.data() == null)
+  public Map<String, Object> execute(
+      final String guest, final String identifier, final Game.Command command) {
+    if (command == null || command.type() == null || command.data() == null) {
       throw new IllegalArgumentException("Invalid command");
+    }
     return mutate(
         guest,
-        id,
+        identifier,
         command.id(),
         command.revision(),
         json(command),
@@ -103,15 +118,15 @@ public class RoomStore {
   }
 
   public Map<String, Object> load(
-      String guest,
-      String id,
-      String commandId,
-      long revision,
-      List<Game.Definition> cards,
-      List<String> commanders) {
+      final String guest,
+      final String roomId,
+      final String commandId,
+      final long revision,
+      final List<Game.Definition> cards,
+      final List<String> commanders) {
     return mutate(
         guest,
-        id,
+        roomId,
         commandId,
         revision,
         json(Map.of("cards", cards, "commanders", commanders == null ? List.of() : commanders)),
@@ -119,46 +134,49 @@ public class RoomStore {
   }
 
   private Map<String, Object> mutate(
-      String guest,
-      String id,
-      String commandId,
-      long revision,
-      String payload,
-      BiConsumer<Game, Integer> action) {
+      final String guest,
+      final String identifier,
+      final String commandId,
+      final long revision,
+      final String payload,
+      final BiConsumer<Game, Integer> action) {
     GameEngine.clean(commandId, "command ID", 80);
     return transactions.execute(
         ignored -> {
-          Game g = read(id, true);
-          int seat = seat(guest, id);
-          String digest = hash(payload);
-          List<String> previous =
+          final Game game = read(identifier, true);
+          final int seat = seat(guest, identifier);
+          final String digest = hash(payload);
+          final List<String> previous =
               jdbc.queryForList(
                   "SELECT digest FROM commands WHERE room_id=? AND seat=? AND command_id=?",
                   String.class,
-                  id,
+                  identifier,
                   seat,
                   commandId);
           if (!previous.isEmpty()) {
-            if (!previous.getFirst().equals(digest))
+            if (!previous.getFirst().equals(digest)) {
               throw new IllegalArgumentException("Command ID reused with different contents");
-            return engine.view(g, seat);
+            }
+            return engine.view(game, seat);
           }
-          if (g.revision != revision) throw new Conflict();
-          action.accept(g, seat);
-          save(g);
+          if (game.revision != revision) {
+            throw new Conflict();
+          }
+          action.accept(game, seat);
+          save(game);
           jdbc.update(
               "INSERT INTO commands(room_id,seat,command_id,digest,revision) VALUES (?,?,?,?,?)",
-              id,
+              identifier,
               seat,
               commandId,
               digest,
-              g.revision);
-          event(g, seat);
-          return engine.view(g, seat);
+              game.revision);
+          event(game, seat);
+          return engine.view(game, seat);
         });
   }
 
-  public List<Map<String, Object>> list(String guest) {
+  public List<Map<String, Object>> list(final String guest) {
     return jdbc.query(
         "SELECT r.id,r.snapshot->>'status' AS status, COALESCE(r.snapshot->>'format','COMMANDER') AS format FROM rooms r JOIN members m ON m.room_id=r.id WHERE m.guest_hash=? ORDER BY r.updated_at DESC LIMIT 30",
         (rs, row) ->
@@ -172,13 +190,15 @@ public class RoomStore {
         guest);
   }
 
-  private Game read(String id, boolean lock) {
-    List<String> rows =
+  private Game read(final String identifier, final boolean lock) {
+    final List<String> rows =
         jdbc.queryForList(
             "SELECT snapshot::text FROM rooms WHERE id=?" + (lock ? " FOR UPDATE" : ""),
             String.class,
-            id);
-    if (rows.isEmpty()) throw new IllegalArgumentException("Room not found");
+            identifier);
+    if (rows.isEmpty()) {
+      throw new IllegalArgumentException("Room not found");
+    }
     try {
       return mapper.readValue(rows.getFirst(), Game.class);
     } catch (Exception e) {
@@ -186,21 +206,23 @@ public class RoomStore {
     }
   }
 
-  private void save(Game g) {
+  private void save(final Game game) {
     jdbc.update(
-        "UPDATE rooms SET snapshot=CAST(? AS jsonb),updated_at=now() WHERE id=?", json(g), g.id);
+        "UPDATE rooms SET snapshot=CAST(? AS jsonb),updated_at=now() WHERE id=?",
+        json(game),
+        game.id);
   }
 
-  private void event(Game g, int seat) {
+  private void event(final Game game, final int seat) {
     jdbc.update(
         "INSERT INTO actions(room_id,revision,seat,description) VALUES (?,?,?,?)",
-        g.id,
-        g.revision,
+        game.id,
+        game.revision,
         seat,
-        g.log.getLast());
+        game.log.getLast());
   }
 
-  private String json(Object value) {
+  private String json(final Object value) {
     try {
       return mapper.writeValueAsString(value);
     } catch (Exception e) {
@@ -208,7 +230,7 @@ public class RoomStore {
     }
   }
 
-  public static String hash(String value) {
+  public static String hash(final String value) {
     try {
       return HexFormat.of()
           .formatHex(
@@ -219,7 +241,7 @@ public class RoomStore {
   }
 
   public static class Forbidden extends IllegalArgumentException {
-    public Forbidden(String message) {
+    public Forbidden(final String message) {
       super(message);
     }
   }

@@ -12,47 +12,49 @@ final class CounterActions {
   private final GameAccess access;
   private final SecureRandom random;
 
-  CounterActions(GameAccess access, SecureRandom random) {
+  CounterActions(final GameAccess access, final SecureRandom random) {
     this.access = access;
     this.random = random;
   }
 
-  String cardCounter(Game g, int seat, Map<String, Object> d) {
-    updateCounter(access.editable(g, seat, d).counters, d);
+  String cardCounter(final Game game, final int seat, final Map<String, Object> data) {
+    updateCounter(access.editable(game, seat, data).counters, data);
     return "card counter";
   }
 
-  String counter(Game g, int seat, Map<String, Object> d) {
-    Player p = player(g, seat);
-    updateCounter(p.counters, d);
+  String counter(final Game game, final int seat, final Map<String, Object> data) {
+    final Player player = player(game, seat);
+    updateCounter(player.counters, data);
     return "counter";
   }
 
-  String commanderCast(Game g, int seat, Map<String, Object> d) {
-    Player p = player(g, seat);
+  String commanderCast(final Game game, final int seat, final Map<String, Object> data) {
+    final Player player = player(game, seat);
 
-    require(g.format().usesCommanders(), "Standard does not use commanders");
-    String key = string(d, "key", 80);
+    require(game.format().usesCommanders(), "Standard does not use commanders");
+    final String key = string(data, "key", 80);
     require(
-        g.cards.stream().anyMatch(c -> key.equals(c.commanderKey) && c.owner == seat),
+        game.cards.stream().anyMatch(c -> key.equals(c.commanderKey) && c.owner == seat),
         "Unknown commander");
     updateCounter(
-        p.counters, Map.of("name", "casts:" + key, "delta", integer(d, "delta", 1, -100, 100)));
+        player.counters,
+        Map.of("name", "casts:" + key, "delta", integer(data, "delta", 1, -100, 100)));
 
     return "commander cast";
   }
 
-  String dice(Game g, int seat, Map<String, Object> d) {
-    return "rolled " + (random.nextInt(integer(d, "sides", 6, 2, 1000)) + 1);
+  String dice(Game game, int seat, final Map<String, Object> data) {
+    return "rolled " + (random.nextInt(integer(data, "sides", 6, 2, 1000)) + 1);
   }
 
-  private static void updateCounter(Map<String, Integer> counters, Map<String, Object> d) {
-    String name = string(d, "name", 100);
+  private static void updateCounter(
+      final Map<String, Integer> counters, final Map<String, Object> data) {
+    final String name = string(data, "name", 100);
     require(counters.containsKey(name) || counters.size() < 100, "Too many counters");
-    int value =
-        d.containsKey("value")
-            ? integer(d, "value", 0, -99999, 99999)
-            : counters.getOrDefault(name, 0) + integer(d, "delta", 0, -9999, 9999);
+    final int value =
+        data.containsKey("value")
+            ? integer(data, "value", 0, -99999, 99999)
+            : counters.getOrDefault(name, 0) + integer(data, "delta", 0, -9999, 9999);
     require(value >= -99999 && value <= 99999, "Counter out of range");
     counters.put(name, value);
   }

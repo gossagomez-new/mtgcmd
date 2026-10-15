@@ -10,6 +10,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 
 class CardZoneTransitionsTest {
+  private static final String BATTLEFIELD_ZONE = "battlefield";
+
+  private static final String HAND_ZONE = "hand";
+
+  private static final String LIBRARY_ZONE = "library";
+
   private final CardZoneTransitions transitions = new CardZoneTransitions(new SecureRandom());
 
   static Stream<Arguments> moves() {
@@ -19,9 +25,10 @@ class CardZoneTransitionsTest {
 
   @ParameterizedTest
   @MethodSource("moves")
-  void transitionsPreserveResetOwnershipReferenceCleanupAndHiddenIdRules(String from, String to) {
-    Game game = new Game();
-    Game.Card card = new Game.Card();
+  void transitionsPreserveResetOwnershipReferenceCleanupAndHiddenIdRules(
+      final String from, final String destination) {
+    final Game game = new Game();
+    final Game.Card card = new Game.Card();
     card.owner = 0;
     card.controller = 1;
     card.zoneOwner = 1;
@@ -34,15 +41,16 @@ class CardZoneTransitionsTest {
     card.revealedTo.add(1);
     card.attachedTo = "old attachment";
     card.combat = "attacker";
-    Game.Card dependent = new Game.Card();
+    final Game.Card dependent = new Game.Card();
     dependent.attachedTo = card.id;
     dependent.combat = "blocks:" + card.id;
     game.cards.addAll(List.of(card, dependent));
-    String oldId = card.id;
-    transitions.move(game, card, to, false, true);
-    assertThat(card.zone).isEqualTo(to);
+    final String oldId = card.id;
+    transitions.move(game, card, destination, false, true);
+    assertThat(card.zone).isEqualTo(destination);
     assertThat(card.owner).isZero();
-    assertThat(card.controller).isEqualTo(Set.of("battlefield", "stack").contains(to) ? 1 : 0);
+    assertThat(card.controller)
+        .isEqualTo(Set.of(BATTLEFIELD_ZONE, "stack").contains(destination) ? 1 : 0);
     assertThat(card.zoneOwner).isEqualTo(card.controller);
     assertThat(card.faceDown).isTrue();
     assertThat(card.tapped).isFalse();
@@ -55,48 +63,60 @@ class CardZoneTransitionsTest {
     assertThat(card.combat).isEmpty();
     assertThat(dependent.attachedTo).isNull();
     assertThat(dependent.combat).isEmpty();
-    boolean hiddenTransition =
-        Set.of("library", "hand").contains(from) || Set.of("library", "hand").contains(to);
-    if (hiddenTransition) assertThat(card.id).isNotEqualTo(oldId);
-    else assertThat(card.id).isEqualTo(oldId);
+    final boolean hiddenTransition =
+        Set.of(LIBRARY_ZONE, HAND_ZONE).contains(from)
+            || Set.of(LIBRARY_ZONE, HAND_ZONE).contains(destination);
+    if (hiddenTransition) {
+      assertThat(card.id).isNotEqualTo(oldId);
+    } else {
+      assertThat(card.id).isEqualTo(oldId);
+    }
   }
 
   @ParameterizedTest
   @ValueSource(
-      strings = {"library", "hand", "battlefield", "graveyard", "exile", "command", "stack"})
-  void tokensRemainOnlyOnBattlefieldOrStack(String destination) {
-    Game game = new Game();
-    Game.Card token = new Game.Card();
-    token.zone = "battlefield";
+      strings = {
+        LIBRARY_ZONE,
+        HAND_ZONE,
+        BATTLEFIELD_ZONE,
+        "graveyard",
+        "exile",
+        "command",
+        "stack"
+      })
+  void tokensRemainOnlyOnBattlefieldOrStack(final String destination) {
+    final Game game = new Game();
+    final Game.Card token = new Game.Card();
+    token.zone = BATTLEFIELD_ZONE;
     token.token = true;
     game.cards.add(token);
     transitions.move(game, token, destination, false, false);
     assertThat(game.cards.contains(token))
-        .isEqualTo(Set.of("battlefield", "stack").contains(destination));
+        .isEqualTo(Set.of(BATTLEFIELD_ZONE, "stack").contains(destination));
   }
 
   @Test
   void libraryPlacementAndShufflePreserveOtherSeatsAndInvalidateSearchesAndReveals() {
-    Game game = new Game();
-    Game.Card other = new Game.Card();
-    other.zone = "library";
+    final Game game = new Game();
+    final Game.Card other = new Game.Card();
+    other.zone = LIBRARY_ZONE;
     other.owner = other.controller = other.zoneOwner = 1;
-    Game.Card first = new Game.Card();
-    first.zone = "library";
-    Game.Card incoming = new Game.Card();
-    incoming.zone = "hand";
+    final Game.Card first = new Game.Card();
+    first.zone = LIBRARY_ZONE;
+    final Game.Card incoming = new Game.Card();
+    incoming.zone = HAND_ZONE;
     game.cards.addAll(List.of(other, first, incoming));
-    transitions.move(game, incoming, "library", true, false);
+    transitions.move(game, incoming, LIBRARY_ZONE, true, false);
     assertThat(game.cards).containsExactly(other, incoming, first);
-    transitions.move(game, incoming, "library", false, false);
+    transitions.move(game, incoming, LIBRARY_ZONE, false, false);
     assertThat(game.cards).containsExactly(other, first, incoming);
     game.searches.put(0, 0);
     game.searches.put(1, 0);
     game.searches.put(2, 1);
     first.revealedTo.add(1);
     incoming.revealedTo.add(1);
-    Set<String> oldIds = Set.of(first.id, incoming.id);
-    String otherId = other.id;
+    final Set<String> oldIds = Set.of(first.id, incoming.id);
+    final String otherId = other.id;
     transitions.shuffle(game, 0);
     assertThat(List.of(first.id, incoming.id)).doesNotContainAnyElementsOf(oldIds);
     assertThat(other.id).isEqualTo(otherId);

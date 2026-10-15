@@ -11,25 +11,26 @@ import java.util.*;
 final class GameLookup {
   private GameLookup() {}
 
-  static Card find(Game g, String id) {
-    return g.cards.stream()
-        .filter(c -> c.id.equals(id))
+  static Card find(final Game game, final String identifier) {
+    return game.cards.stream()
+        .filter(c -> c.id.equals(identifier))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Card unavailable"));
   }
 
-  static List<Card> zone(Game g, int owner, String zone) {
-    return g.cards.stream()
+  static List<Card> zone(final Game game, final int owner, final String zone) {
+    return game.cards.stream()
         .filter(c -> c.zoneOwner == owner && c.zone.equals(zone))
         .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
   }
 
-  static Player player(Game g, int seat) {
-    require(seat >= 0 && seat < g.players.size(), "Unknown seat");
-    return g.players.get(seat);
+  static Player player(final Game game, final int seat) {
+    require(seat >= 0 && seat < game.players.size(), "Unknown seat");
+    return game.players.get(seat);
   }
 
-  static void battlefield(Card c) {
-    require(c.zone.equals(BATTLEFIELD), "Card must be on the battlefield");
+  static void battlefield(final Card card) {
+    require(
+        BATTLEFIELD.equals(Objects.requireNonNull(card.zone)), "Card must be on the battlefield");
   }
 }

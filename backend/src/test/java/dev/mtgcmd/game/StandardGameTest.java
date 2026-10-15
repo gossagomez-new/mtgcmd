@@ -10,20 +10,39 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class StandardGameTest {
+  private static final String CREATURE_TYPE = "Creature";
+
+  private static final String READY_COMMAND = "READY";
+
+  private static final String START_COMMAND = "START";
+
+  private static final String CARD_ID_FIELD = "cardId";
+
+  private static final String FIRST_PLAYER_KEY = "firstPlayer";
+
+  private static final String LEGAL_STATUS = "legal";
+
+  private static final String TARGET_FIELD = "target";
+
   private final GameEngine engine = new GameEngine();
 
   private Game standard() {
-    Game game = new Game();
+    final Game game = new Game();
     game.format = GameFormat.STANDARD;
     engine.join(game, "A");
     engine.join(game, "B");
     return game;
   }
 
-  private Definition card(String id, String type, String text, String legality, Long checkedAt) {
+  private Definition card(
+      final String identifier,
+      final String type,
+      final String text,
+      final String legality,
+      final Long checkedAt) {
     return new Definition(
-        id,
-        id,
+        identifier,
+        identifier,
         "",
         text,
         type,
@@ -35,25 +54,26 @@ class StandardGameTest {
   }
 
   private Definition island() {
-    return card("Island", "Basic Land — Island", "", "legal", System.currentTimeMillis());
+    return card("Island", "Basic Land — Island", "", LEGAL_STATUS, System.currentTimeMillis());
   }
 
-  private void action(Game game, int seat, String type, Map<String, Object> data) {
+  private void action(
+      final Game game, final int seat, final String type, final Map<String, Object> data) {
     engine.apply(game, seat, new Command(UUID.randomUUID().toString(), game.revision, type, data));
   }
 
   private Game ready() {
-    Game game = standard();
+    final Game game = standard();
     for (int seat = 0; seat < 2; seat++) {
       engine.load(game, seat, Collections.nCopies(60, island()), List.of());
-      action(game, seat, "READY", Map.of("acceptWarnings", true));
+      action(game, seat, READY_COMMAND, Map.of("acceptWarnings", true));
     }
     return game;
   }
 
   @Test
   void standardHasTwoTwentyLifeSeats() {
-    Game game = standard();
+    final Game game = standard();
     assertThat(game.players)
         .allSatisfy(player -> assertThat(player.counters.get("life")).isEqualTo(20));
     assertThatThrownBy(() -> engine.join(game, "C")).hasMessage("Room is full");
@@ -64,8 +84,8 @@ class StandardGameTest {
 
   @ParameterizedTest
   @ValueSource(ints = {60, 61, 250})
-  void acceptsDeckSizeBoundariesWithoutCommanders(int count) {
-    Game game = standard();
+  void acceptsDeckSizeBoundariesWithoutCommanders(final int count) {
+    final Game game = standard();
     engine.load(game, 0, Collections.nCopies(count, island()), null);
     assertThat(game.players.getFirst().deck).hasSize(count);
     assertThat(game.players.getFirst().commanders).isEmpty();
@@ -74,8 +94,8 @@ class StandardGameTest {
 
   @ParameterizedTest
   @ValueSource(ints = {0, 59, 251})
-  void rejectsDeckSizeBoundaries(int count) {
-    Game game = standard();
+  void rejectsDeckSizeBoundaries(final int count) {
+    final Game game = standard();
     assertThatThrownBy(() -> engine.load(game, 0, Collections.nCopies(count, island()), List.of()))
         .hasMessageContaining("60–250");
     assertThat(game.players.getFirst().deck).isEmpty();
@@ -83,11 +103,11 @@ class StandardGameTest {
 
   @Test
   void rejectsCommandersAndWarnsAboutCopiesAndLegalityWithoutCommanderRules() {
-    Game game = standard();
+    final Game game = standard();
     assertThatThrownBy(
             () -> engine.load(game, 0, Collections.nCopies(60, island()), List.of("Island")))
         .hasMessageContaining("does not use commanders");
-    var deck = new ArrayList<>(Collections.nCopies(55, island()));
+    final List<Definition> deck = new ArrayList<>(Collections.nCopies(55, island()));
     deck.addAll(
         Collections.nCopies(5, card("Spell", "Sorcery", "", "banned", System.currentTimeMillis())));
     engine.load(game, 0, deck, List.of());
@@ -97,27 +117,27 @@ class StandardGameTest {
         .noneMatch(
             w ->
                 w.contains("Commander") || w.contains("singleton") || w.contains("color identity"));
-    assertThatThrownBy(() -> action(game, 0, "READY", Map.of()))
+    assertThatThrownBy(() -> action(game, 0, READY_COMMAND, Map.of()))
         .hasMessageContaining("Accept deck warnings");
-    action(game, 0, "READY", Map.of("acceptWarnings", true));
+    action(game, 0, READY_COMMAND, Map.of("acceptWarnings", true));
     assertThat(game.players.getFirst().ready).isTrue();
   }
 
   @Test
   void anyNumberExceptionAndFourCopiesAreAllowed() {
-    Game game = standard();
-    var deck = new ArrayList<>(Collections.nCopies(52, island()));
+    final Game game = standard();
+    final List<Definition> deck = new ArrayList<>(Collections.nCopies(52, island()));
     deck.addAll(
         Collections.nCopies(
-            4, card("Normal", "Creature", "", "legal", System.currentTimeMillis())));
+            4, card("Normal", CREATURE_TYPE, "", LEGAL_STATUS, System.currentTimeMillis())));
     deck.addAll(
         Collections.nCopies(
             4,
             card(
                 "Exception",
-                "Creature",
+                CREATURE_TYPE,
                 "A deck can have any number of cards named Exception.",
-                "legal",
+                LEGAL_STATUS,
                 System.currentTimeMillis())));
     engine.load(game, 0, deck, List.of());
     assertThat(game.players.getFirst().warnings).isEmpty();
@@ -128,9 +148,9 @@ class StandardGameTest {
             60,
             card(
                 "Exception",
-                "Creature",
+                CREATURE_TYPE,
                 "A deck can have any number of cards named Exception.",
-                "legal",
+                LEGAL_STATUS,
                 System.currentTimeMillis())),
         List.of());
     assertThat(game.players.getFirst().warnings).isEmpty();
@@ -138,16 +158,16 @@ class StandardGameTest {
 
   @Test
   void missingStaleAndFutureLegalityRequireVerificationWarnings() {
-    for (Long time :
+    for (final Long time :
         Arrays.asList(
             null,
             System.currentTimeMillis() - 86_400_001,
             System.currentTimeMillis() + 86_400_000)) {
-      Game game = standard();
+      final Game game = standard();
       engine.load(
           game,
           0,
-          Collections.nCopies(60, card("Island", "Basic Land", "", "legal", time)),
+          Collections.nCopies(60, card("Island", "Basic Land", "", LEGAL_STATUS, time)),
           List.of());
       assertThat(game.players.getFirst().warnings)
           .anyMatch(w -> w.contains("could not be verified"));
@@ -156,18 +176,23 @@ class StandardGameTest {
 
   @Test
   void hostChoosesStartingPlayerAndTurnsAlternateWithSevenCards() {
-    Game game = ready();
-    assertThatThrownBy(() -> action(game, 1, "START", Map.of())).hasMessageContaining("host");
-    assertThatThrownBy(() -> action(game, 0, "START", Map.of("firstPlayer", 2)))
-        .hasMessageContaining("firstPlayer");
-    action(game, 0, "START", Map.of("firstPlayer", 1));
+    final Game game = ready();
+    assertThatThrownBy(() -> action(game, 1, START_COMMAND, Map.of())).hasMessageContaining("host");
+    assertThatThrownBy(() -> action(game, 0, START_COMMAND, Map.of(FIRST_PLAYER_KEY, 2)))
+        .hasMessageContaining(FIRST_PLAYER_KEY);
+    action(game, 0, START_COMMAND, Map.of(FIRST_PLAYER_KEY, 1));
     assertThat(game.active).isEqualTo(1);
-    assertThat(game.cards).noneMatch(c -> c.zone.equals("command"));
+    assertThat(game.cards).noneMatch(c -> "command".equals(Objects.requireNonNull(c.zone)));
     for (int seat = 0; seat < 2; seat++) {
       final int owner = seat;
-      assertThat(game.cards.stream().filter(c -> c.owner == owner && c.zone.equals("hand")))
+      assertThat(
+              game.cards.stream()
+                  .filter(c -> c.owner == owner && "hand".equals(Objects.requireNonNull(c.zone))))
           .hasSize(7);
-      assertThat(game.cards.stream().filter(c -> c.owner == owner && c.zone.equals("library")))
+      assertThat(
+              game.cards.stream()
+                  .filter(
+                      c -> c.owner == owner && "library".equals(Objects.requireNonNull(c.zone))))
           .hasSize(53);
     }
     game.phase = "Cleanup";
@@ -176,9 +201,9 @@ class StandardGameTest {
     game.phase = "Cleanup";
     action(game, 0, "PHASE", Map.of());
     assertThat(game.active).isEqualTo(1);
-    assertThatThrownBy(() -> action(game, 0, "GRANT", Map.of("target", 2)))
+    assertThatThrownBy(() -> action(game, 0, "GRANT", Map.of(TARGET_FIELD, 2)))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> action(game, 0, "DRAW", Map.of("target", 1)))
+    assertThatThrownBy(() -> action(game, 0, "DRAW", Map.of(TARGET_FIELD, 1)))
         .hasMessageContaining("permission");
     action(game, 1, "CONCEDE", Map.of());
     assertThat(game.active).isZero();
@@ -186,23 +211,24 @@ class StandardGameTest {
 
   @Test
   void twoReadySeatsAreMandatoryAndOmittedFirstPlayerDefaultsToHost() {
-    Game game = standard();
-    assertThatThrownBy(() -> action(game, 0, "START", Map.of())).hasMessageContaining("ready");
-    Game started = ready();
-    action(started, 0, "START", Map.of());
+    final Game game = standard();
+    assertThatThrownBy(() -> action(game, 0, START_COMMAND, Map.of()))
+        .hasMessageContaining("ready");
+    final Game started = ready();
+    action(started, 0, START_COMMAND, Map.of());
     assertThat(started.active).isZero();
   }
 
   @Test
   void legacyJsonDefaultsToCommanderAndPreservesCountersAndDefinitions() throws Exception {
-    var mapper = new ObjectMapper();
-    Game game =
+    final ObjectMapper mapper = new ObjectMapper();
+    final Game game =
         mapper.readValue(
             "{\"status\":\"playing\",\"players\":[{\"seat\":0,\"counters\":{\"life\":17}}]}",
             Game.class);
     assertThat(game.format()).isEqualTo(GameFormat.COMMANDER);
     assertThat(game.players.getFirst().counters.get("life")).isEqualTo(17);
-    Definition def =
+    final Definition def =
         mapper.readValue(
             "{\"id\":\"island\",\"name\":\"Island\",\"image\":\"\",\"text\":\"\",\"type\":\"Basic Land\",\"colors\":[],\"legal\":true,\"faces\":[]}",
             Definition.class);
@@ -213,68 +239,73 @@ class StandardGameTest {
 
   @ParameterizedTest
   @ValueSource(ints = {-1, 2, 3})
-  void invalidTargetsCannotGrantSearchDrawControlOrReveal(int target) {
-    Game game = ready();
-    action(game, 0, "START", Map.of());
-    for (String type : List.of("DRAW", "SEARCH", "GRANT")) {
-      assertThatThrownBy(() -> action(game, 0, type, Map.of("target", target)))
+  void invalidTargetsCannotGrantSearchDrawControlOrReveal(final int target) {
+    final Game game = ready();
+    action(game, 0, START_COMMAND, Map.of());
+    for (final String type : List.of("DRAW", "SEARCH", "GRANT")) {
+      assertThatThrownBy(() -> action(game, 0, type, Map.of(TARGET_FIELD, target)))
           .isInstanceOf(IllegalArgumentException.class);
     }
-    Card hand =
+    final Card hand =
         game.cards.stream()
-            .filter(c -> c.owner == 0 && c.zone.equals("hand"))
+            .filter(c -> c.owner == 0 && "hand".equals(Objects.requireNonNull(c.zone)))
             .findFirst()
             .orElseThrow();
-    action(game, 0, "MOVE", Map.of("cardId", hand.id, "zone", "battlefield"));
+    action(game, 0, "MOVE", Map.of(CARD_ID_FIELD, hand.id, "zone", "battlefield"));
     assertThatThrownBy(
-            () -> action(game, 0, "CONTROL", Map.of("cardId", hand.id, "target", target)))
+            () -> action(game, 0, "CONTROL", Map.of(CARD_ID_FIELD, hand.id, TARGET_FIELD, target)))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
-            () -> action(game, 0, "REVEAL", Map.of("cardId", hand.id, "audience", List.of(target))))
+            () ->
+                action(
+                    game, 0, "REVEAL", Map.of(CARD_ID_FIELD, hand.id, "audience", List.of(target))))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> action(game, 0, "COMMANDER_CAST", Map.of("key", "invalid")))
         .hasMessageContaining("does not use commanders");
-    assertThatThrownBy(() -> action(game, 0, "MOVE", Map.of("cardId", hand.id, "zone", "command")))
+    assertThatThrownBy(
+            () -> action(game, 0, "MOVE", Map.of(CARD_ID_FIELD, hand.id, "zone", "command")))
         .hasMessageContaining("commanders");
   }
 
   @Test
   void copyingOneIdentityAcrossDefinitionsStillCountsTowardFourCopies() {
-    Game game = standard();
-    var deck = new ArrayList<>(Collections.nCopies(55, island()));
-    Definition a = card("Same identity", "Creature", "", "legal", System.currentTimeMillis());
-    Definition b =
+    final Game game = standard();
+    final List<Definition> deck = new ArrayList<>(Collections.nCopies(55, island()));
+    final Definition firstDefinition =
+        card("Same identity", CREATURE_TYPE, "", LEGAL_STATUS, System.currentTimeMillis());
+    final Definition secondDefinition =
         new Definition(
-            a.id(),
-            a.name(),
+            firstDefinition.id(),
+            firstDefinition.name(),
             "https://cards.scryfall.io/other-printing.jpg",
-            a.text(),
-            a.type(),
-            a.colors(),
-            a.legal(),
-            a.faces(),
-            a.legalities(),
-            a.legalityCheckedAt());
-    deck.addAll(Collections.nCopies(2, a));
-    deck.addAll(Collections.nCopies(3, b));
+            firstDefinition.text(),
+            firstDefinition.type(),
+            firstDefinition.colors(),
+            firstDefinition.legal(),
+            firstDefinition.faces(),
+            firstDefinition.legalities(),
+            firstDefinition.legalityCheckedAt());
+    deck.addAll(Collections.nCopies(2, firstDefinition));
+    deck.addAll(Collections.nCopies(3, secondDefinition));
     engine.load(game, 0, deck, List.of());
     assertThat(game.players.getFirst().warnings).anyMatch(w -> w.contains("four copies"));
   }
 
   @Test
   void aSingleReadyPlayerCannotStartAndMalformedFirstPlayersAreRejected() {
-    Game game = new Game();
+    final Game game = new Game();
     game.format = GameFormat.STANDARD;
     engine.join(game, "Only player");
     engine.load(game, 0, Collections.nCopies(60, island()), List.of());
-    action(game, 0, "READY", Map.of());
-    assertThatThrownBy(() -> action(game, 0, "START", Map.of())).hasMessageContaining("Two ready");
+    action(game, 0, READY_COMMAND, Map.of());
+    assertThatThrownBy(() -> action(game, 0, START_COMMAND, Map.of()))
+        .hasMessageContaining("Two ready");
     engine.join(game, "Second");
     engine.load(game, 1, Collections.nCopies(60, island()), List.of());
-    action(game, 1, "READY", Map.of());
-    for (Object first : List.of(-1, 2, 0.5, "1")) {
-      assertThatThrownBy(() -> action(game, 0, "START", Map.of("firstPlayer", first)))
-          .hasMessageContaining("firstPlayer");
+    action(game, 1, READY_COMMAND, Map.of());
+    for (final Object first : List.of(-1, 2, 0.5, "1")) {
+      assertThatThrownBy(() -> action(game, 0, START_COMMAND, Map.of(FIRST_PLAYER_KEY, first)))
+          .hasMessageContaining(FIRST_PLAYER_KEY);
     }
   }
 }

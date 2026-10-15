@@ -8,7 +8,7 @@ final class DeckImportLimits {
 
   private DeckImportLimits() {}
 
-  static boolean validQuantity(int quantity) {
+  static boolean validQuantity(final int quantity) {
     return quantity >= 1 && quantity <= MAX_CARDS;
   }
 }

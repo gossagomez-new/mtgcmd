@@ -6,7 +6,7 @@ import java.util.Locale;
 final class CardNames {
   private CardNames() {}
 
-  static String key(String name) {
+  static String key(final String name) {
     return name.trim().toLowerCase(Locale.ROOT);
   }
 }

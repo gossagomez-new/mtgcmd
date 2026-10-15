@@ -134,6 +134,15 @@ sources. Maven runs PMD before packaging, including the Docker backend build.
 **Rule violations are advisory and do not fail the build.** Analysis execution
 and report-writing failures still fail the build.
 
+[ADR-0008](../docs/adr/0008-java-source-conventions.md) records the Java conventions:
+final bindings where possible, explicit types, clear names, braces, named
+constants, and literal-first comparisons that preserve non-null invariants.
+Documentation focuses on contracts and decisions. Blanket declaration/visibility
+comment requirements are excluded; comment width matches the formatter at 100
+columns. Duplicate-literal analysis excludes annotation tokens so compiler and
+analysis annotations remain recognizable. Persisted short field names retain
+their existing wire and snapshot contracts.
+
 | Report                      | Path from the repository root     |
 | --------------------------- | --------------------------------- |
 | Human-readable findings log | `backend/target/pmd.txt`          |

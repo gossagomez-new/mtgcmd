@@ -2,7 +2,10 @@ package dev.mtgcmd.catalog;
 
 import static org.assertj.core.api.Assertions.*;
 
+import dev.mtgcmd.catalog.DeckImporter.Draft;
+import dev.mtgcmd.catalog.ParsedDeck.Entry;
 import dev.mtgcmd.game.Game;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -11,10 +14,20 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.*;
 
 class DeckImporterTest {
+  private static final String ISLAND_DECK = "1 Island";
+
+  private static final String ISLAND_NAME = "Island";
+
+  private static final String CATALOG_ERROR = "No catalog";
+
+  private static final String SOL_RING_NAME = "Sol Ring";
+
+  private static final String MOXFIELD_DECK_URL = "https://moxfield.com/decks/x";
+
   @Test
   void providerJsonFailureRetainsItsCauseAndExistingMessage() {
-    Throwable failure =
-        catchThrowable(() -> fromJson("{bad").preview(null, "https://moxfield.com/decks/x"));
+    final Throwable failure =
+        catchThrowable(() -> fromJson("{bad").preview(null, MOXFIELD_DECK_URL));
     assertThat(failure)
         .hasMessage(
             "Moxfield is unavailable or the deck is private. Export the deck and paste its text instead.")
@@ -27,33 +40,34 @@ class DeckImporterTest {
           names.stream()
               .map(
                   name -> {
-                    if (name.equals("Unknown"))
+                    if ("Unknown".equals(Objects.requireNonNull(name))) {
                       throw new IllegalArgumentException("Unknown card: Unknown");
+                    }
                     return new Game.Definition(name, name, "", "", "", List.of(), true, List.of());
                   })
               .toList();
 
   @Test
   void textExportsHandleSectionsQuantitiesAndPrintingAnnotations() {
-    var importer =
+    final DeckImporter importer =
         new DeckImporter(
             catalog,
             uri -> {
               throw new AssertionError("Must not fetch");
             });
-    var draft =
+    final Draft draft =
         importer.preview(
             "Commander\n1 Gisa and Geralf\n\nDeck\n2 Island (M21) 265\n1 Sol Ring\n\nSideboard\n1 Unknown",
             null);
     assertThat(draft.cards()).hasSize(4);
     assertThat(draft.choices()).hasSize(3);
     assertThat(draft.suggested()).containsExactly("Gisa and Geralf");
-    assertThat(draft.cards().get(1).name()).isEqualTo("Island");
+    assertThat(draft.cards().get(1).name()).isEqualTo(ISLAND_NAME);
   }
 
   @Test
   void unknownCardsOversizedDecksAndMalformedLinesFailClearly() {
-    var importer = new DeckImporter(catalog, uri -> "");
+    final DeckImporter importer = new DeckImporter(catalog, uri -> "");
     assertThatThrownBy(() -> importer.preview("1 Unknown", null)).hasMessageContaining("Unknown");
     assertThatThrownBy(() -> importer.preview("9999 Island", null)).hasMessageContaining("250");
     assertThatThrownBy(() -> importer.preview("-1 Island", null)).hasMessageContaining("line");
@@ -62,31 +76,32 @@ class DeckImporterTest {
 
   @Test
   void moxfieldAdapterUsesFixedApiHostAndPreservesCommanderSuggestions() {
-    var requested = new AtomicReference<String>();
-    var importer =
+    final AtomicReference<String> requested = new AtomicReference<>();
+    final DeckImporter importer =
         new DeckImporter(
             catalog,
             uri -> {
               requested.set(uri.toString());
               return "{\"mainboard\":{\"a\":{\"quantity\":2,\"card\":{\"name\":\"Island\"}}},\"commanders\":{\"b\":{\"quantity\":1,\"card\":{\"name\":\"Gisa and Geralf\"}}}}";
             });
-    var draft = importer.preview(null, "https://moxfield.com/decks/abc_DEF-123");
+    final Draft draft = importer.preview(null, "https://moxfield.com/decks/abc_DEF-123");
     assertThat(requested.get()).isEqualTo("https://api2.moxfield.com/v3/decks/all/abc_DEF-123");
     assertThat(draft.cards()).hasSize(3);
     assertThat(draft.suggested()).containsExactly("Gisa and Geralf");
-    for (String url :
+    for (final String url :
         List.of(
             "http://moxfield.com/decks/x",
             "https://moxfield.com.evil/decks/x",
             "https://localhost/",
             "https://moxfield.com@evil/decks/x",
-            "https://moxfield.com:8443/decks/x"))
+            "https://moxfield.com:8443/decks/x")) {
       assertThatThrownBy(() -> importer.preview(null, url)).hasMessageContaining("Moxfield");
+    }
   }
 
   @Test
   void unavailableMoxfieldReportsExportFallback() {
-    var importer =
+    final DeckImporter importer =
         new DeckImporter(
             catalog,
             uri -> {
@@ -94,15 +109,15 @@ class DeckImporterTest {
             });
     assertThatThrownBy(() -> importer.preview(null, "https://moxfield.com/decks/abc"))
         .hasMessageContaining("paste");
-    assertThat(importer.preview("1 Island", null).cards()).hasSize(1);
+    assertThat(importer.preview(ISLAND_DECK, null).cards()).hasSize(1);
   }
 
-  private DeckImporter fromJson(String json) {
+  private DeckImporter fromJson(final String json) {
     return new DeckImporter(catalog, uri -> json);
   }
 
   static Stream<CardServiceException> serviceFailures() {
-    var cause = new java.io.IOException("provider failure");
+    final IOException cause = new IOException("provider failure");
     return Stream.of(
         new CardServiceTimeoutException("timeout", cause),
         new CardServiceUnavailableException("offline", cause),
@@ -112,15 +127,15 @@ class DeckImporterTest {
 
   @ParameterizedTest
   @MethodSource("serviceFailures")
-  void moxfieldTranslationPreservesEveryFailureCategoryAndCause(CardServiceException original) {
-    var importer =
+  void moxfieldTranslationPreservesEveryFailureCategoryAndCause(
+      final CardServiceException original) {
+    final DeckImporter importer =
         new DeckImporter(
             catalog,
             uri -> {
               throw original;
             });
-    Throwable failure =
-        catchThrowable(() -> importer.preview(null, "https://moxfield.com/decks/x"));
+    final Throwable failure = catchThrowable(() -> importer.preview(null, MOXFIELD_DECK_URL));
     assertThat(failure)
         .isExactlyInstanceOf(original.getClass())
         .hasCause(original)
@@ -131,15 +146,14 @@ class DeckImporterTest {
 
   @Test
   void unexpectedFetcherFailureIsNotConvertedIntoProviderUnavailability() {
-    var bug = new NullPointerException("fetcher bug");
-    var importer =
+    final NullPointerException bug = new NullPointerException("fetcher bug");
+    final DeckImporter importer =
         new DeckImporter(
             catalog,
             uri -> {
               throw bug;
             });
-    assertThat(catchThrowable(() -> importer.preview(null, "https://moxfield.com/decks/x")))
-        .isSameAs(bug);
+    assertThat(catchThrowable(() -> importer.preview(null, MOXFIELD_DECK_URL))).isSameAs(bug);
   }
 
   @Test
@@ -157,25 +171,25 @@ class DeckImporterTest {
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = {" ", "\t"})
-  void blankUrlSelectsText(String url) {
-    var importer =
+  void blankUrlSelectsText(final String url) {
+    final DeckImporter importer =
         new DeckImporter(
             catalog,
             uri -> {
               throw new AssertionError("No fetch");
             });
-    assertThat(importer.preview("1 Island", url).cards()).hasSize(1);
+    assertThat(importer.preview(ISLAND_DECK, url).cards()).hasSize(1);
   }
 
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "https://moxfield.com/decks/x",
+        MOXFIELD_DECK_URL,
         " https://www.moxfield.com/decks/x/ ",
         "https://moxfield.com/decks/x?q=y#fragment",
         "https://moxfield.com/decks/%78"
       })
-  void validUrlsOverrideInvalidText(String url) {
+  void validUrlsOverrideInvalidText(final String url) {
     assertThat(
             fromJson("{\"mainboard\":[{\"card\":{\"name\":\"Island\"}}]}")
                 .preview("invalid", url)
@@ -196,21 +210,21 @@ class DeckImporterTest {
         "not a uri",
         "HTTPS://moxfield.com/decks/x"
       })
-  void invalidUrlsNeverFetch(String url) {
-    var importer =
+  void invalidUrlsNeverFetch(final String url) {
+    final DeckImporter importer =
         new DeckImporter(
             catalog,
             uri -> {
               throw new AssertionError("No fetch");
             });
-    assertThatThrownBy(() -> importer.preview("1 Island", url))
+    assertThatThrownBy(() -> importer.preview(ISLAND_DECK, url))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Moxfield");
   }
 
   @Test
   void deckIdLengthBoundary() {
-    var importer = fromJson("{\"mainboard\":[{\"card\":{\"name\":\"Island\"}}]}");
+    final DeckImporter importer = fromJson("{\"mainboard\":[{\"card\":{\"name\":\"Island\"}}]}");
     assertThat(importer.preview(null, "https://moxfield.com/decks/" + "a".repeat(80)).cards())
         .hasSize(1);
     assertThatThrownBy(() -> importer.preview(null, "https://moxfield.com/decks/" + "a".repeat(81)))
@@ -219,8 +233,8 @@ class DeckImporterTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"commander", "COMMANDERS:", "com:mander"})
-  void sectionsCommentsAndAnnotationsPreserveOrder(String header) {
-    var draft =
+  void sectionsCommentsAndAnnotationsPreserveOrder(final String header) {
+    final Draft draft =
         new DeckImporter(catalog, uri -> "")
             .preview(
                 "# comment\r\n// comment\r\n"
@@ -231,11 +245,11 @@ class DeckImporterTest {
                 null);
     assertThat(draft.cards())
         .extracting(Game.Definition::name)
-        .containsExactly("Island", "Island", "Sol Ring", "Sol Ring", "island");
-    assertThat(draft.suggested()).containsExactly("Island");
+        .containsExactly(ISLAND_NAME, ISLAND_NAME, SOL_RING_NAME, SOL_RING_NAME, "island");
+    assertThat(draft.suggested()).containsExactly(ISLAND_NAME);
     assertThat(draft.choices())
         .extracting(Game.Definition::name)
-        .containsExactly("Island", "Sol Ring", "island");
+        .containsExactly(ISLAND_NAME, SOL_RING_NAME, "island");
   }
 
   @ParameterizedTest
@@ -245,19 +259,19 @@ class DeckImporterTest {
         "{\"boards\":{\"mainboard\":{\"cards\":{\"a\":{\"card\":{\"name\":\"Island\"}}}}}}",
         "{\"commanders\":{\"cards\":[{\"card\":{\"name\":\"Island\"}}]}}"
       })
-  void supportedProviderLayouts(String json) {
-    assertThat(fromJson(json).preview(null, "https://moxfield.com/decks/x").cards()).hasSize(1);
+  void supportedProviderLayouts(final String json) {
+    assertThat(fromJson(json).preview(null, MOXFIELD_DECK_URL).cards()).hasSize(1);
   }
 
   @Test
   void textBoundariesAndFailuresAvoidCatalog() {
-    var importer =
+    final DeckImporter importer =
         new DeckImporter(
             names -> {
-              throw new AssertionError("No catalog");
+              throw new AssertionError(CATALOG_ERROR);
             },
             uri -> "");
-    for (String text :
+    for (final String text :
         List.of(
             "0 Island",
             "251 Island",
@@ -272,7 +286,7 @@ class DeckImporterTest {
           .isInstanceOf(IllegalArgumentException.class);
     }
     assertThatThrownBy(() -> importer.preview("\ninvalid", null)).hasMessageContaining("line 2");
-    var valid = new DeckImporter(catalog, uri -> "");
+    final DeckImporter valid = new DeckImporter(catalog, uri -> "");
     assertThat(valid.preview("250 Island", null).cards()).hasSize(250);
     assertThat(valid.preview("1 " + "a".repeat(200), null).cards()).hasSize(1);
     assertThat(valid.preview("1 Island\n#" + "a".repeat(99990), null).cards()).hasSize(1);
@@ -280,12 +294,12 @@ class DeckImporterTest {
 
   @Test
   void catalogMismatchAndRepeatedCommanders() {
-    var importer = new DeckImporter(names -> List.of(), uri -> "");
-    assertThatThrownBy(() -> importer.preview("1 Island", null))
+    final DeckImporter importer = new DeckImporter(names -> List.of(), uri -> "");
+    assertThatThrownBy(() -> importer.preview(ISLAND_DECK, null))
         .hasMessageContaining("could not be resolved");
-    var draft =
+    final Draft draft =
         new DeckImporter(catalog, uri -> "").preview("Commanders\n1 Island\n1 Island", null);
-    assertThat(draft.suggested()).containsExactly("Island");
+    assertThat(draft.suggested()).containsExactly(ISLAND_NAME);
   }
 
   @ParameterizedTest
@@ -306,14 +320,14 @@ class DeckImporterTest {
         "{\"mainboard\":[3]}",
         "{\"mainboard\":[{\"card\":{\"name\":42}}]}"
       })
-  void malformedProviderDataHasActionableErrorsBeforeCatalog(String json) {
-    var importer =
+  void malformedProviderDataHasActionableErrorsBeforeCatalog(final String json) {
+    final DeckImporter importer =
         new DeckImporter(
             names -> {
-              throw new AssertionError("No catalog");
+              throw new AssertionError(CATALOG_ERROR);
             },
             uri -> json);
-    assertThatThrownBy(() -> importer.preview(null, "https://moxfield.com/decks/x"))
+    assertThatThrownBy(() -> importer.preview(null, MOXFIELD_DECK_URL))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("paste");
   }
@@ -333,15 +347,15 @@ class DeckImporterTest {
         "4294967297",
         "\"invalid\""
       })
-  void providerQuantitiesMustBeBoundedIntegers(String quantity) {
-    var importer =
+  void providerQuantitiesMustBeBoundedIntegers(final String quantity) {
+    final DeckImporter importer =
         new DeckImporter(
             names -> {
-              throw new AssertionError("No catalog");
+              throw new AssertionError(CATALOG_ERROR);
             },
             uri ->
                 "{\"mainboard\":[{\"quantity\":" + quantity + ",\"card\":{\"name\":\"Island\"}}]}");
-    assertThatThrownBy(() -> importer.preview(null, "https://moxfield.com/decks/x"))
+    assertThatThrownBy(() -> importer.preview(null, MOXFIELD_DECK_URL))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("unsupported")
         .hasMessageContaining("paste");
@@ -350,15 +364,17 @@ class DeckImporterTest {
   @ParameterizedTest
   @ValueSource(strings = {"", " ", "LONG"})
   void invalidProviderNamesAreRejected(String name) {
-    if (name.equals("LONG")) name = "a".repeat(201);
-    String json = "{\"mainboard\":[{\"card\":{\"name\":\"" + name + "\"}}]}";
-    var importer =
+    if ("LONG".equals(Objects.requireNonNull(name))) {
+      name = "a".repeat(201);
+    }
+    final String json = "{\"mainboard\":[{\"card\":{\"name\":\"" + name + "\"}}]}";
+    final DeckImporter importer =
         new DeckImporter(
             names -> {
-              throw new AssertionError("No catalog");
+              throw new AssertionError(CATALOG_ERROR);
             },
             uri -> json);
-    assertThatThrownBy(() -> importer.preview(null, "https://moxfield.com/decks/x"))
+    assertThatThrownBy(() -> importer.preview(null, MOXFIELD_DECK_URL))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("unsupported");
   }
@@ -368,16 +384,16 @@ class DeckImporterTest {
     assertThatThrownBy(
             () ->
                 fromJson("{\"commanders\":null,\"mainboard\":[{\"card\":{\"name\":\"Island\"}}]}")
-                    .preview(null, "https://moxfield.com/decks/x"))
+                    .preview(null, MOXFIELD_DECK_URL))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("unsupported");
   }
 
   static Stream<String> providerLayoutMatrix() {
-    var layouts = new ArrayList<String>();
-    for (boolean nested : List.of(false, true)) {
-      for (boolean wrapped : List.of(false, true)) {
-        for (boolean array : List.of(false, true)) {
+    final List<String> layouts = new ArrayList<>();
+    for (final boolean nested : List.of(false, true)) {
+      for (final boolean wrapped : List.of(false, true)) {
+        for (final boolean array : List.of(false, true)) {
           layouts.add(providerLayout(nested, wrapped, array));
         }
       }
@@ -385,21 +401,24 @@ class DeckImporterTest {
     return layouts.stream();
   }
 
-  private static String providerLayout(boolean nested, boolean wrapped, boolean array) {
-    String entry = "{\"quantity\":1,\"card\":{\"name\":\"Island\"}}";
-    String cards = array ? "[" + entry + "]" : "{\"a\":" + entry + "}";
-    String board = wrapped ? "{\"cards\":" + cards + "}" : cards;
-    String boards = "{\"commanders\":" + board + ",\"mainboard\":" + board + "}";
+  private static String providerLayout(
+      final boolean nested, final boolean wrapped, final boolean array) {
+    final String entry = "{\"quantity\":1,\"card\":{\"name\":\"Island\"}}";
+    final String cards = array ? "[" + entry + "]" : "{\"a\":" + entry + "}";
+    final String board = wrapped ? "{\"cards\":" + cards + "}" : cards;
+    final String boards = "{\"commanders\":" + board + ",\"mainboard\":" + board + "}";
     return nested ? "{\"boards\":" + boards + "}" : boards;
   }
 
   @ParameterizedTest
   @MethodSource("providerLayoutMatrix")
-  void allContainerCombinationsPreserveAggregationAndSuggestions(String json) {
-    var draft = fromJson(json).preview(null, "https://moxfield.com/decks/x");
-    assertThat(draft.cards()).extracting(Game.Definition::name).containsExactly("Island", "Island");
+  void allContainerCombinationsPreserveAggregationAndSuggestions(final String json) {
+    final Draft draft = fromJson(json).preview(null, MOXFIELD_DECK_URL);
+    assertThat(draft.cards())
+        .extracting(Game.Definition::name)
+        .containsExactly(ISLAND_NAME, ISLAND_NAME);
     assertThat(draft.choices()).hasSize(1);
-    assertThat(draft.suggested()).containsExactly("Island");
+    assertThat(draft.suggested()).containsExactly(ISLAND_NAME);
   }
 
   @ParameterizedTest
@@ -410,8 +429,8 @@ class DeckImporterTest {
         "{\"mainboard\":[]}",
         "{\"commanders\":{},\"mainboard\":{\"cards\":[]}}"
       })
-  void emptySupportedDecksUseNoCardsFallback(String json) {
-    assertThatThrownBy(() -> fromJson(json).preview(null, "https://moxfield.com/decks/x"))
+  void emptySupportedDecksUseNoCardsFallback(final String json) {
+    assertThatThrownBy(() -> fromJson(json).preview(null, MOXFIELD_DECK_URL))
         .hasMessage("Moxfield returned no cards. Export and paste its text instead.");
   }
 
@@ -425,76 +444,73 @@ class DeckImporterTest {
         "{\"card\":{\"name\":null}}",
         "{\"card\":{\"name\":true}}"
       })
-  void malformedEntryFieldsUseUnsupportedFallback(String entry) {
+  void malformedEntryFieldsUseUnsupportedFallback(final String entry) {
     assertThatThrownBy(
-            () ->
-                fromJson("{\"mainboard\":[" + entry + "]}")
-                    .preview(null, "https://moxfield.com/decks/x"))
+            () -> fromJson("{\"mainboard\":[" + entry + "]}").preview(null, MOXFIELD_DECK_URL))
         .hasMessage("Moxfield returned an unsupported deck. Export and paste its text instead.");
   }
 
   @Test
   void providerNameAndTotalBoundaries() {
-    String entry = "{\"quantity\":250,\"card\":{\"name\":\"" + "a".repeat(200) + "\"}}";
-    assertThat(
-            fromJson("{\"mainboard\":[" + entry + "]}")
-                .preview(null, "https://moxfield.com/decks/x")
-                .cards())
+    final String entry = "{\"quantity\":250,\"card\":{\"name\":\"" + "a".repeat(200) + "\"}}";
+    assertThat(fromJson("{\"mainboard\":[" + entry + "]}").preview(null, MOXFIELD_DECK_URL).cards())
         .hasSize(250);
-    var importer =
+    final DeckImporter importer =
         new DeckImporter(
             names -> {
-              throw new AssertionError("No catalog");
+              throw new AssertionError(CATALOG_ERROR);
             },
             uri -> "{\"mainboard\":[" + entry + ",{\"card\":{\"name\":\"Island\"}}]}");
-    assertThatThrownBy(() -> importer.preview(null, "https://moxfield.com/decks/x"))
+    assertThatThrownBy(() -> importer.preview(null, MOXFIELD_DECK_URL))
         .hasMessage("Deck must contain 1–250 cards");
   }
 
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = {" ", "\n\t"})
-  void emptyTextHasStableMessage(String text) {
+  void emptyTextHasStableMessage(final String text) {
     assertThatThrownBy(() -> new TextDeckParser().parse(text)).hasMessage("Decklist is empty");
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"\n", "\r\n", "\r"})
-  void textParserSupportsLineEndings(String separator) {
-    var deck =
+  void textParserSupportsLineEndings(final String separator) {
+    final ParsedDeck deck =
         new TextDeckParser()
             .parse(
                 "Commanders"
                     + separator
-                    + "1 Island"
+                    + ISLAND_DECK
                     + separator
                     + "Deck"
                     + separator
                     + "1 Sol Ring");
     assertThat(deck.entries())
         .containsExactly(
-            new ParsedDeck.Entry("Island", 1, true), new ParsedDeck.Entry("Sol Ring", 1, false));
+            new ParsedDeck.Entry(ISLAND_NAME, 1, true),
+            new ParsedDeck.Entry(SOL_RING_NAME, 1, false));
   }
 
   @Test
   void parsedDeckIsImmutableAndAggregatesBeforeExpansion() {
-    var entries =
+    final List<Entry> entries =
         new ArrayList<>(
             List.of(
-                new ParsedDeck.Entry("Island", 1, false),
-                new ParsedDeck.Entry("Sol Ring", 1, false),
-                new ParsedDeck.Entry("Island", 2, true)));
-    var deck = ParsedDeck.from(entries);
+                new ParsedDeck.Entry(ISLAND_NAME, 1, false),
+                new ParsedDeck.Entry(SOL_RING_NAME, 1, false),
+                new ParsedDeck.Entry(ISLAND_NAME, 2, true)));
+    final ParsedDeck deck = ParsedDeck.from(entries);
     entries.clear();
     assertThat(deck.entries())
         .containsExactly(
-            new ParsedDeck.Entry("Island", 3, true), new ParsedDeck.Entry("Sol Ring", 1, false));
+            new ParsedDeck.Entry(ISLAND_NAME, 3, true),
+            new ParsedDeck.Entry(SOL_RING_NAME, 1, false));
     assertThatThrownBy(() -> deck.entries().clear())
         .isInstanceOf(UnsupportedOperationException.class);
     assertThatThrownBy(
             () ->
                 ParsedDeck.from(
-                    Collections.nCopies(20_000, new ParsedDeck.Entry("Island", 250, false))))
+                    Collections.nCopies(20_000, new ParsedDeck.Entry(ISLAND_NAME, 250, false))))
         .hasMessage("Deck must contain 1–250 cards");
   }
 }

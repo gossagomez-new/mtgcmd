@@ -9,47 +9,49 @@ import java.util.*;
 final class GameViewMapper {
   private final GameAccess access;
 
-  GameViewMapper(GameAccess access) {
+  GameViewMapper(final GameAccess access) {
     this.access = access;
   }
 
-  Map<String, Object> forPlayer(Game g, int seat) {
-    player(g, seat);
-    Map<String, Object> out = new LinkedHashMap<>();
-    out.put("id", g.id);
-    out.put("revision", g.revision);
-    out.put("status", g.status);
-    out.put("format", g.format().name());
-    out.put("seatCapacity", g.format().seatCapacity());
-    out.put("host", g.host);
-    out.put("active", g.active);
-    out.put("turn", g.turn);
-    out.put("phase", g.phase);
+  Map<String, Object> forPlayer(final Game game, final int seat) {
+    player(game, seat);
+    final Map<String, Object> out = new LinkedHashMap<>();
+    out.put("id", game.id);
+    out.put("revision", game.revision);
+    out.put("status", game.status);
+    out.put("format", game.format().name());
+    out.put("seatCapacity", game.format().seatCapacity());
+    out.put("host", game.host);
+    out.put("active", game.active);
+    out.put("turn", game.turn);
+    out.put("phase", game.phase);
     out.put("you", seat);
-    out.put("grants", g.grants.getOrDefault(seat, Set.of()));
-    out.put("search", g.searches.get(seat));
-    out.put("log", g.log);
+    out.put("grants", game.grants.getOrDefault(seat, Set.of()));
+    out.put("search", game.searches.get(seat));
+    out.put("log", game.log);
     out.put(
         "players",
-        g.players.stream()
+        game.players.stream()
             .map(
                 p -> {
-                  Map<String, Object> v = new LinkedHashMap<>();
-                  v.put("seat", p.seat);
-                  v.put("name", p.name);
-                  v.put("ready", p.ready);
-                  v.put("conceded", p.conceded);
-                  v.put("deckCount", p.deck.size());
-                  v.put("deckRevision", p.deckRevision);
-                  v.put("privateAccess", access.canAccessPrivate(g, seat, p.seat));
-                  v.put("warnings", p.seat == seat ? p.warnings : List.of());
-                  v.put("counters", p.counters);
-                  Map<String, Long> counts = new LinkedHashMap<>();
-                  for (String z : ALL) counts.put(z, (long) zone(g, p.seat, z).size());
-                  v.put("counts", counts);
-                  v.put(
+                  final Map<String, Object> view = new LinkedHashMap<>();
+                  view.put("seat", p.seat);
+                  view.put("name", p.name);
+                  view.put("ready", p.ready);
+                  view.put("conceded", p.conceded);
+                  view.put("deckCount", p.deck.size());
+                  view.put("deckRevision", p.deckRevision);
+                  view.put("privateAccess", access.canAccessPrivate(game, seat, p.seat));
+                  view.put("warnings", p.seat == seat ? p.warnings : List.of());
+                  view.put("counters", p.counters);
+                  final Map<String, Long> counts = new LinkedHashMap<>();
+                  for (final String z : ALL) {
+                    counts.put(z, (long) zone(game, p.seat, z).size());
+                  }
+                  view.put("counts", counts);
+                  view.put(
                       "commanders",
-                      g.cards.stream()
+                      game.cards.stream()
                           .filter(c -> c.owner == p.seat && c.commanderKey != null)
                           .map(
                               c ->
@@ -61,39 +63,42 @@ final class GameViewMapper {
                                       "casts",
                                       p.counters.getOrDefault("casts:" + c.commanderKey, 0)))
                           .toList());
-                  return v;
+                  return view;
                 })
             .toList());
     out.put(
         "cards",
-        g.cards.stream()
-            .filter(c -> access.visible(g, seat, c))
+        game.cards.stream()
+            .filter(c -> access.visible(game, seat, c))
             .map(
                 c -> {
-                  Map<String, Object> v = new LinkedHashMap<>();
-                  v.put("id", c.id);
-                  v.put("owner", c.owner);
-                  v.put("controller", c.controller);
-                  v.put("zoneOwner", c.zoneOwner);
-                  v.put("zone", c.zone);
-                  v.put("tapped", c.tapped);
-                  v.put("faceDown", c.faceDown);
-                  v.put("face", c.face);
-                  v.put("token", c.token);
-                  v.put(
-                      "commanderKey", access.canSeeDefinition(g, seat, c) ? c.commanderKey : null);
-                  v.put("attachedTo", c.attachedTo);
-                  v.put("combat", c.combat);
-                  v.put("stackOrder", c.stackOrder);
-                  v.put("x", c.x);
-                  v.put("y", c.y);
-                  v.put("counters", c.counters);
-                  v.put("editable", access.mayEdit(g, seat, c));
-                  if (access.canSeeDefinition(g, seat, c)) v.put("definition", c.definition);
-                  return v;
+                  final Map<String, Object> view = new LinkedHashMap<>();
+                  view.put("id", c.id);
+                  view.put("owner", c.owner);
+                  view.put("controller", c.controller);
+                  view.put("zoneOwner", c.zoneOwner);
+                  view.put("zone", c.zone);
+                  view.put("tapped", c.tapped);
+                  view.put("faceDown", c.faceDown);
+                  view.put("face", c.face);
+                  view.put("token", c.token);
+                  view.put(
+                      "commanderKey",
+                      access.canSeeDefinition(game, seat, c) ? c.commanderKey : null);
+                  view.put("attachedTo", c.attachedTo);
+                  view.put("combat", c.combat);
+                  view.put("stackOrder", c.stackOrder);
+                  view.put("x", c.x);
+                  view.put("y", c.y);
+                  view.put("counters", c.counters);
+                  view.put("editable", access.mayEdit(game, seat, c));
+                  if (access.canSeeDefinition(game, seat, c)) {
+                    view.put("definition", c.definition);
+                  }
+                  return view;
                 })
             .toList());
-    out.put("abilities", g.abilities);
+    out.put("abilities", game.abilities);
     return out;
   }
 }

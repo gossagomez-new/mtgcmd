@@ -15,23 +15,36 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DeckRulesTest {
+  private static final String BLUE_CARD_NAME = "Blue";
+
+  private static final String LEADER_NAME = "Leader";
+
+  private static final String MOUNTAIN_NAME = "Mountain";
+
+  private static final String MISSING_ID = "missing";
+
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-10-14T00:00:00Z"), ZoneOffset.UTC);
 
   private static Definition card(
-      String id, String type, String text, boolean legal, String... colors) {
-    return new Definition(id, id, "", text, type, List.of(colors), legal, List.of());
+      final String identifier,
+      final String type,
+      final String text,
+      final boolean legal,
+      final String... colors) {
+    return new Definition(
+        identifier, identifier, "", text, type, List.of(colors), legal, List.of());
   }
 
   private static Definition leader() {
-    return card("Leader", "Legendary Creature", "", true, "R");
+    return card(LEADER_NAME, "Legendary Creature", "", true, "R");
   }
 
   private static Definition basic() {
-    return card("Mountain", "Basic Land — Mountain", "", true, "R");
+    return card(MOUNTAIN_NAME, "Basic Land — Mountain", "", true, "R");
   }
 
-  private static List<String> warnings(List<Definition> deck, List<String> commanders) {
+  private static List<String> warnings(final List<Definition> deck, final List<String> commanders) {
     return DeckRules.validate(GameFormat.COMMANDER, deck, commanders, CLOCK);
   }
 
@@ -41,16 +54,16 @@ class DeckRulesTest {
     return Stream.of(
         new SelectionCase(null, "Choose one or two commanders"),
         new SelectionCase(List.of(), "Choose one or two commanders"),
-        new SelectionCase(List.of("missing", "missing", "third"), "Choose one or two commanders"),
-        new SelectionCase(List.of("missing", "missing"), "Commanders must be distinct"),
-        new SelectionCase(List.of("missing"), "Commander must be in the deck"),
-        new SelectionCase(List.of("Leader", "missing"), "Commander must be in the deck"),
-        new SelectionCase(List.of("missing", "Leader"), "Commander must be in the deck"));
+        new SelectionCase(List.of(MISSING_ID, MISSING_ID, "third"), "Choose one or two commanders"),
+        new SelectionCase(List.of(MISSING_ID, MISSING_ID), "Commanders must be distinct"),
+        new SelectionCase(List.of(MISSING_ID), "Commander must be in the deck"),
+        new SelectionCase(List.of(LEADER_NAME, MISSING_ID), "Commander must be in the deck"),
+        new SelectionCase(List.of(MISSING_ID, LEADER_NAME), "Commander must be in the deck"));
   }
 
   @ParameterizedTest
   @MethodSource("invalidSelections")
-  void selectionErrorsRetainPrecedenceAndMessages(SelectionCase scenario) {
+  void selectionErrorsRetainPrecedenceAndMessages(final SelectionCase scenario) {
     assertThatThrownBy(() -> warnings(List.of(leader()), scenario.ids()))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(scenario.message());
@@ -58,7 +71,7 @@ class DeckRulesTest {
 
   @ParameterizedTest
   @ValueSource(ints = {0, 251})
-  void invalidDeckSizePrecedesSelectionErrors(int size) {
+  void invalidDeckSizePrecedesSelectionErrors(final int size) {
     assertThatThrownBy(() -> warnings(Collections.nCopies(size, basic()), null))
         .hasMessage("Deck must contain 1–250 cards");
   }
@@ -70,19 +83,19 @@ class DeckRulesTest {
 
   @ParameterizedTest
   @ValueSource(ints = {1, 100, 250})
-  void validDeckBoundsPreserveSizeObservation(int size) {
-    List<Definition> deck = new ArrayList<>(Collections.nCopies(size - 1, basic()));
+  void validDeckBoundsPreserveSizeObservation(final int size) {
+    final List<Definition> deck = new ArrayList<>(Collections.nCopies(size - 1, basic()));
     deck.addFirst(leader());
-    assertThat(warnings(deck, List.of("Leader")))
+    assertThat(warnings(deck, List.of(LEADER_NAME)))
         .containsExactlyElementsOf(size == 100 ? List.of() : List.of(sizeWarning(size)));
   }
 
   @Test
   void overlappingWarningsRetainOrderAndStableDeduplication() {
-    Definition red = card("Red", "Artifact", "", true, "R");
-    Definition blue = card("Blue", "Legendary Enchantment", "", true, "U");
-    Definition bad = card("Bad", "Creature", "", false, "G");
-    assertThat(warnings(List.of(red, blue, bad, bad, bad), List.of("Blue", "Red")))
+    final Definition red = card("Red", "Artifact", "", true, "R");
+    final Definition blue = card(BLUE_CARD_NAME, "Legendary Enchantment", "", true, "U");
+    final Definition bad = card("Bad", "Creature", "", false, "G");
+    assertThat(warnings(List.of(red, blue, bad, bad, bad), List.of(BLUE_CARD_NAME, "Red")))
         .containsExactly(
             sizeWarning(5),
             "Check commander eligibility for Blue.",
@@ -95,19 +108,21 @@ class DeckRulesTest {
 
   @Test
   void twoCommandersCombineIdentityAndAllowColorlessCards() {
-    Definition blue = card("Blue", "Legendary Creature", "", true, "U");
-    Definition mixed = card("Mixed", "Creature", "", true, "R", "U");
-    Definition colorless = card("Colorless", "Artifact", "", true);
-    assertThat(warnings(List.of(leader(), blue, mixed, colorless), List.of("Leader", "Blue")))
+    final Definition blue = card(BLUE_CARD_NAME, "Legendary Creature", "", true, "U");
+    final Definition mixed = card("Mixed", "Creature", "", true, "R", "U");
+    final Definition colorless = card("Colorless", "Artifact", "", true);
+    assertThat(
+            warnings(
+                List.of(leader(), blue, mixed, colorless), List.of(LEADER_NAME, BLUE_CARD_NAME)))
         .containsExactly(sizeWarning(4), "Check that the chosen commanders can be paired.");
   }
 
   @Test
   void duplicateSelectedIdUsesFirstMatchingDefinitionForIdentityAndEligibility() {
-    Definition first = leader();
-    Definition later =
-        new Definition("Leader", "Later", "", "", "Basic Land", List.of("U"), true, List.of());
-    assertThat(warnings(List.of(first, later), List.of("Leader")))
+    final Definition first = leader();
+    final Definition later =
+        new Definition(LEADER_NAME, "Later", "", "", "Basic Land", List.of("U"), true, List.of());
+    assertThat(warnings(List.of(first, later), List.of(LEADER_NAME)))
         .containsExactly(sizeWarning(2), "Later exceeds the chosen color identity.");
   }
 
@@ -120,11 +135,14 @@ class DeckRulesTest {
     "Creature,Any number of cards named Repeated,true",
     "Creature,'',true"
   })
-  void copyExceptionsRetainCaseSensitiveSubstringSemantics(String type, String text, boolean warn) {
-    Definition repeated = card("Repeated", type, text, true, "R");
-    List<String> expected = new ArrayList<>(List.of(sizeWarning(3)));
-    if (warn) expected.add("Check singleton exception for Repeated.");
-    assertThat(warnings(List.of(leader(), repeated, repeated), List.of("Leader")))
+  void copyExceptionsRetainCaseSensitiveSubstringSemantics(
+      final String type, final String text, final boolean warn) {
+    final Definition repeated = card("Repeated", type, text, true, "R");
+    final List<String> expected = new ArrayList<>(List.of(sizeWarning(3)));
+    if (warn) {
+      expected.add("Check singleton exception for Repeated.");
+    }
+    assertThat(warnings(List.of(leader(), repeated, repeated), List.of(LEADER_NAME)))
         .containsExactlyElementsOf(expected);
   }
 
@@ -133,29 +151,31 @@ class DeckRulesTest {
     "Legendary Creature,false", "Legendary Artifact,true", "Creature,true",
     "legendary Creature,true", "Legendary creature,true", "NotLegendary Creature,false"
   })
-  void eligibilityRetainsCaseSensitiveSubstringSemantics(String type, boolean warn) {
-    Definition selected = card("Selected", type, "", true);
-    List<String> expected = new ArrayList<>(List.of(sizeWarning(1)));
-    if (warn) expected.add("Check commander eligibility for Selected.");
+  void eligibilityRetainsCaseSensitiveSubstringSemantics(final String type, final boolean warn) {
+    final Definition selected = card("Selected", type, "", true);
+    final List<String> expected = new ArrayList<>(List.of(sizeWarning(1)));
+    if (warn) {
+      expected.add("Check commander eligibility for Selected.");
+    }
     assertThat(warnings(List.of(selected), List.of("Selected")))
         .containsExactlyElementsOf(expected);
   }
 
   @Test
   void validationDoesNotMutateDeckOrSelectionOrder() {
-    List<Definition> deck = new ArrayList<>(List.of(basic(), leader()));
-    List<String> selected = new ArrayList<>(List.of("Leader"));
+    final List<Definition> deck = new ArrayList<>(List.of(basic(), leader()));
+    final List<String> selected = new ArrayList<>(List.of(LEADER_NAME));
     warnings(deck, selected);
     assertThat(deck).containsExactly(basic(), leader());
-    assertThat(selected).containsExactly("Leader");
+    assertThat(selected).containsExactly(LEADER_NAME);
   }
 
   @Test
   void standardRetainsFreshLegalBasicDeckAndCommanderRejection() {
-    Definition land =
+    final Definition land =
         new Definition(
-            "Mountain",
-            "Mountain",
+            MOUNTAIN_NAME,
+            MOUNTAIN_NAME,
             "",
             "",
             "Basic Land",
@@ -164,14 +184,14 @@ class DeckRulesTest {
             List.of(),
             Map.of("standard", "legal"),
             CLOCK.millis());
-    List<Definition> deck = Collections.nCopies(60, land);
+    final List<Definition> deck = Collections.nCopies(60, land);
     assertThat(DeckRules.validate(GameFormat.STANDARD, deck, null, CLOCK)).isEmpty();
     assertThatThrownBy(
-            () -> DeckRules.validate(GameFormat.STANDARD, deck, List.of("Mountain"), CLOCK))
+            () -> DeckRules.validate(GameFormat.STANDARD, deck, List.of(MOUNTAIN_NAME), CLOCK))
         .hasMessage("Standard does not use commanders");
   }
 
-  private static String sizeWarning(int size) {
+  private static String sizeWarning(final int size) {
     return "Deck contains " + size + " cards; Commander normally uses 100 including commanders.";
   }
 }

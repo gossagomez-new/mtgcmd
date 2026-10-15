@@ -25,25 +25,26 @@ public class AppConfiguration {
 
   @Bean
   RoomStore rooms(
-      JdbcTemplate jdbc,
-      PlatformTransactionManager manager,
-      ObjectMapper mapper,
-      GameEngine engine) {
+      final JdbcTemplate jdbc,
+      final PlatformTransactionManager manager,
+      final ObjectMapper mapper,
+      final GameEngine engine) {
     return new RoomStore(jdbc, new TransactionTemplate(manager), mapper, engine);
   }
 
   @Bean
-  GuestSessions guests(JdbcTemplate jdbc, @Value("${app.secure-cookie}") boolean secure) {
+  GuestSessions guests(
+      final JdbcTemplate jdbc, @Value("${app.secure-cookie}") final boolean secure) {
     return new GuestSessions(jdbc, secure);
   }
 
   @Bean
-  SecurityFilter security(GuestSessions guests, @Value("${app.origin}") String origin) {
+  SecurityFilter security(final GuestSessions guests, @Value("${app.origin}") final String origin) {
     return new SecurityFilter(guests, origin);
   }
 
   @Bean
-  GameSocket socket(ObjectMapper mapper, RoomStore rooms) {
+  GameSocket socket(final ObjectMapper mapper, final RoomStore rooms) {
     return new GameSocket(mapper, rooms);
   }
 
@@ -56,37 +57,39 @@ public class AppConfiguration {
     private final String origin;
 
     Sockets(
-        GameSocket handler,
-        GuestSessions guests,
-        RoomStore rooms,
-        @Value("${app.origin}") String origin) {
+        final GameSocket handler,
+        final GuestSessions guests,
+        final RoomStore rooms,
+        @Value("${app.origin}") final String origin) {
       this.handler = handler;
       this.guests = guests;
       this.rooms = rooms;
       this.origin = origin;
     }
 
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+    public void registerWebSocketHandlers(final WebSocketHandlerRegistry registry) {
       registry
           .addHandler(handler, "/ws")
           .setAllowedOrigins(origin)
           .addInterceptors(
               new HandshakeInterceptor() {
                 public boolean beforeHandshake(
-                    ServerHttpRequest request,
+                    final ServerHttpRequest request,
                     ServerHttpResponse response,
                     WebSocketHandler handler,
-                    Map<String, Object> attributes) {
+                    final Map<String, Object> attributes) {
                   try {
-                    HttpServletRequest servlet =
+                    final HttpServletRequest servlet =
                         ((ServletServerHttpRequest) request).getServletRequest();
-                    String guest = guests.require(servlet).hash();
-                    String room =
+                    final String guest = guests.require(servlet).hash();
+                    final String room =
                         UriComponentsBuilder.fromUri(request.getURI())
                             .build()
                             .getQueryParams()
                             .getFirst("room");
-                    if (room == null) return false;
+                    if (room == null) {
+                      return false;
+                    }
                     attributes.put("seat", rooms.seat(guest, room));
                     attributes.put("room", room);
                     attributes.put("guest", guest);

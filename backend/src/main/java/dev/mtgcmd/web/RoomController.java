@@ -16,7 +16,8 @@ public final class RoomController {
   private final RoomStore rooms;
   private final GameSocket socket;
 
-  public RoomController(GuestSessions guests, RoomStore rooms, GameSocket socket) {
+  public RoomController(
+      final GuestSessions guests, final RoomStore rooms, final GameSocket socket) {
     this.guests = guests;
     this.rooms = rooms;
     this.socket = socket;
@@ -27,46 +28,54 @@ public final class RoomController {
   public record CreateRoom(String name, JsonNode format) {}
 
   @GetMapping("/rooms")
-  public List<Map<String, Object>> list(HttpServletRequest r) {
-    return rooms.list(guest(r));
+  public List<Map<String, Object>> list(final HttpServletRequest httpRequest) {
+    return rooms.list(guest(httpRequest));
   }
 
   @PostMapping("/rooms")
-  public Map<String, Object> create(HttpServletRequest r, @RequestBody CreateRoom request) {
+  public Map<String, Object> create(
+      final HttpServletRequest httpRequest, @RequestBody final CreateRoom request) {
     GameFormat format = GameFormat.COMMANDER;
     if (request.format() != null && !request.format().isNull()) {
-      if (!request.format().isTextual()) throw new IllegalArgumentException("Invalid table format");
+      if (!request.format().isTextual()) {
+        throw new IllegalArgumentException("Invalid table format");
+      }
       try {
         format = GameFormat.valueOf(request.format().textValue());
       } catch (IllegalArgumentException e) {
         throw new IllegalArgumentException("Choose COMMANDER or STANDARD", e);
       }
     }
-    return rooms.create(guest(r), request.name(), format);
+    return rooms.create(guest(httpRequest), request.name(), format);
   }
 
   @PostMapping("/rooms/{id}/join")
   public Map<String, Object> join(
-      HttpServletRequest r, @PathVariable String id, @RequestBody Name name) {
-    var v = rooms.join(guest(r), id, name.name());
-    socket.broadcast(id);
-    return v;
+      final HttpServletRequest httpRequest,
+      @PathVariable("id") final String roomId,
+      @RequestBody final Name name) {
+    final Map<String, Object> view = rooms.join(guest(httpRequest), roomId, name.name());
+    socket.broadcast(roomId);
+    return view;
   }
 
   @GetMapping("/rooms/{id}")
-  public Map<String, Object> view(HttpServletRequest r, @PathVariable String id) {
-    return rooms.view(guest(r), id);
+  public Map<String, Object> view(
+      final HttpServletRequest httpRequest, @PathVariable("id") final String roomId) {
+    return rooms.view(guest(httpRequest), roomId);
   }
 
   @PostMapping("/rooms/{id}/commands")
   public Map<String, Object> command(
-      HttpServletRequest r, @PathVariable String id, @RequestBody Game.Command command) {
-    var v = rooms.execute(guest(r), id, command);
-    socket.broadcast(id);
-    return v;
+      final HttpServletRequest httpRequest,
+      @PathVariable("id") final String roomId,
+      @RequestBody final Game.Command command) {
+    final Map<String, Object> view = rooms.execute(guest(httpRequest), roomId, command);
+    socket.broadcast(roomId);
+    return view;
   }
 
-  private String guest(HttpServletRequest r) {
-    return guests.require(r).hash();
+  private String guest(final HttpServletRequest httpRequest) {
+    return guests.require(httpRequest).hash();
   }
 }

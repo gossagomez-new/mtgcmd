@@ -2,7 +2,7 @@ package dev.mtgcmd.catalog;
 
 /** Operational card-service failure with a player-facing message and retained cause. */
 public abstract class CardServiceException extends IllegalArgumentException {
-  protected CardServiceException(String message, Throwable cause) {
+  protected CardServiceException(final String message, final Throwable cause) {
     super(message, cause);
   }
 
