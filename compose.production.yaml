@@ -1,0 +1,73 @@
+# Standalone file: do not merge with compose.yaml (which publishes local ports).
+name: mtgcmd-production
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: mtgcmd
+      POSTGRES_USER: mtgcmd
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env.production}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mtgcmd -d mtgcmd"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    mem_limit: ${DB_MEMORY:-512m}
+    logging: *logging
+    restart: unless-stopped
+
+  app:
+    image: ${APP_IMAGE:?Set APP_IMAGE to a release tag or digest in .env.production}
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/mtgcmd
+      DATABASE_USER: mtgcmd
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env.production}
+      BIND_ADDRESS: 0.0.0.0
+      PUBLIC_ORIGIN: https://${PUBLIC_IPV4:?Set PUBLIC_IPV4 in .env.production}
+      SECURE_COOKIE: "true"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=60.0 -XX:+ExitOnOutOfMemoryError"
+      SERVER_SHUTDOWN: graceful
+      SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: 30s
+    depends_on:
+      db:
+        condition: service_healthy
+    stop_grace_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: ${APP_MEMORY:-1g}
+    logging: *logging
+    restart: unless-stopped
+
+  https:
+    image: caddy:2.11.7-alpine
+    environment:
+      PUBLIC_IPV4: ${PUBLIC_IPV4:?Set PUBLIC_IPV4 in .env.production}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env.production}
+      ACME_DIRECTORY: ${ACME_DIRECTORY:-https://acme-v02.api.letsencrypt.org/directory}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile.ip:/etc/caddy/Caddyfile:ro,Z
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    mem_limit: ${CADDY_MEMORY:-128m}
+    logging: *logging
+    restart: unless-stopped
+
+volumes:
+  database:
+  caddy_data:
+  caddy_config:

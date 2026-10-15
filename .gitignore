@@ -5,4 +5,8 @@ frontend/*.tsbuildinfo
 frontend/playwright-report/
 frontend/test-results/
 .env
+.env.production
+.env.production.*
+!.env.production.example
+/backups/
 *.log

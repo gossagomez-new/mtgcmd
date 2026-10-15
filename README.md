@@ -121,6 +121,10 @@ remain externally hosted and uncached cards still need resolution.
 
 ## Hosting with HTTPS
 
+For an Oracle Cloud VM with a public IP and no domain, follow the
+[public-IP deployment guide](docs/deployment-oracle.md). It uses a separate
+production configuration and includes the remaining operator verification steps.
+
 The optional Compose `https` profile runs Caddy in front of the packaged app.
 For a domain pointing at your host, configure `.env` with:
 

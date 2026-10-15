@@ -24,10 +24,17 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Java source conventions](java-source-conventions.md) | Completed | Medium | Consistent Java style and selective documentation | [Advisory Java static analysis](java-static-analysis.md) | [ADR-0008](../docs/adr/0008-java-source-conventions.md): Java conventions and selective documentation |
 
+| Specification                                                 | Status      | Priority | Purpose                                                                       | Depends on                                                                           | Related ADRs                                                                                                  |
+| ------------------------------------------------------------- | ----------- | -------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| [Public-IP Docker deployment](public-ip-docker-deployment.md) | In progress | High     | Oracle Cloud single-VM configuration, preflight, and operational verification | [Build automation](build-automation.md), [Commander tabletop](commander-tabletop.md) | [ADR-0009](../docs/adr/0009-public-ip-docker-deployment.md): deployment topology and IP certificate lifecycle |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    deployment["Public-IP Docker deployment"]
+    deployment -->|depends on| build
+    deployment -->|depends on| tabletop
     tabletop["Commander tabletop (independent)"]
     build["Build automation"]
     analysis["Advisory Java static analysis"]

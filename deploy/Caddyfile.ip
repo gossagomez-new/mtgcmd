@@ -1,0 +1,14 @@
+{
+	email {$ACME_EMAIL}
+	default_sni {$PUBLIC_IPV4}
+}
+
+https://{$PUBLIC_IPV4} {
+	tls {
+		issuer acme {
+			dir {$ACME_DIRECTORY:https://acme-v02.api.letsencrypt.org/directory}
+			profile shortlived
+		}
+	}
+	reverse_proxy app:8080
+}
