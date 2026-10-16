@@ -28,10 +28,16 @@ Each specification's `Depends on` metadata is authoritative.
 | ------------------------------------------------------------- | ----------- | -------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | [Public-IP Docker deployment](public-ip-docker-deployment.md) | In progress | High     | Oracle Cloud single-VM configuration, preflight, and operational verification | [Build automation](build-automation.md), [Commander tabletop](commander-tabletop.md) | [ADR-0009](../docs/adr/0009-public-ip-docker-deployment.md): deployment topology and IP certificate lifecycle |
 
+| Specification                                           | Status    | Priority | Purpose                                                                        | Depends on                              | Related ADRs                                                                                     |
+| ------------------------------------------------------- | --------- | -------- | ------------------------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [Frontend static analysis](frontend-static-analysis.md) | Completed | Medium   | Advisory typed/accessibility/complexity and unused-code reports in full builds | [Build automation](build-automation.md) | [ADR-0010](../docs/adr/0010-frontend-static-analysis.md): ESLint/Knip tooling and failure policy |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    frontendanalysis["Frontend static analysis"]
+    frontendanalysis -->|depends on| build
     deployment["Public-IP Docker deployment"]
     deployment -->|depends on| build
     deployment -->|depends on| tabletop

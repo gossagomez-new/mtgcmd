@@ -24,6 +24,14 @@ fs.appendFileSync(process.env.EVENTS, JSON.stringify({name, args: process.argv.s
 fs.writeSync(1, name + ' output' + String.fromCharCode(10));
 fs.writeSync(2, name + ' diagnostic' + String.fromCharCode(10));
 const status = Number(process.env[name === 'npm' ? 'NPM_EXIT' : 'MVN_EXIT'] || 0);
+if (name === 'npm' && process.argv.includes('analyze')) {
+  if (process.env.ANALYZE_EXIT) process.exit(Number(process.env.ANALYZE_EXIT));
+  if (process.env.NO_ANALYSIS_REPORT !== '1') {
+    fs.mkdirSync(path.join(root, 'frontend/reports/static-analysis'), {recursive: true});
+    fs.writeFileSync(path.join(root, 'frontend/reports/static-analysis/summary.json'), '{}');
+  }
+  process.exit(0);
+}
 if (status) process.exit(status);
 if (name === 'npm') {
   if (process.env.NO_INDEX !== '1') {
@@ -89,34 +97,45 @@ test("builds frontend before clean Java verification from another directory", (t
   const events = f.events();
   assert.deepEqual(
     events.map((e) => e.name),
-    ["npm", "mvn"],
+    ["npm", "npm", "mvn"],
   );
   assert.deepEqual(events[0].args, [
     "--prefix",
     join(f.root, "frontend"),
     "run",
-    "build",
+    "analyze",
   ]);
   assert.deepEqual(events[1].args, [
+    "--prefix",
+    join(f.root, "frontend"),
+    "run",
+    "build",
+  ]);
+  assert.deepEqual(events[2].args, [
     "-f",
     join(f.root, "backend/pom.xml"),
     "clean",
     "verify",
   ]);
-  assert.equal(events[1].mavenOpts, "-Dfixture-marker=true");
+  assert.equal(events[2].mavenOpts, "-Dfixture-marker=true");
   assert.equal(existsSync(stale), false);
   assert.ok(
     result.stdout.includes(join(f.root, "backend/target/fixture-0.jar")),
   );
   assert.match(result.stdout, /npm output[\s\S]*mvn output/);
   assert.match(result.stderr, /npm diagnostic[\s\S]*mvn diagnostic/);
+  assert.ok(
+    result.stdout.includes(
+      `Frontend analysis: ${join(f.root, "frontend/reports/static-analysis/summary.json")}`,
+    ),
+  );
 });
 
 test("explicit skip mode packages without claiming tests passed", (t) => {
   const f = fixture(t);
   const result = f.run(["--skip-tests"]);
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(f.events()[1].args, [
+  assert.deepEqual(f.events()[2].args, [
     "-f",
     join(f.root, "backend/pom.xml"),
     "clean",
@@ -125,6 +144,7 @@ test("explicit skip mode packages without claiming tests passed", (t) => {
   ]);
   assert.match(result.stdout, /tests skipped/i);
   assert.doesNotMatch(result.stdout, /tests passed/i);
+  assert.match(result.stdout, /Frontend analysis:.*summary\.json/);
 });
 
 test("help does not execute build tools", (t) => {
@@ -157,7 +177,7 @@ test("frontend failure preserves exit code and does not invoke Maven", (t) => {
   assert.equal(result.status, 17);
   assert.deepEqual(
     f.events().map((e) => e.name),
-    ["npm"],
+    ["npm", "npm"],
   );
   assert.doesNotMatch(result.stdout, /Build complete/i);
 });
@@ -169,7 +189,7 @@ test("missing frontend index prevents packaging", (t) => {
   assert.match(result.stderr, /index\.html/);
   assert.deepEqual(
     f.events().map((e) => e.name),
-    ["npm"],
+    ["npm", "npm"],
   );
 });
 
@@ -179,7 +199,7 @@ test("Maven failure preserves exit code and does not report success", (t) => {
   assert.equal(result.status, 23);
   assert.deepEqual(
     f.events().map((e) => e.name),
-    ["npm", "mvn"],
+    ["npm", "npm", "mvn"],
   );
   assert.doesNotMatch(result.stdout, /Build complete/i);
 });
@@ -195,6 +215,20 @@ for (const count of [0, 2]) {
 }
 
 for (const args of [[], ["--skip-tests"]]) {
+  test(`analysis failure blocks compilation in ${args.length ? "skip" : "default"} mode`, (t) => {
+    const f = fixture(t);
+    const result = f.run(args, { ANALYZE_EXIT: "19" });
+    assert.equal(result.status, 19);
+    assert.equal(f.events().length, 1);
+    assert.doesNotMatch(result.stdout, /Build complete/);
+  });
+  test(`missing analysis report blocks packaging in ${args.length ? "skip" : "default"} mode`, (t) => {
+    const f = fixture(t);
+    const result = f.run(args, { NO_ANALYSIS_REPORT: "1" });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /analysis.*summary\.json/i);
+    assert.equal(f.events().length, 1);
+  });
   for (const findings of [
     "",
     "Card.java:7:\tSystemPrintln:\tAvoid printing directly.\n",

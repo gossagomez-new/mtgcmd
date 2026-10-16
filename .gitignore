@@ -1,6 +1,7 @@
 backend/target/
 frontend/node_modules/
 frontend/dist/
+frontend/reports/
 frontend/*.tsbuildinfo
 frontend/playwright-report/
 frontend/test-results/

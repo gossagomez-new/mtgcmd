@@ -4,6 +4,7 @@
 backups
 frontend/node_modules
 frontend/dist
+frontend/reports
 frontend/test-results
 frontend/playwright-report
 backend/target

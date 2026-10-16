@@ -3,8 +3,9 @@ set -euo pipefail
 
 usage() {
   printf '%s\n' 'Usage: build.sh [--skip-tests]' '       build.sh --help' \
-    '' 'Build React, then clean and verify the Java package.' \
+    '' 'Analyze and build React, then clean and verify the Java package.' \
     'PMD findings are advisory and recorded in backend/target/pmd.txt.' \
+    'Frontend analysis runs before compilation; new findings are advisory.' \
     '--skip-tests packages without running the Java tests.'
 }
 
@@ -27,6 +28,14 @@ case "${1-}" in
 esac
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+
+printf '%s\n' 'Analyzing frontend…'
+npm --prefix "$repo_root/frontend" run analyze
+analysis_report="$repo_root/frontend/reports/static-analysis/summary.json"
+if [[ ! -f "$analysis_report" ]]; then
+  printf '%s\n' 'Frontend analysis did not produce reports/static-analysis/summary.json; packaging stopped.' >&2
+  exit 1
+fi
 
 printf '%s\n' 'Building frontend…'
 npm --prefix "$repo_root/frontend" run build
@@ -67,3 +76,4 @@ else
 fi
 printf 'Artifact: %s\n' "${artifacts[0]}"
 printf 'PMD findings log: %s\n' "$pmd_log"
+printf 'Frontend analysis: %s\n' "$analysis_report"

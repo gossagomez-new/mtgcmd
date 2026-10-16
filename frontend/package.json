@@ -10,25 +10,29 @@
     "test": "vitest run src",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "format:check": "prettier --check src tests *.json *.ts index.html",
-    "format": "prettier --write src tests *.json *.ts index.html"
+    "analyze": "node scripts/analyze.mjs",
+    "test:analysis": "node --test --test-isolation=none scripts/analyze.test.mjs",
+    "format:check": "prettier --check src tests scripts *.json *.ts *.js index.html",
+    "format": "prettier --write src tests scripts *.json *.ts *.js index.html"
   },
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@types/node": "^24.0.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.1.7",
-    "typescript": "^5.9.3",
-    "vitest": "^5.0.4",
-    "@playwright/test": "^1.56.0",
     "eslint": "^9.38.0",
-    "typescript-eslint": "^8.46.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "prettier": "^3.6.2"
+    "knip": "^6.41.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0",
+    "vite": "^7.1.7",
+    "vitest": "^5.0.4"
   }
 }

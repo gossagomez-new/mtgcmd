@@ -86,11 +86,14 @@ After installing dependencies, build both components:
 ./scripts/build.sh
 ```
 
-The script builds React, cleans and verifies Java, and prints the executable
-jar and PMD findings-log paths. Use `./scripts/build.sh --skip-tests` to package
+The script analyzes and builds React, cleans and verifies Java, and prints the executable
+jar, frontend analysis summary, and PMD findings-log paths. New frontend analysis
+findings are advisory; existing lint errors and analyzer failures block the build.
+Use `./scripts/build.sh --skip-tests` to package
 with Java tests skipped. PMD still analyzes main and test sources, and its rule
 violations do not abort packaging. Frontend unit tests, lint, and browser tests
-are separate checks described in the component guides.
+are separate checks described in the component guides. Frontend analysis report
+details and commands are in the [frontend guide](frontend/README.md#static-analysis).
 
 With PostgreSQL running, use its configured password to start the jar:
 

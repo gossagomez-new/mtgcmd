@@ -41,16 +41,18 @@ origin as the packaged app. Changing the Vite port requires a matching backend
 
 Commands are defined in [package.json](package.json).
 
-| Command from the repository root         | Purpose                                                     |
-| ---------------------------------------- | ----------------------------------------------------------- |
-| `npm --prefix frontend run dev`          | Start the local Vite server                                 |
-| `npm --prefix frontend run build`        | TypeScript checks and production build into `frontend/dist` |
-| `npm --prefix frontend run typecheck`    | TypeScript project checks                                   |
-| `npm --prefix frontend test`             | Vitest unit tests under `src`                               |
-| `npm --prefix frontend run lint`         | ESLint                                                      |
-| `npm --prefix frontend run format:check` | Check configured source/test/config formatting              |
-| `npm --prefix frontend run format`       | Rewrite configured source/test/config formatting            |
-| `npm --prefix frontend run test:e2e`     | Playwright browser scenarios                                |
+| Command from the repository root          | Purpose                                                     |
+| ----------------------------------------- | ----------------------------------------------------------- |
+| `npm --prefix frontend run dev`           | Start the local Vite server                                 |
+| `npm --prefix frontend run build`         | TypeScript checks and production build into `frontend/dist` |
+| `npm --prefix frontend run typecheck`     | TypeScript project checks                                   |
+| `npm --prefix frontend test`              | Vitest unit tests under `src`                               |
+| `npm --prefix frontend run lint`          | ESLint                                                      |
+| `npm --prefix frontend run analyze`       | Typed ESLint, accessibility, complexity, and Knip reports   |
+| `npm --prefix frontend run test:analysis` | Analyzer/report integration tests                           |
+| `npm --prefix frontend run format:check`  | Check configured source/test/config formatting              |
+| `npm --prefix frontend run format`        | Rewrite configured source/test/config formatting            |
+| `npm --prefix frontend run test:e2e`      | Playwright browser scenarios                                |
 
 To run a specific unit-test file:
 
@@ -62,6 +64,53 @@ For a complete packaged app, use `./scripts/build.sh` from the repository root.
 It builds this frontend before Java copies `frontend/dist` into the executable
 jar. Standalone frontend output still needs the backend's API and WebSocket
 services; it is not an independent game server.
+
+## Static analysis
+
+Run `npm --prefix frontend run analyze` to generate reports under
+`frontend/reports/static-analysis/`. The full `./scripts/build.sh` runs it before
+frontend compilation, including when `--skip-tests` is used. A standalone
+`npm run build` or Docker packaging does not replace that verified build workflow.
+
+- `eslint.json` and `eslint.txt`: existing enforced rules plus new advisory
+  type-aware TypeScript, JSX accessibility, and complexity findings.
+- `knip.json` and `knip.txt`: unused files, exports, dependencies, and other
+  project-graph diagnostics. Text retains issue categories and locations/names
+  supplied by Knip; JSON retains the complete native report.
+- `summary.json` and `summary.txt`: completion status and counts. A Knip issue
+  counts one reported item/group, so duplicate/cycle groups are not expanded.
+- `failure.txt`: execution/enforced-lint failure details. Failed runs remove
+  prior success summaries; partial diagnostic reports are not a clean result.
+
+New findings do not abort a build. Existing lint errors, parsing/configuration
+errors, analyzer failures, and inability to write reports do. `npm run lint`
+continues enforcing the original rule set without enabling the new warnings.
+Analysis does not autofix or upload source code. Knip can load local tool configs;
+run it only on a trusted checkout, as with the build itself.
+
+Initial production-function thresholds:
+
+| ESLint rule              | Warning threshold                                 |
+| ------------------------ | ------------------------------------------------- |
+| `complexity`             | More than 10 cyclomatic paths                     |
+| `max-depth`              | More than 4 nested blocks                         |
+| `max-lines-per-function` | More than 80 lines, excluding blank/comment lines |
+
+Metrics apply to `src` functions excluding `*.test.ts`/`*.test.tsx`. Typed checks
+also cover TypeScript tests and root tool configs; accessibility checks cover
+source JSX. Generated output and reports are excluded. The Knip configuration
+recognizes Vite entry points, unit/browser tests, and executable tooling scripts.
+
+Review warnings in context before changing behavior or introducing abstractions.
+Type API boundaries rather than suppressing unsafe-value findings; verify UI
+accessibility in the browser as well as statically. Promote selected rules only
+after reviewing their relevance. Reports are regenerated and ignored by Git,
+excluded from Docker build context, and never copied into `dist` or the jar.
+
+The initial run found 42 ESLint warnings (type safety and function size/complexity)
+and no Knip findings; this is a dated observation, not a suppression baseline.
+See the [specification](../spec/frontend-static-analysis.md) and
+[ADR-0010](../docs/adr/0010-frontend-static-analysis.md).
 
 ## Browser tests
 
