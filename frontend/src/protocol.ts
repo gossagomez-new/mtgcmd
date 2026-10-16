@@ -1,80 +1,158 @@
-export type GameFormat = "COMMANDER" | "STANDARD";
+import { z } from "zod";
 
-export interface CardDefinition {
-  id: string;
-  name: string;
-  image: string;
-  text: string;
-  type: string;
-  colors: string[];
-  legal: boolean;
-  legalities?: Record<string, string>;
-  legalityCheckedAt?: number | null;
-  faces: { name: string; image: string; text: string; type: string }[];
+const integer = z.number().int();
+const seat = integer.nonnegative();
+const counts = z.record(z.string(), integer.nonnegative());
+const counters = z.record(z.string(), integer);
+const formatSchema = z.enum(["COMMANDER", "STANDARD"]);
+const definitionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  image: z.string(),
+  text: z.string(),
+  type: z.string(),
+  colors: z.array(z.string()),
+  legal: z.boolean(),
+  legalities: z.record(z.string(), z.string()).optional(),
+  legalityCheckedAt: integer.nullish(),
+  faces: z.array(
+    z.object({
+      name: z.string(),
+      image: z.string(),
+      text: z.string(),
+      type: z.string(),
+    }),
+  ),
+});
+const cardSchema = z.object({
+  id: z.string(),
+  definition: definitionSchema.optional(),
+  owner: seat,
+  controller: seat,
+  zoneOwner: seat,
+  zone: z.string(),
+  tapped: z.boolean(),
+  faceDown: z.boolean(),
+  face: integer.nonnegative(),
+  token: z.boolean(),
+  commanderKey: z.string().nullish(),
+  attachedTo: z.string().nullish(),
+  combat: z.string(),
+  x: z.number(),
+  y: z.number(),
+  counters,
+  editable: z.boolean(),
+  stackOrder: integer,
+});
+const playerSchema = z.object({
+  seat,
+  name: z.string(),
+  ready: z.boolean(),
+  deckRevision: integer.nonnegative(),
+  privateAccess: z.boolean(),
+  deckCount: integer.nonnegative(),
+  warnings: z.array(z.string()),
+  conceded: z.boolean(),
+  counters,
+  counts,
+  commanders: z.array(
+    z.object({ key: z.string(), name: z.string(), casts: integer }),
+  ),
+});
+const snapshotSchema = z.object({
+  format: formatSchema,
+  seatCapacity: integer.positive(),
+  id: z.string(),
+  revision: integer.nonnegative(),
+  status: z.string(),
+  host: seat,
+  active: seat,
+  turn: integer,
+  phase: z.string(),
+  you: seat,
+  players: z.array(playerSchema),
+  cards: z.array(cardSchema),
+  abilities: z.array(
+    z.object({
+      id: z.string(),
+      controller: seat,
+      text: z.string(),
+      stackOrder: integer,
+    }),
+  ),
+  log: z.array(z.string()),
+  grants: z.array(seat),
+  search: seat.nullable(),
+});
+const sessionSchema = z.object({ csrf: z.string() });
+const savedRoomsSchema = z.array(
+  z.object({ id: z.string(), status: z.string(), format: formatSchema }),
+);
+const draftSchema = z.object({
+  draftId: z.string(),
+  choices: z.array(definitionSchema),
+  suggested: z.array(z.string()),
+  count: integer.nonnegative(),
+});
+const messageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("snapshot"), view: snapshotSchema }),
+  z.object({
+    type: z.literal("ack"),
+    commandId: z.string(),
+    view: snapshotSchema,
+  }),
+  z.object({
+    type: z.literal("error"),
+    message: z.string().nullish(),
+    view: snapshotSchema.optional(),
+  }),
+  z.object({ type: z.literal("presence"), online: z.array(seat) }),
+]);
+
+export type GameFormat = z.infer<typeof formatSchema>;
+export type CardDefinition = z.infer<typeof definitionSchema>;
+export type Card = z.infer<typeof cardSchema>;
+export type Player = z.infer<typeof playerSchema>;
+export type Snapshot = z.infer<typeof snapshotSchema>;
+export type Draft = z.infer<typeof draftSchema>;
+export type SavedRoom = z.infer<typeof savedRoomsSchema>[number];
+export type Message = z.infer<typeof messageSchema>;
+
+export class ProtocolError extends Error {
+  override name = "ProtocolError";
 }
-export interface Card {
-  id: string;
-  definition?: CardDefinition;
-  owner: number;
-  controller: number;
-  zoneOwner: number;
-  zone: string;
-  tapped: boolean;
-  faceDown: boolean;
-  face: number;
-  token: boolean;
-  commanderKey?: string;
-  attachedTo?: string;
-  combat: string;
-  x: number;
-  y: number;
-  counters: Record<string, number>;
-  editable: boolean;
-  stackOrder: number;
+
+function decode<T>(
+  schema: z.ZodType<T>,
+  value: unknown,
+  message = "Unexpected server response. Refresh before retrying.",
+): T {
+  const result = schema.safeParse(value);
+  // Never attach raw schema issues: validation diagnostics can include private input.
+  if (!result.success) throw new ProtocolError(message);
+  return result.data;
 }
-export interface Player {
-  seat: number;
-  name: string;
-  ready: boolean;
-  deckRevision: number;
-  privateAccess: boolean;
-  deckCount: number;
-  warnings: string[];
-  conceded: boolean;
-  counters: Record<string, number>;
-  counts: Record<string, number>;
-  commanders: { key: string; name: string; casts: number }[];
+
+export const decodeSnapshot = (value: unknown): Snapshot =>
+  decode(snapshotSchema, value);
+export const decodeSession = (value: unknown) => decode(sessionSchema, value);
+export const decodeSavedRooms = (value: unknown): SavedRoom[] =>
+  decode(savedRoomsSchema, value);
+export const decodeDraft = (value: unknown): Draft =>
+  decode(draftSchema, value);
+
+export function decodeServerMessage(data: unknown): Message {
+  const message = "Could not read a server update. Refresh the table.";
+  if (typeof data !== "string") throw new ProtocolError(message);
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    throw new ProtocolError(message);
+  }
+  return decode(messageSchema, value, message);
 }
-export interface Snapshot {
-  format: GameFormat;
-  seatCapacity: number;
-  id: string;
-  revision: number;
-  status: string;
-  host: number;
-  active: number;
-  turn: number;
-  phase: string;
-  you: number;
-  players: Player[];
-  cards: Card[];
-  abilities: {
-    id: string;
-    controller: number;
-    text: string;
-    stackOrder: number;
-  }[];
-  log: string[];
-  grants: number[];
-  search: number | null;
-}
-export interface Message {
-  type: string;
-  view?: Snapshot;
-  message?: string;
-  commandId?: string;
-  online?: number[];
-}
+
 export function acceptSnapshot(
   current: Snapshot | null,
   incoming: Snapshot,

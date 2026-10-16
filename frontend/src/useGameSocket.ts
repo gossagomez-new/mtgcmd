@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { commandPayload, type Message, type Snapshot } from "./protocol";
+import { commandPayload, type Snapshot } from "./protocol";
+import { applyServerMessage } from "./socketMessages";
 
 export function useGameSocket(
   room: string | undefined,
@@ -27,18 +28,18 @@ export function useGameSocket(
           attempt = 0;
         }
       };
-      ws.onmessage = (event) => {
+      ws.onmessage = (event: MessageEvent<unknown>) => {
         if (stopped) return;
         try {
-          const message: Message = JSON.parse(event.data);
-          if (message.view) receive(message.view);
-          if (message.online) setOnline(message.online);
-          if (message.type === "ack" || message.type === "error") {
-            clearTimeout(deadline.current);
-            setPending(false);
-          }
-          if (message.type === "error")
-            fail(message.message || "Action failed");
+          applyServerMessage(event.data, {
+            receive,
+            presence: setOnline,
+            acknowledge: () => {
+              clearTimeout(deadline.current);
+              setPending(false);
+            },
+            fail,
+          });
         } catch {
           fail("Could not read a server update. Refresh the table.");
         }

@@ -32,10 +32,17 @@ Each specification's `Depends on` metadata is authoritative.
 | ------------------------------------------------------- | --------- | -------- | ------------------------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | [Frontend static analysis](frontend-static-analysis.md) | Completed | Medium   | Advisory typed/accessibility/complexity and unused-code reports in full builds | [Build automation](build-automation.md) | [ADR-0010](../docs/adr/0010-frontend-static-analysis.md): ESLint/Knip tooling and failure policy |
 
+| Specification                                                 | Status    | Priority | Purpose                                            | Depends on                                                                                     | Related ADRs                                                                                                                            |
+| ------------------------------------------------------------- | --------- | -------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [Validated frontend protocol](validated-frontend-protocol.md) | Completed | High     | Validate HTTP/WebSocket payloads before UI effects | [Frontend static analysis](frontend-static-analysis.md), [Standard tables](standard-tables.md) | [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md): schema ownership, transport boundaries, and safe failure behavior |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    protocolboundary["Validated frontend protocol"]
+    protocolboundary -->|depends on| frontendanalysis
+    protocolboundary -->|depends on| standard
     frontendanalysis["Frontend static analysis"]
     frontendanalysis -->|depends on| build
     deployment["Public-IP Docker deployment"]

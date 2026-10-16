@@ -181,17 +181,35 @@ The browser displays only the card information sent by the backend. Permission
 and privacy checks belong to the server. Snapshot and command shapes are
 documented in the [API reference](../docs/API.md).
 
+HTTP and WebSocket responses cross a shared Zod validation boundary before
+entering UI state. Protocol types are inferred from those schemas, including
+omitted hidden-card definitions and nullable card references. Additive object
+fields are ignored; malformed required fields are rejected without coercion.
+Invalid socket messages retain the previous view and do not acknowledge pending
+commands. Unknown message variants are rejected with a safe error.
+
+HTTP failures retain their status and a validated server message or safe fallback.
+A 409 triggers one current-room refresh; a failed refresh cannot mask the
+original conflict. Mutations are never automatically retried after response
+validation fails, because the server may already have committed them. Network
+and abort failures retain their identity. Protocol diagnostics omit raw JSON and
+schema input values. See the [boundary specification](../spec/validated-frontend-protocol.md)
+and [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md).
+
 ## Code map
 
-| File                                             | Responsibility                                                     |
-| ------------------------------------------------ | ------------------------------------------------------------------ |
-| [src/main.tsx](src/main.tsx)                     | React entry point                                                  |
-| [src/App.tsx](src/App.tsx)                       | Room/deck flows, table controls, zone viewers, and card inspection |
-| [src/protocol.ts](src/protocol.ts)               | Snapshot/message types, revision acceptance, and command envelopes |
-| [src/useGameSocket.ts](src/useGameSocket.ts)     | Connection, acknowledgments, presence, and reconnect behavior      |
-| [src/battlefield.ts](src/battlefield.ts)         | Stable permanent grouping and land separation                      |
-| [src/style.css](src/style.css)                   | Table layout, card presentation, and tap rotation                  |
-| [tests/tabletop.spec.ts](tests/tabletop.spec.ts) | Browser scenarios                                                  |
+| File                                             | Responsibility                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------- |
+| [src/main.tsx](src/main.tsx)                     | React entry point                                                       |
+| [src/App.tsx](src/App.tsx)                       | Room/deck flows, table controls, zone viewers, and card inspection      |
+| [src/protocol.ts](src/protocol.ts)               | Zod schemas, inferred protocol types, decoding, and revision acceptance |
+| [src/http.ts](src/http.ts)                       | Validated session/room/deck endpoints and conflict recovery             |
+| [src/socketMessages.ts](src/socketMessages.ts)   | Validated message dispatch before state effects                         |
+| [src/useGameSocket.ts](src/useGameSocket.ts)     | Connection, acknowledgments, presence, and reconnect behavior           |
+| [src/battlefield.ts](src/battlefield.ts)         | Stable permanent grouping and land separation                           |
+| [src/style.css](src/style.css)                   | Table layout, card presentation, and tap rotation                       |
+| [tests/tabletop.spec.ts](tests/tabletop.spec.ts) | Browser scenarios                                                       |
+| [tests/protocol.spec.ts](tests/protocol.spec.ts) | Malformed responses, cancellation, and pending-ack browser checks       |
 
 See the [specification index](../spec/INDEX.md) for the approved behavior and
 feature verification requirements.

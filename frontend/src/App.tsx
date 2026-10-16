@@ -2,21 +2,23 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   acceptSnapshot,
   type Card,
-  type CardDefinition,
   type GameFormat,
   type Player,
   type Snapshot,
+  type Draft,
+  type SavedRoom,
 } from "./protocol";
+import {
+  createTableApi,
+  getRoom,
+  getSavedRooms,
+  getSession,
+  HttpError,
+} from "./http";
 import { useGameSocket } from "./useGameSocket";
 import { groupBattlefield, type BattlefieldGroup } from "./battlefield";
 
 type Action = (type: string, data?: Record<string, unknown>) => void;
-type Draft = {
-  draftId: string;
-  choices: CardDefinition[];
-  suggested: string[];
-  count: number;
-};
 const zones = [
   "library",
   "hand",
@@ -33,9 +35,7 @@ export default function App() {
   const [csrf, setCsrf] = useState("");
   const [room, setRoom] = useState(currentRoom);
   const [view, setView] = useState<Snapshot | null>(null);
-  const [saved, setSaved] = useState<
-    { id: string; status: string; format: GameFormat }[]
-  >([]);
+  const [saved, setSaved] = useState<SavedRoom[]>([]);
   const [tableFormat, setTableFormat] = useState<GameFormat>("COMMANDER");
   const [firstPlayer, setFirstPlayer] = useState(0);
   const [error, setError] = useState("");
@@ -51,17 +51,16 @@ export default function App() {
   );
   const fail = useCallback((message: string) => setError(message), []);
   const socket = useGameSocket(view?.id, receive, fail);
+  const api = createTableApi(csrf, room, receive);
 
   useEffect(() => {
-    fetch("/api/session")
-      .then(async (response) => {
-        if (!response.ok)
-          throw new Error("Could not connect to the table server.");
-        setCsrf((await response.json()).csrf);
-        const rooms = await fetch("/api/rooms");
-        if (rooms.ok) setSaved(await rooms.json());
+    getSession()
+      .then(async (session) => {
+        setCsrf(session.csrf);
+        const rooms = await getSavedRooms();
+        if (rooms !== null) setSaved(rooms);
       })
-      .catch((e) => fail(e.message));
+      .catch((error: unknown) => fail(errorMessage(error)));
     const pop = () => {
       setView(null);
       setRoom(currentRoom());
@@ -74,47 +73,27 @@ export default function App() {
   useEffect(() => {
     if (!csrf || !room) return;
     let cancelled = false;
-    fetch(`/api/rooms/${room}`)
-      .then(async (response) => {
-        if (response.ok) {
-          const next = await response.json();
-          if (!cancelled) receive(next);
-        } else if (response.status !== 403 && !cancelled)
-          fail((await response.json()).message || "Room unavailable");
+    getRoom(room)
+      .then((next) => {
+        if (!cancelled) receive(next);
       })
-      .catch((e) => {
-        if (!cancelled) fail(e.message);
+      .catch((error: unknown) => {
+        if (!cancelled && !(error instanceof HttpError && error.status === 403))
+          fail(errorMessage(error));
       });
     return () => {
       cancelled = true;
     };
   }, [csrf, room, receive, fail]);
 
-  async function api<T>(path: string, body: unknown): Promise<T> {
-    const response = await fetch(`/api${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
-      body: JSON.stringify(body),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      if (response.status === 409 && room) {
-        const refreshed = await fetch(`/api/rooms/${room}`);
-        if (refreshed.ok) receive(await refreshed.json());
-      }
-      throw new Error(result.message || "Request failed");
-    }
-    return result;
-  }
   async function enter(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      const next = await api<Snapshot>(
-        room ? `/rooms/${room}/join` : "/rooms",
-        room ? { name } : { name, format: tableFormat },
-      );
+      const next = await (room
+        ? api.joinRoom(name)
+        : api.createRoom(name, tableFormat));
       localStorage.setItem("table-name", name);
       history.pushState({}, "", `/room/${next.id}`);
       receive(next);
@@ -148,14 +127,7 @@ export default function App() {
     setBusy(true);
     setError("");
     try {
-      receive(
-        await api<Snapshot>(`/rooms/${room}/deck`, {
-          draftId: draft.draftId,
-          commanders,
-          commandId: crypto.randomUUID(),
-          revision: view.revision,
-        }),
-      );
+      receive(await api.loadDeck(draft.draftId, commanders, view.revision));
     } catch (e) {
       fail(errorMessage(e));
     } finally {
@@ -372,9 +344,7 @@ export default function App() {
               <DeckImport
                 format={view.format}
                 disabled={disabled}
-                preview={(text, url) =>
-                  api<Draft>(`/rooms/${room}/decks/preview`, { text, url })
-                }
+                preview={(text, url) => api.previewDeck(text, url)}
                 load={loadDraft}
                 fail={fail}
               />
