@@ -51,10 +51,16 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Specification validation](specification-validation.md) | Completed | High | Offline metadata, link, index, and dependency checks | [GitHub Flow](github-flow.md) | [ADR-0014](../docs/adr/0014-specification-validation.md): offline validation and CI enforcement |
 
+| [Local verification](local-verification.md) | Completed | High | Explicit local profiles and source-bound evidence | [Build automation](build-automation.md), [GitHub Flow](github-flow.md), [Specification validation](specification-validation.md) | [ADR-0015](../docs/adr/0015-local-verification-evidence.md): sequential profiles and versioned local evidence |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    localverify["Local verification profiles and evidence"]
+    localverify -->|depends on| build
+    localverify -->|depends on| githubflow
+    localverify -->|depends on| specvalidation
     specvalidation["Specification and index validation"]
     specvalidation -->|depends on| githubflow
     sharedbrowser["Shared browser fixtures"]

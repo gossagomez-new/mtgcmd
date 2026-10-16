@@ -74,6 +74,59 @@ workflow. For browser tests use the documented Chromium installation or
 ordinary cached Maven repository. Dedicated workflow validation can be run with
 `actionlint .github/workflows/verify.yml` when actionlint is installed.
 
+## Local verification profiles
+
+Use the same checks through an explicit local profile:
+
+```sh
+./scripts/verify.sh frontend
+./scripts/verify.sh backend
+./scripts/verify.sh full --browser
+```
+
+| Profile    | Scope                                                                                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend` | Lint, formatting, unit/analyzer tests, analysis, and production build (including TypeScript checks).                                                                          |
+| `backend`  | Spotless, Maven verification/Java tests, and PMD; does not refresh bundled frontend assets.                                                                                   |
+| `full`     | Frontend lint/format/unit/analyzer tests, build-wrapper/PMD and Python tooling tests, specification validation, Java formatting, and the existing frontend-first clean build. |
+
+`--browser` adds browser tests last to any profile and needs both toolchains.
+Install dependencies and the browser first using the existing setup instructions.
+All commands run sequentially. Full delegates analysis, frontend compilation,
+and Java clean verification to `build.sh`; it avoids a second frontend build or
+standalone type check. Browser startup intentionally recompiles its test server.
+The explicit Spotless command checks Java formatting without applying changes.
+Profiles leave CI's existing sequence and required job name intact.
+
+Each invocation prints a `Manifest:` path in a fresh private temporary directory,
+with a versioned JSON manifest and individual merged stdout/stderr logs. Use
+`--output /existing/parent/new-run` to choose a fresh directory outside the checkout.
+Existing paths, symlink ancestors, and in-checkout output are refused. The runner
+never removes older reports. Command failures stop the run, retain their exit
+status, and mark later/unselected checks as skipped. Interruptions stop the active
+process group and retain interrupted evidence when possible.
+
+Validate saved evidence without running checks or modifying reports:
+
+```sh
+./scripts/verify.sh --check /tmp/your-run/manifest.json
+```
+
+This requires a successful, complete current command plan, matching source/settings
+and resolved tool paths, and intact logs. Source identity includes HEAD, branch,
+staged/unstaged state, and tracked/nonignored untracked contents. A source edit,
+commit, branch change, option change, or log modification can invalidate evidence.
+Ignored dependency caches/artifacts, transient edits restored during a run, tool
+binary contents, and arbitrary environment variables are outside this claim.
+
+The runner inherits settings such as `MAVEN_OPTS` and `CHROME_PATH`. Metadata keeps
+only allowlisted paths/booleans and hashes of option strings; it does not dump the
+environment. Child logs are verbatim and may contain sensitive tool output: review
+them before sharing. Evidence does not prove approval, correctness, or authenticity.
+A passing frontend profile does not claim backend or browser checks passed.
+See [the specification](spec/local-verification.md) and
+[ADR-0015](docs/adr/0015-local-verification-evidence.md).
+
 ## Validate specifications locally
 
 From the repository root, run the read-only consistency check and fixture tests:
