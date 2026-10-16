@@ -1,7 +1,7 @@
 # Automation proposal analysis
 
 - Updated: 2026-10-16 (original analysis: 2026-10-13).
-- Status: Planning backlog; recording a proposal does not authorize implementation.
+- Status: Planning backlog and implementation tracking; proposals alone do not authorize implementation.
 - Context: Repeated analysis, refactoring, verification, and GitHub Flow handoffs
   across the backend and frontend, plus the Docker/Oracle Cloud preparation.
 
@@ -30,10 +30,12 @@ Reuse these implementations rather than proposing parallel replacements.
 | Browser and database test-server lifecycle       | [Playwright configuration](../frontend/playwright.config.ts), existing test-server fixtures                                      | Server startup is automated; repeated mocked-session/WebSocket setup and stable selectors are not shared across the browser suites.                                                      |
 | Deployment configuration validation              | [Deployment checker](../scripts/check_deployment.py), [deployment guide](deployment-oracle.md)                                   | Checks resolved production settings; it is not a general local-environment, daemon-permission, Podman-context, or OCI reachability checker.                                              |
 
-The App and Inspector decompositions are on `main`. The DeckImport decomposition
-is implemented and verified on its topic branch, with [PR #3](https://github.com/gossagomez-new/mtgcmd/pull/3)
-open at this review. The proposals below account for work performed on those
-branches without treating an open PR as merged or deployed.
+The App, Inspector, and DeckImport decompositions are on `main`. Frontend analysis
+review has been implemented and delivered in [PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5),
+which was open when this task's base branch was checked. This shared-fixture
+implementation starts independently from `main`; it does not include or claim
+the integration of that open PR. Delivery and implementation status below are
+separate from deployment.
 
 ## Priority and estimation method
 
@@ -47,13 +49,15 @@ priority. Priorities are recommendations, not execution authorization.
 
 Effort assumes one engineer familiar with the repository and includes relevant
 fixture tests, documentation, and integration. Estimates are planning ranges,
-not delivery commitments. Each row is incremental work beyond existing tooling;
-shared infrastructure should be implemented once.
+not delivery commitments. Rows 1–2 retain their original planning estimates for comparison; rows 3–9
+remain incremental unimplemented work. Shared infrastructure should be implemented
+once.
 
 ## Prioritized backlog
 
-All paths in this table are proposed additions or explicitly identified extensions.
-They are not claims that the proposed artifacts already exist.
+The table retains the original order and estimates. Rows 1–2 are now implemented
+as tracked below; artifacts in the other rows remain proposed additions or
+extensions.
 
 | Order | Priority | Proposal                                          | Proposed artifact or extension                                                                                  | Effort     | Why now                                                                                                                                                                                                 |
 | ----- | -------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -66,6 +70,22 @@ They are not claims that the proposed artifacts already exist.
 | 7     | P2       | Full-stack verification guidance                  | Add `skills/full-stack-verification/SKILL.md`; reuse the verification runner and existing audit/refactor skills | 2–3 hours  | Agent judgment is still needed to choose a profile and explain risk-specific checks; it should not maintain a second command sequence.                                                                  |
 | 8     | P2       | Focused specification-skill extension             | Extend `skills/spec-design/SKILL.md`                                                                            | 1–2 hours  | Explicitly connect coverage confirmation, index validation, and recorded verification to the existing workflow without duplicating repository policy.                                                   |
 | 9     | P3       | Optional external import diagnostics              | Add `scripts/check-imports.sh` or a small equivalent CLI                                                        | 2–4 hours  | Useful for renewed provider incidents, but recent work has focused on frontend structure. Existing fallback tests already cover routine UI recovery.                                                    |
+
+## Implementation tracking
+
+- **1. Frontend analysis review:** implemented and verified in
+  [PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5); integration was pending
+  at this branch's base check. Its code/specification are on that topic branch.
+- **2. Shared browser fixtures:** implemented and locally verified by
+  [the shared-fixture specification](../spec/shared-browser-fixtures.md), including
+  typed transport/request helpers, owned deferred cleanup, stable selectors,
+  migrated mocked suites, and retained real-server coverage. Publication and
+  integration are separate authorized steps.
+- **Next unimplemented proposal:** specification, ADR-link, and index validation
+  (row 3, 8–12 hours). Local verification profiles/evidence follow (row 4).
+
+The scope descriptions below retain the proposal rationale; implementation
+specifications and their executed verification records define delivered behavior.
 
 ## Scope and acceptance for the proposals
 
@@ -206,33 +226,34 @@ capabilities, not new work estimates.
 
 ## Recommended delivery sequence and budget
 
-1. Start with **frontend analysis review (4–6 hours)**: frequent demand, existing
-   reports, and a bounded extension. This is the recommended next proposal.
-2. Add **shared browser fixtures (5–8 hours)** and **specification validation
-   (8–12 hours)**. They are independent and prevent repeated test/setup and
-   documentation mistakes.
-3. Build **verification profiles/evidence (6–9 hours)** using the existing CI
-   sequence. Shared browser fixtures are helpful but are not a prerequisite;
-   coordinate validator integration so it is defined in one place.
-4. Add the **doctor (3–5 hours)** as useful offline preflight, then **handoff
-   (3–5 hours)** and **verification guidance (2–3 hours)** once evidence/profile
-   interfaces stabilize. The doctor can also be delivered independently.
-5. Finish the **specification-skill extension (1–2 hours)** after the validator;
+1. Frontend analysis review and shared browser fixtures are implemented (rows
+   1–2). Preserve their original combined **9–14-hour estimate** for planning
+   history; it is not measured effort or a remaining-work estimate. Integrate
+   published work through the existing review process when authorized.
+2. Implement **specification/ADR-link/index validation (8–12 hours)** next, then
+   **local verification profiles/evidence (6–9 hours)**. Coordinate validator
+   integration with the existing CI sequence rather than duplicating checks.
+3. Add the **doctor (3–5 hours)** independently as useful offline preflight, then
+   **handoff (3–5 hours)** and **verification guidance (2–3 hours)** once the
+   evidence/profile interfaces stabilize.
+4. Finish the **specification-skill extension (1–2 hours)** after the validator;
    defer **import diagnostics (2–4 hours)** until needed.
 
-The four P1 proposals total **23–35 hours**. The complete incremental backlog is
-**34–54 hours**. These totals exclude completed work and assume shared pieces are
-reused; they are not additive with the original 20–34-hour estimate. Select one
-proposal at a time and revise estimates after its specification and coverage
-choice are confirmed.
+The remaining unimplemented P1 work totals **14–21 hours**; the complete
+unimplemented backlog is **25–40 hours**. The original four P1 proposals totaled
+23–35 hours and the full nine-proposal estimate was 34–54 hours. Revised totals
+exclude rows 1–2 and previously completed tooling; integration/review time is not
+re-estimated here. These ranges are not additive with older estimates. Confirm
+each next implementation's specification and coverage target before revising it.
 
 ## Boundaries and authorization
 
-This update records proposals only. It does not create or modify a skill,
-implement scripts or test helpers, change CI/analysis policies, or authorize
-commits. New implementations require their own scope, specification, coverage
-choice, and ADR evaluation under [AGENTS.md](../AGENTS.md). Skill creation or
-modification requires separate confirmation.
+This document records proposals and separately authorized implementation status.
+Recording a proposal does not create or modify a skill, implement scripts or test
+helpers, change CI/analysis policies, or authorize commits. New implementations
+require their own scope, specification, coverage choice, and ADR evaluation under
+[AGENTS.md](../AGENTS.md). Skill creation or modification requires separate
+confirmation.
 
 Approval records and architectural judgment remain human decisions. No tool
 should infer approval from elapsed time, treat skipped checks as passed, claim

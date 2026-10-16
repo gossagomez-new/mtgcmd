@@ -1,19 +1,13 @@
+import { type Locator } from "@playwright/test";
 import {
-  expect,
   test,
-  type Page,
-  type Locator,
-  type WebSocketRoute,
-} from "@playwright/test";
-import { z } from "zod";
+  expect,
+  roomId as room,
+  type TableFixture,
+} from "./support/tableFixture";
 import { snapshotFixture } from "../src/protocolFixtures";
 import type { Card, GameFormat, Snapshot } from "../src/protocol";
 
-const room = "00000000-0000-4000-8000-000000000001";
-const commandSchema = z.object({
-  type: z.string(),
-  data: z.record(z.string(), z.unknown()),
-});
 function namedCard(card: Card, id: string, name: string): Card {
   return {
     ...card,
@@ -42,32 +36,27 @@ function fixture(format: GameFormat = "COMMANDER"): Snapshot {
   ];
   return view;
 }
-async function inspector(page: Page, initial = fixture()) {
+async function inspector(mockTable: TableFixture, initial = fixture()) {
+  const page = mockTable.page;
   let current = initial;
-  let socket: WebSocketRoute;
-  const commands: z.infer<typeof commandSchema>[] = [];
-  const update = (view: Snapshot) => {
-    current = { ...view, revision: current.revision + 1 };
-    socket.send(
-      JSON.stringify({ type: "ack", commandId: "test", view: current }),
-    );
-  };
-  await page.route("**/api/session", (route) =>
-    route.fulfill({ json: { csrf: "token" } }),
-  );
-  await page.route("**/api/rooms", (route) => route.fulfill({ json: [] }));
-  await page.route(`**/api/rooms/${room}`, (route) =>
-    route.fulfill({ json: current }),
-  );
-  await page.routeWebSocket("**/ws?room=**", (route) => {
-    socket = route;
-    route.onMessage((message) => {
-      commands.push(commandSchema.parse(JSON.parse(message.toString())));
-      update(current);
+  const commands: { type: string; data: Record<string, unknown> }[] = [];
+  const update = async (view: Snapshot, commandId = "test") => {
+    // A visible scenario marker proves this snapshot was rendered before returning.
+    const next = {
+      ...view,
+      revision: current.revision + 1,
+      phase: `Fixture revision ${current.revision + 1}`,
+    };
+    current = next;
+    await mockTable.acknowledge(next, commandId, async () => {
+      await expect(page.locator(".turn-strip")).toContainText(next.phase);
     });
-  });
-  await page.goto(`/room/${room}`);
-  await expect(page.getByText("Connected", { exact: true })).toBeVisible();
+  };
+  mockTable.onCommand = async (command) => {
+    commands.push({ type: command.type, data: command.data });
+    await update(current, command.id);
+  };
+  await mockTable.open(initial);
   await page
     .getByRole("button", { name: "Inspect Front", exact: true })
     .click();
@@ -84,6 +73,7 @@ async function inspector(page: Page, initial = fixture()) {
       const count = commands.length;
       await trigger();
       await expect.poll(() => commands.length).toBe(count + 1);
+      await mockTable.settled();
       expect(commands[count]).toEqual({ type, data: { cardId, ...data } });
       await expect(
         page.getByRole("button", { name: "Draw a card", exact: true }),
@@ -97,10 +87,10 @@ function click(panel: Locator, name: string) {
 }
 
 test("movement and identity actions retain exact payloads and commander restrictions", async ({
-  page,
+  mockTable,
 }) => {
   const view = fixture();
-  const { panel, update, command } = await inspector(page, view);
+  const { panel, update, command } = await inspector(mockTable, view);
   await expect(
     panel.getByLabel("Move to zone").locator("option[value=command]"),
   ).toHaveCount(0);
@@ -129,7 +119,7 @@ test("movement and identity actions retain exact payloads and commander restrict
       { zone },
     );
   }
-  update({
+  await update({
     ...view,
     cards: view.cards.map((c) =>
       c.id === "card"
@@ -158,7 +148,7 @@ test("movement and identity actions retain exact payloads and commander restrict
     zone: "battlefield",
     faceDown: true,
   });
-  update({
+  await update({
     ...view,
     cards: view.cards.map((c) => ({ ...c, tapped: true, faceDown: true })),
   });
@@ -167,9 +157,9 @@ test("movement and identity actions retain exact payloads and commander restrict
 });
 
 test("counters, relations, combat and reveals retain targets and filtering", async ({
-  page,
+  mockTable,
 }) => {
-  const { panel, command } = await inspector(page);
+  const { panel, command } = await inspector(mockTable);
   await panel.getByLabel("Card counter", { exact: true }).fill("   ");
   await expect(
     panel.getByRole("button", { name: "+ Counter", exact: true }),
@@ -224,13 +214,14 @@ test("counters, relations, combat and reveals retain targets and filtering", asy
 for (const format of ["COMMANDER", "STANDARD"] as const) {
   test(`${format}: read-only public cards can be copied independently of editing`, async ({
     page,
+    mockTable,
   }) => {
     const view = fixture(format);
-    const session = await inspector(page, view);
+    const session = await inspector(mockTable, view);
     await page
       .getByRole("button", { name: "Inspect Enemy attacker", exact: true })
       .click();
-    session.update({
+    await session.update({
       ...view,
       cards: view.cards.map((c) =>
         c.id === "attacker" ? { ...c, editable: false } : c,
@@ -246,7 +237,7 @@ for (const format of ["COMMANDER", "STANDARD"] as const) {
       "attacker",
     );
     for (const zone of ["hand", "library"]) {
-      session.update({
+      await session.update({
         ...view,
         cards: view.cards.map((c) =>
           c.id === "attacker" ? { ...c, zone, editable: false } : c,
@@ -259,7 +250,7 @@ for (const format of ["COMMANDER", "STANDARD"] as const) {
         }),
       ).toHaveCount(0);
     }
-    session.update({ ...view, status: "finished" });
+    await session.update({ ...view, status: "finished" });
     await expect(
       session.panel.getByRole("button", { name: "Tap", exact: true }),
     ).toHaveCount(0);
@@ -277,9 +268,10 @@ for (const format of ["COMMANDER", "STANDARD"] as const) {
 
 test("form state survives selection, zone and permission changes but resets after close", async ({
   page,
+  mockTable,
 }) => {
   const view = fixture();
-  const { panel, update, command } = await inspector(page, view);
+  const { panel, update, command } = await inspector(mockTable, view);
   await panel.getByLabel("Card counter", { exact: true }).fill("charge");
   await panel.getByLabel("Transfer control").selectOption("1");
   await panel.getByLabel("Attach to").selectOption("attacker");
@@ -296,14 +288,14 @@ test("form state survives selection, zone and permission changes but resets afte
     { name: "charge", delta: 1 },
     "second",
   );
-  update({
+  await update({
     ...view,
     cards: view.cards.map((c) =>
       c.id === "second" ? { ...c, zone: "graveyard" } : c,
     ),
   });
   await expect(panel.getByLabel("Transfer control")).toHaveCount(0);
-  update({
+  await update({
     ...view,
     cards: view.cards.map((c) =>
       c.id === "second" ? { ...c, editable: false } : c,
@@ -312,7 +304,7 @@ test("form state survives selection, zone and permission changes but resets afte
   await expect(panel.getByLabel("Card counter", { exact: true })).toHaveCount(
     0,
   );
-  update(view);
+  await update(view);
   await expect(panel.getByLabel("Transfer control")).toHaveValue("1");
   await expect(panel.getByLabel("Attach to")).toHaveValue("attacker");
   await expect(panel.getByLabel("Block attacker")).toHaveValue("attacker");
@@ -330,14 +322,15 @@ test("form state survives selection, zone and permission changes but resets afte
 
 test("hidden and multi-face cards preserve presentation and current snapshot actions", async ({
   page,
+  mockTable,
 }) => {
   const view = fixture();
-  const { panel, update, command } = await inspector(page, view);
+  const { panel, update, command } = await inspector(mockTable, view);
   await expect(
     panel.getByRole("button", { name: "Other face", exact: true }),
   ).toHaveCount(0);
   const definition = view.cards[0].definition!;
-  update({
+  await update({
     ...view,
     cards: view.cards.map((c) =>
       c.id === "card"
@@ -367,7 +360,7 @@ test("hidden and multi-face cards preserve presentation and current snapshot act
   await expect(panel.locator(".rules-text")).toHaveText("Back rules");
   await expect(panel.getByRole("img")).toHaveAttribute("alt", "Back");
   await command(click(panel, "Other face"), "TRANSFORM");
-  update({
+  await update({
     ...view,
     cards: view.cards.map((c) =>
       c.id === "card"
@@ -403,10 +396,11 @@ test("hidden and multi-face cards preserve presentation and current snapshot act
 
 test("token editing preserves prompt defaults, name cancellation and later cancellation", async ({
   page,
+  mockTable,
 }) => {
   const view = fixture();
   view.cards[0].token = true;
-  const { panel, command, commands } = await inspector(page, view);
+  const { panel, command, commands } = await inspector(mockTable, view);
   await expect(
     panel.getByRole("button", {
       name: "Edit token characteristics",

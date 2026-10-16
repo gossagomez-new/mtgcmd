@@ -1,19 +1,12 @@
-import { expect, test, type Page, type WebSocketRoute } from "@playwright/test";
+import { test, expect, roomId as room } from "./support/tableFixture";
+import { z } from "zod";
 import { snapshotFixture } from "../src/protocolFixtures";
-
-const room = "00000000-0000-4000-8000-000000000001";
-
-async function bootstrap(page: Page) {
-  await page.route("**/api/session", (route) =>
-    route.fulfill({ json: { csrf: "test-token" } }),
-  );
-  await page.route("**/api/rooms", (route) => route.fulfill({ json: [] }));
-}
 
 test("malformed mutation responses show a safe error without retrying", async ({
   page,
+  mockTable,
 }) => {
-  await bootstrap(page);
+  await mockTable.install();
   let posts = 0;
   await page.route("**/api/rooms", (route) => {
     if (route.request().method() === "POST") {
@@ -37,8 +30,11 @@ test("malformed mutation responses show a safe error without retrying", async ({
   expect(posts).toBe(1);
 });
 
-test("initial forbidden room loads stay silent", async ({ page }) => {
-  await bootstrap(page);
+test("initial forbidden room loads stay silent", async ({
+  page,
+  mockTable,
+}) => {
+  await mockTable.install();
   await page.route(`**/api/rooms/${room}`, (route) =>
     route.fulfill({ status: 403, json: { message: "Denied" } }),
   );
@@ -51,22 +47,18 @@ test("initial forbidden room loads stay silent", async ({ page }) => {
 
 test("room responses finishing after navigation cannot restore a canceled view", async ({
   page,
+  mockTable,
 }) => {
-  await bootstrap(page);
-  let release = () => {};
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  let requested = false;
-  let finished = false;
-  await page.route(`**/api/rooms/${room}`, async (route) => {
-    requested = true;
-    await gate;
-    await route.fulfill({ json: { ...snapshotFixture(), id: room } });
-    finished = true;
-  });
+  await mockTable.install();
+  const roomGet = await mockTable.captureJson(
+    `**/api/rooms/${room}`,
+    z.null(),
+    { body: { ...snapshotFixture(), id: room } },
+    "GET",
+  );
+  const gate = roomGet.defer();
   await page.goto(`/room/${room}`);
-  await expect.poll(() => requested).toBe(true);
+  await expect.poll(() => roomGet.requests.length).toBe(1);
   await page.evaluate(() => {
     history.pushState({}, "", "/");
     dispatchEvent(new PopStateEvent("popstate"));
@@ -74,8 +66,8 @@ test("room responses finishing after navigation cannot restore a canceled view",
   await expect(
     page.getByRole("button", { name: "Create table", exact: true }),
   ).toBeVisible();
-  release();
-  await expect.poll(() => finished).toBe(true);
+  gate.resolve({ body: { ...snapshotFixture(), id: room } });
+  await mockTable.settled();
   await expect(
     page.getByRole("button", { name: "Create table", exact: true }),
   ).toBeVisible();
@@ -84,27 +76,16 @@ test("room responses finishing after navigation cannot restore a canceled view",
 
 test("malformed socket acknowledgments preserve the view and pending command", async ({
   page,
+  mockTable,
 }) => {
-  await bootstrap(page);
   const snapshot = { ...snapshotFixture("STANDARD"), id: room };
-  await page.route(`**/api/rooms/${room}`, (route) =>
-    route.fulfill({ json: snapshot }),
-  );
-  let socket: WebSocketRoute | undefined;
-  let commands = 0;
-  await page.routeWebSocket("**/ws?room=**", (route) => {
-    socket = route;
-    route.onMessage(() => {
-      commands++;
-    });
-  });
-  await page.goto(`/room/${room}`);
+  await mockTable.open(snapshot);
   const nextPhase = page.getByRole("button", { name: /Next phase/ });
   await expect(nextPhase).toBeEnabled();
   await nextPhase.click();
-  await expect.poll(() => commands).toBe(1);
+  await expect.poll(() => mockTable.commands.length).toBe(1);
   await expect(nextPhase).toBeDisabled();
-  socket!.send(
+  mockTable.sendRaw(
     JSON.stringify({
       type: "ack",
       commandId: "c",
@@ -121,14 +102,13 @@ test("malformed socket acknowledgments preserve the view and pending command", a
   );
   await expect(page.getByText("PRIVATE-CARD-SECRET")).toHaveCount(0);
   await expect(nextPhase).toBeDisabled();
-  socket!.send(
-    JSON.stringify({
-      type: "ack",
-      commandId: "c",
-      view: { ...snapshot, revision: 8, phase: "Upkeep" },
-    }),
+  await mockTable.acknowledge(
+    { ...snapshot, revision: 8, phase: "Upkeep" },
+    "c",
+    async () => {
+      await expect(nextPhase).toBeEnabled();
+      await expect(page.locator(".turn-strip")).toContainText("Upkeep");
+    },
   );
-  await expect(nextPhase).toBeEnabled();
-  await expect(page.locator(".turn-strip")).toContainText("Upkeep");
-  expect(commands).toBe(1);
+  expect(mockTable.commands.length).toBe(1);
 });

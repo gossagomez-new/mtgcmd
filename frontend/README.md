@@ -190,6 +190,58 @@ Test-only server endpoints are excluded from the production jar. The
 [Playwright configuration](playwright.config.ts) defines startup commands,
 timeouts, and retained failure traces.
 
+### Shared mocked-table fixtures
+
+Mocked component/protocol suites use [tableFixture.ts](tests/support/tableFixture.ts).
+Its test-scoped `mockTable` fixture owns session/room routes, mocked WebSockets,
+typed command capture, deferred JSON replies, and cleanup. The real-server
+[tabletop suite](tests/tabletop.spec.ts) retains actual transport and shares only
+[selectors](tests/support/selectors.ts).
+
+```tsx
+import { test, expect, roomId } from "./support/tableFixture";
+import { snapshotFixture } from "../src/protocolFixtures";
+
+test("renders an accepted snapshot", async ({ page, mockTable }) => {
+  const view = { ...snapshotFixture("STANDARD"), id: roomId };
+  await mockTable.open(view);
+  await mockTable.snapshot(
+    { ...view, revision: 8, phase: "Upkeep" },
+    async () => {
+      await expect(page.locator(".turn-strip")).toContainText("Upkeep");
+    },
+  );
+});
+```
+
+`open` installs mocks and navigates; `install` permits scenario-specific routes
+before navigation. Neither automatically acknowledges commands. Scenarios own
+`onCommand` behavior and assertions against `mockTable.commands` (id, revision,
+type, data). Use `snapshot(view, observe)` for broadcasts and
+`acknowledge(view, commandId, observe)` for acknowledgments. Both await a
+scenario-provided rendered-state assertion and preserve the supplied snapshot.
+Use `sendRaw` deliberately for malformed-protocol cases.
+
+`captureJson(pattern, schema, fallback, method)` records schema-validated request
+bodies and exposes `requests`, `replies`, and `defer()`. Its default method is
+POST; unmatched methods fall through, and GET endpoints can be selected
+explicitly. `defer()` queues an owned reply; call its `resolve({status, body})`
+when ready. Teardown resolves outstanding deferred replies with a synthetic 503,
+waits for owned handlers, closes sockets, and removes owned HTTP routes. Unexpected
+handler errors fail cleanup. Use the fixture-owned deferral instead of an
+unmanaged promise, so an early assertion failure cannot leave the route waiting.
+
+`settled()` waits for owned handler work; it does not replace a rendered-state
+assertion and is used outside those handlers. `dispose()` is idempotent and is
+normally automatic. Scenario-specific wrappers can add explicit visible markers
+(such as a phase/deck-count change) when the property under test stays unchanged;
+the common fixture does not invent revisions or silently mutate snapshots.
+
+The shared decklist/commander selectors use prefix label matching so populated
+textarea content and changed select options remain locatable. Keep command,
+permission, and lifecycle expectations in each scenario rather than hiding them
+in a generic action language. See the [specification](../spec/shared-browser-fixtures.md).
+
 ## Player controls
 
 - Import a public Moxfield URL or paste quantity/name lines. Supported headers
@@ -261,6 +313,8 @@ and [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md).
 | [src/style.css](src/style.css)                         | Table layout, card presentation, and tap rotation                                           |
 | [tests/tabletop.spec.ts](tests/tabletop.spec.ts)       | Browser scenarios                                                                           |
 | [tests/composition.spec.ts](tests/composition.spec.ts) | Form, readiness, overlay, stack, and permission lifetimes                                   |
+| [tests/support/](tests/support/)                       | Shared mocked-table transport, response queues, and stable selectors                        |
+| [tests/fixtures.spec.ts](tests/fixtures.spec.ts)       | Fixture lifecycle, typed capture, pending semantics, and selector regressions               |
 | [tests/inspector.spec.ts](tests/inspector.spec.ts)     | Inspector payloads, permissions, state lifetimes, presentation, and token prompts           |
 | [tests/deckImport.spec.ts](tests/deckImport.spec.ts)   | Import payloads, formats, selections, invalidation, and pending/error recovery              |
 | [tests/protocol.spec.ts](tests/protocol.spec.ts)       | Malformed responses, cancellation, and pending-ack browser checks                           |
