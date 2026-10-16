@@ -40,10 +40,15 @@ Each specification's `Depends on` metadata is authoritative.
 | ----------------------------- | ----------- | -------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | [GitHub Flow](github-flow.md) | In progress | Medium   | Focused branches, PR verification, protected-main activation, and tagged releases | [Build automation](build-automation.md), [Frontend static analysis](frontend-static-analysis.md) | [ADR-0012](../docs/adr/0012-github-flow.md): branch, merge, and manual release conventions |
 
+| [App composition](app-composition.md) | Completed | Medium | Cohesive screens and session lifecycle | [Validated frontend protocol](validated-frontend-protocol.md), [Frontend static analysis](frontend-static-analysis.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): screen, session, and UI-state boundaries |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    appcomposition["App composition"]
+    appcomposition -->|depends on| protocolboundary
+    appcomposition -->|depends on| frontendanalysis
     githubflow["GitHub Flow"]
     githubflow -->|depends on| build
     githubflow -->|depends on| frontendanalysis
