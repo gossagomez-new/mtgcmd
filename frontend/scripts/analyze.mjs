@@ -1,8 +1,15 @@
-import { lstat, mkdir, unlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, unlink, writeFile, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+
+import {
+  digest,
+  fingerprint,
+  knipFindings,
+  summarize,
+} from "./analysis-review.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const reports = join(root, "reports/static-analysis");
@@ -115,19 +122,15 @@ async function unusedCode() {
   } catch (error) {
     throw new Error(`Invalid Knip JSON: ${error.message}`, { cause: error });
   }
-  const lines = [];
-  for (const row of data.issues) {
-    if (typeof row.file !== "string")
-      throw new Error("Invalid Knip issue file.");
-    for (const [category, findings] of Object.entries(row)) {
-      if (category === "file" || category === "owners") continue;
-      if (!Array.isArray(findings))
-        throw new Error("Invalid Knip issue category.");
-      for (const finding of findings) {
-        lines.push(`${row.file}: ${category}: ${JSON.stringify(finding)}`);
-      }
-    }
+  let findings;
+  try {
+    findings = knipFindings(data, root);
+  } catch (error) {
+    throw new Error(`Invalid Knip report: ${error.message}`, { cause: error });
   }
+  const lines = findings.map(
+    (finding) => `${finding.file}: ${finding.rule}: ${finding.message}`,
+  );
   await write("knip.json", JSON.stringify(data, null, 2) + "\n");
   await write(
     "knip.txt",
@@ -139,9 +142,37 @@ async function unusedCode() {
 
 try {
   await prepareReports();
+  const before = await fingerprint(root);
   const eslint = await lint();
   const knip = await unusedCode();
-  const summary = { schemaVersion: 1, status: "completed", eslint, knip };
+  const after = await fingerprint(root);
+  if (before !== after)
+    throw new Error(
+      "Frontend inputs changed during analysis; rerun before reviewing.",
+    );
+  const eslintReport = await readFile(join(reports, "eslint.json"));
+  const knipReport = await readFile(join(reports, "knip.json"));
+  const review = summarize(
+    JSON.parse(eslintReport),
+    JSON.parse(knipReport),
+    root,
+  );
+  const provenance = {
+    generatedAt: new Date().toISOString(),
+    sourceFingerprint: after,
+    reportHashes: { eslint: digest(eslintReport), knip: digest(knipReport) },
+    nodeVersion: process.version,
+    inputScope:
+      "frontend JS/TS/JSON/HTML/CSS excluding dependencies and generated directories",
+  };
+  const summary = {
+    schemaVersion: 1,
+    status: "completed",
+    eslint,
+    knip,
+    provenance,
+    review,
+  };
   await write(
     "summary.txt",
     `Frontend analysis completed (new findings advisory).\nESLint: ${eslint.errors} errors, ${eslint.warnings} warnings\nKnip: ${knip.issues} issues\n`,
