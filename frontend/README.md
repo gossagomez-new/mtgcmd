@@ -198,21 +198,24 @@ and [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md).
 
 ## Code map
 
-| File                                                   | Responsibility                                                          |
-| ------------------------------------------------------ | ----------------------------------------------------------------------- |
-| [src/main.tsx](src/main.tsx)                           | React entry point                                                       |
-| [src/App.tsx](src/App.tsx)                             | Screen composition, persistent forms, and overlay selection             |
-| [src/useTableSession.ts](src/useTableSession.ts)       | Guest bootstrap, room loading, accepted snapshots, and table mutations  |
-| [src/table/](src/table/)                               | Welcome/lobby/table screens, playing regions, and card/zone components  |
-| [src/protocol.ts](src/protocol.ts)                     | Zod schemas, inferred protocol types, decoding, and revision acceptance |
-| [src/http.ts](src/http.ts)                             | Validated session/room/deck endpoints and conflict recovery             |
-| [src/socketMessages.ts](src/socketMessages.ts)         | Validated message dispatch before state effects                         |
-| [src/useGameSocket.ts](src/useGameSocket.ts)           | Connection, acknowledgments, presence, and reconnect behavior           |
-| [src/battlefield.ts](src/battlefield.ts)               | Stable permanent grouping and land separation                           |
-| [src/style.css](src/style.css)                         | Table layout, card presentation, and tap rotation                       |
-| [tests/tabletop.spec.ts](tests/tabletop.spec.ts)       | Browser scenarios                                                       |
-| [tests/composition.spec.ts](tests/composition.spec.ts) | Form, readiness, overlay, stack, and permission lifetimes               |
-| [tests/protocol.spec.ts](tests/protocol.spec.ts)       | Malformed responses, cancellation, and pending-ack browser checks       |
+| File                                                   | Responsibility                                                                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| [src/main.tsx](src/main.tsx)                           | React entry point                                                                           |
+| [src/App.tsx](src/App.tsx)                             | Screen composition, persistent forms, and overlay selection                                 |
+| [src/useTableSession.ts](src/useTableSession.ts)       | Guest bootstrap, room loading, accepted snapshots, and table mutations                      |
+| [src/table/](src/table/)                               | Welcome/lobby/table screens, playing regions, and card/zone components                      |
+| [src/table/Inspector.tsx](src/table/Inspector.tsx)     | Inspector form state and card-bound action dispatch                                         |
+| [src/table/inspector/](src/table/inspector/)           | Card details and controlled movement, counter, relation, combat, reveal, and token controls |
+| [src/protocol.ts](src/protocol.ts)                     | Zod schemas, inferred protocol types, decoding, and revision acceptance                     |
+| [src/http.ts](src/http.ts)                             | Validated session/room/deck endpoints and conflict recovery                                 |
+| [src/socketMessages.ts](src/socketMessages.ts)         | Validated message dispatch before state effects                                             |
+| [src/useGameSocket.ts](src/useGameSocket.ts)           | Connection, acknowledgments, presence, and reconnect behavior                               |
+| [src/battlefield.ts](src/battlefield.ts)               | Stable permanent grouping and land separation                                               |
+| [src/style.css](src/style.css)                         | Table layout, card presentation, and tap rotation                                           |
+| [tests/tabletop.spec.ts](tests/tabletop.spec.ts)       | Browser scenarios                                                                           |
+| [tests/composition.spec.ts](tests/composition.spec.ts) | Form, readiness, overlay, stack, and permission lifetimes                                   |
+| [tests/inspector.spec.ts](tests/inspector.spec.ts)     | Inspector payloads, permissions, state lifetimes, presentation, and token prompts           |
+| [tests/protocol.spec.ts](tests/protocol.spec.ts)       | Malformed responses, cancellation, and pending-ack browser checks                           |
 
 See the [specification index](../spec/INDEX.md) for the approved behavior and
 feature verification requirements.
