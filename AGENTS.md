@@ -36,6 +36,17 @@ ask the user when they cannot be determined safely.
 
 ## Development workflow
 
+Use GitHub Flow: `main` is the only permanent integration branch and must remain
+deployable. Start focused topic branches from updated `main` and integrate through
+reviewed pull requests with the required `verify` check passing once GitHub is
+configured. Squash merge by default using a Conventional Commit PR title; use a
+reviewed exception when preserving multiple commits materially helps maintenance.
+Do not reuse completed topic branches. Keep experiments isolated until adopted.
+Releases use immutable version tags on verified main commits and manual deployment;
+merging does not authorize deployment. Existing authorization rules below still
+apply. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, hosting activation,
+and the one-time transition for existing branches.
+
 Use test-driven development for features, bug fixes, and behavior-changing
 refactors. Follow the red-green-refactor cycle:
 

@@ -9,6 +9,7 @@ combat damage, and game results themselves, and use an external voice/chat tool.
 
 ## Component guides
 
+- **[Contributing](CONTRIBUTING.md):** GitHub Flow, required checks, and tagged manual deployments.
 - **[Backend](backend/README.md):** Java setup, PostgreSQL, configuration, API,
   tests, PMD reports, and service diagnostics.
 - **[Frontend](frontend/README.md):** React/TypeScript setup, development proxy,

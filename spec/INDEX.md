@@ -36,10 +36,17 @@ Each specification's `Depends on` metadata is authoritative.
 | ------------------------------------------------------------- | --------- | -------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | [Validated frontend protocol](validated-frontend-protocol.md) | Completed | High     | Validate HTTP/WebSocket payloads before UI effects | [Frontend static analysis](frontend-static-analysis.md), [Standard tables](standard-tables.md) | [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md): schema ownership, transport boundaries, and safe failure behavior |
 
+| Specification                 | Status      | Priority | Purpose                                                                           | Depends on                                                                                       | Related ADRs                                                                               |
+| ----------------------------- | ----------- | -------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| [GitHub Flow](github-flow.md) | In progress | Medium   | Focused branches, PR verification, protected-main activation, and tagged releases | [Build automation](build-automation.md), [Frontend static analysis](frontend-static-analysis.md) | [ADR-0012](../docs/adr/0012-github-flow.md): branch, merge, and manual release conventions |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    githubflow["GitHub Flow"]
+    githubflow -->|depends on| build
+    githubflow -->|depends on| frontendanalysis
     protocolboundary["Validated frontend protocol"]
     protocolboundary -->|depends on| frontendanalysis
     protocolboundary -->|depends on| standard
