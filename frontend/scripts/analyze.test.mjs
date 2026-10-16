@@ -18,6 +18,7 @@ import { spawnSync } from "node:child_process";
 const frontend = fileURLToPath(new URL("..", import.meta.url));
 const sourceFiles = [
   "scripts/analyze.mjs",
+  "scripts/analysis-review.mjs",
   "eslint.config.js",
   "eslint.analysis.config.js",
   "knip.json",
@@ -312,4 +313,43 @@ test("tool spawn failures and malformed Knip output are blocking", (t) => {
     assert.match(f.read("failure.txt"), /Knip/);
     assert.ok(!existsSync(join(f.reports, "summary.json")));
   }
+});
+
+test("review metadata binds raw reports to source inputs and counts sole unused files", (t) => {
+  const f = fixture(t);
+  const hook = join(f.root, "knip-hook.mjs");
+  writeFileSync(
+    hook,
+    `import cp from 'node:child_process';
+    import {syncBuiltinESMExports} from 'node:module';
+    cp.spawnSync = () => ({status: 0, stdout: JSON.stringify({files:['src/orphan.ts'], issues:[]}), stderr:''});
+    syncBuiltinESMExports();`,
+  );
+  const result = f.run({
+    NODE_OPTIONS: `--import=${pathToFileURL(hook).href}`,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(f.read("summary.json"));
+  assert.equal(summary.knip.issues, 1);
+  assert.equal(summary.review.scopes.production.knip, 1);
+  assert.match(summary.provenance.sourceFingerprint, /^[a-f0-9]{64}$/);
+  assert.match(summary.provenance.reportHashes.eslint, /^[a-f0-9]{64}$/);
+});
+
+test("source edits during analyzer execution cannot leave a success marker", (t) => {
+  const f = fixture(t);
+  const hook = join(f.root, "mutation-hook.mjs");
+  writeFileSync(
+    hook,
+    `import cp from 'node:child_process'; import fs from 'node:fs';
+    import {syncBuiltinESMExports} from 'node:module';
+    cp.spawnSync = () => { fs.writeFileSync(${JSON.stringify(join(f.root, "src/changed.ts"))}, 'export {};'); return {status:0, stdout:'{"issues":[]}', stderr:''}; };
+    syncBuiltinESMExports();`,
+  );
+  const result = f.run({
+    NODE_OPTIONS: `--import=${pathToFileURL(hook).href}`,
+  });
+  assert.equal(result.status, 1);
+  assert.ok(!existsSync(join(f.reports, "summary.json")));
+  assert.match(f.read("failure.txt"), /inputs changed during analysis/);
 });
