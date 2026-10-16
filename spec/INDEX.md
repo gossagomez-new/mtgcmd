@@ -44,10 +44,14 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Inspector composition](inspector-composition.md) | Completed | Medium | Controlled card details and action groups | [App composition](app-composition.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing component/state convention |
 
+| [Deck import composition](deck-import-composition.md) | Completed | Medium | Controlled source, preview, and commander-selection components | [App composition](app-composition.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing composition and state-lifetime convention |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    deckimportcomposition["Deck import composition"]
+    deckimportcomposition -->|depends on| appcomposition
     inspectorcomposition["Inspector composition"]
     inspectorcomposition -->|depends on| appcomposition
     appcomposition["App composition"]
