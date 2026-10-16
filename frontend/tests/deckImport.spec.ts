@@ -1,9 +1,21 @@
-import { expect, test, type Page, type WebSocketRoute } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import {
+  test,
+  expect,
+  roomId as room,
+  type TableFixture,
+} from "./support/tableFixture";
+import {
+  decklist,
+  commander,
+  secondCommander,
+  previewDeck as previewButton,
+  useDeck as loadButton,
+} from "./support/selectors";
 import { z } from "zod";
 import { definitionFixture, snapshotFixture } from "../src/protocolFixtures";
 import type { Draft, GameFormat } from "../src/protocol";
 
-const room = "00000000-0000-4000-8000-000000000001";
 const previewBody = z.object({ text: z.string(), url: z.string() });
 const loadBody = z.object({
   draftId: z.string(),
@@ -11,7 +23,6 @@ const loadBody = z.object({
   revision: z.number(),
   commandId: z.string().uuid(),
 });
-type Reply = { status?: number; body: unknown };
 function draftFixture(suggested = ["a"]): Draft {
   return {
     draftId: "draft",
@@ -24,74 +35,55 @@ function draftFixture(suggested = ["a"]): Draft {
     })),
   };
 }
-function deferred() {
-  let resolve!: (reply: Reply) => void;
-  const promise = new Promise<Reply>((finish) => {
-    resolve = finish;
-  });
-  return { promise, resolve };
-}
-async function lobby(page: Page, format: GameFormat = "COMMANDER") {
-  let view = { ...snapshotFixture(format), id: room, status: "lobby" };
-  let socket: WebSocketRoute;
-  const previewReplies: (Reply | Promise<Reply>)[] = [];
-  const loadReplies: (Reply | Promise<Reply>)[] = [];
-  const previews: z.infer<typeof previewBody>[] = [];
-  const loads: z.infer<typeof loadBody>[] = [];
-  await page.route("**/api/session", (route) =>
-    route.fulfill({ json: { csrf: "token" } }),
+async function lobby(
+  mockTable: TableFixture,
+  format: GameFormat = "COMMANDER",
+) {
+  const page = mockTable.page;
+  const view = { ...snapshotFixture(format), id: room, status: "lobby" };
+  await mockTable.install(view);
+  const previews = await mockTable.captureJson(
+    `**/api/rooms/${room}/decks/preview`,
+    previewBody,
+    () => ({ body: draftFixture() }),
   );
-  await page.route("**/api/rooms", (route) => route.fulfill({ json: [] }));
-  await page.route(`**/api/rooms/${room}`, (route) =>
-    route.fulfill({ json: view }),
+  const loads = await mockTable.captureJson(
+    `**/api/rooms/${room}/deck`,
+    loadBody,
+    () => ({
+      body: { ...mockTable.view, revision: mockTable.view.revision + 1 },
+    }),
   );
-  await page.route(`**/api/rooms/${room}/decks/preview`, async (route) => {
-    previews.push(previewBody.parse(route.request().postDataJSON()));
-    const reply = await (previewReplies.shift() ?? { body: draftFixture() });
-    await route.fulfill({ status: reply.status ?? 200, json: reply.body });
-  });
-  await page.route(`**/api/rooms/${room}/deck`, async (route) => {
-    loads.push(loadBody.parse(route.request().postDataJSON()));
-    const reply = await (loadReplies.shift() ?? {
-      body: { ...view, revision: view.revision + 1 },
-    });
-    await route.fulfill({ status: reply.status ?? 200, json: reply.body });
-  });
-  await page.routeWebSocket("**/ws?room=**", (route) => {
-    socket = route;
-    route.onMessage(() => {});
-  });
   await page.goto(`/room/${room}`);
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
   return {
-    previews,
-    loads,
-    previewReplies,
-    loadReplies,
+    previews: previews.requests,
+    loads: loads.requests,
+    previewReplies: previews.replies,
+    loadReplies: loads.replies,
+    deferPreview: previews.defer,
+    deferLoad: loads.defer,
     update: async () => {
-      const count = view.players[0].deckCount + 1;
-      view = {
-        ...view,
-        revision: view.revision + 1,
-        players: view.players.map((player) => ({
+      const count = mockTable.view.players[0].deckCount + 1;
+      const next = {
+        ...mockTable.view,
+        revision: mockTable.view.revision + 1,
+        players: mockTable.view.players.map((player) => ({
           ...player,
           deckCount: count,
         })),
       };
-      socket.send(JSON.stringify({ type: "snapshot", view }));
-      await expect(
-        page.getByRole("heading", {
-          name: `${count} cards loaded`,
-          exact: true,
-        }),
-      ).toBeVisible();
+      await mockTable.snapshot(next, async () => {
+        await expect(
+          page.getByRole("heading", {
+            name: `${count} cards loaded`,
+            exact: true,
+          }),
+        ).toBeVisible();
+      });
     },
   };
 }
-const previewButton = (page: Page) =>
-  page.getByRole("button", { name: "Preview deck", exact: true });
-const loadButton = (page: Page) =>
-  page.getByRole("button", { name: "Use this deck", exact: true });
 async function preview(page: Page) {
   await previewButton(page).click();
   await expect(page.locator(".deck-preview")).toBeVisible();
@@ -100,42 +92,44 @@ async function preview(page: Page) {
 
 test("source inputs preserve raw values, invalidate drafts and survive snapshots", async ({
   page,
+  mockTable,
 }) => {
-  const session = await lobby(page);
+  const session = await lobby(mockTable);
   await expect(previewButton(page)).toBeDisabled();
-  await page.getByLabel(/^Decklist/).fill("  \n ");
+  await decklist(page).fill("  \n ");
   await page.getByLabel("Moxfield URL").fill("  ");
   await expect(previewButton(page)).toBeDisabled();
   const text = "  Commander\n1 Card\n";
   const url = "https://moxfield.com/decks/example ";
-  await page.getByLabel(/^Decklist/).fill(text);
+  await decklist(page).fill(text);
   await page.getByLabel("Moxfield URL").fill(url);
   await preview(page);
   expect(session.previews).toEqual([{ text, url }]);
-  await page.getByLabel(/^Commander/).selectOption("c");
+  await commander(page).selectOption("c");
   await session.update();
-  await expect(page.getByLabel(/^Commander/)).toHaveValue("c");
-  await expect(page.getByLabel(/^Decklist/)).toHaveValue(text);
+  await expect(commander(page)).toHaveValue("c");
+  await expect(decklist(page)).toHaveValue(text);
   await expect(page.getByLabel("Moxfield URL")).toHaveValue(url);
-  await page.getByLabel(/^Decklist/).fill("changed text");
+  await decklist(page).fill("changed text");
   await expect(page.locator(".deck-preview")).toHaveCount(0);
   await expect(page.getByLabel("Moxfield URL")).toHaveValue(url);
   await preview(page);
-  await expect(page.getByLabel(/^Commander/)).toHaveValue("a");
+  await expect(commander(page)).toHaveValue("a");
   await page.getByLabel("Moxfield URL").fill("changed URL");
   await expect(page.locator(".deck-preview")).toHaveCount(0);
-  await expect(page.getByLabel(/^Decklist/)).toHaveValue("changed text");
+  await expect(decklist(page)).toHaveValue("changed text");
 });
 
 test("commander selections preserve suggestions, secondary rules and exact load arguments", async ({
   page,
+  mockTable,
 }) => {
-  const session = await lobby(page);
+  const session = await lobby(mockTable);
   session.previewReplies.push({ body: draftFixture(["a", "b"]) });
-  await page.getByLabel(/^Decklist/).fill("Commander deck");
+  await decklist(page).fill("Commander deck");
   await preview(page);
-  const primary = page.getByLabel(/^Commander/);
-  const secondary = page.getByLabel(/^Second commander/);
+  const primary = commander(page);
+  const secondary = secondCommander(page);
   await expect(primary).toHaveValue("a");
   await expect(secondary).toHaveValue("b");
   await expect(secondary.locator("option[value=a]")).toHaveCount(0);
@@ -165,28 +159,30 @@ test("commander selections preserve suggestions, secondary rules and exact load 
 
 test("empty commander suggestions require selection before loading", async ({
   page,
+  mockTable,
 }) => {
-  const session = await lobby(page);
+  const session = await lobby(mockTable);
   session.previewReplies.push({ body: draftFixture([]) });
-  await page.getByLabel(/^Decklist/).fill("Deck");
+  await decklist(page).fill("Deck");
   await preview(page);
   await expect(loadButton(page)).toBeDisabled();
-  await page.getByLabel(/^Commander/).selectOption("a");
+  await commander(page).selectOption("a");
   await expect(loadButton(page)).toBeEnabled();
 });
 
 test("Standard hides commander controls and sends an empty commander array", async ({
   page,
+  mockTable,
 }) => {
-  const session = await lobby(page, "STANDARD");
+  const session = await lobby(mockTable, "STANDARD");
   session.previewReplies.push({ body: draftFixture(["a", "b"]) });
-  await page.getByLabel(/^Decklist/).fill("60 cards");
+  await decklist(page).fill("60 cards");
   await preview(page);
   await expect(
     page.getByText("100 cards found", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel(/^Commander/)).toHaveCount(0);
-  await expect(page.getByLabel(/^Second commander/)).toHaveCount(0);
+  await expect(commander(page)).toHaveCount(0);
+  await expect(secondCommander(page)).toHaveCount(0);
   await loadButton(page).click();
   await expect.poll(() => session.loads.length).toBe(1);
   expect(session.loads[0]).toEqual({
@@ -199,12 +195,12 @@ test("Standard hides commander controls and sends an empty commander array", asy
 
 test("pending re-preview retains the existing draft and keeps source fields editable", async ({
   page,
+  mockTable,
 }) => {
-  const session = await lobby(page);
-  await page.getByLabel(/^Decklist/).fill("original source");
+  const session = await lobby(mockTable);
+  await decklist(page).fill("original source");
   await preview(page);
-  const pending = deferred();
-  session.previewReplies.push(pending.promise);
+  const pending = session.deferPreview();
   await previewButton(page).click();
   await expect(
     page.getByRole("button", { name: "Resolving cards…", exact: true }),
@@ -213,23 +209,24 @@ test("pending re-preview retains the existing draft and keeps source fields edit
     page.getByText("100 cards found", { exact: true }),
   ).toBeVisible();
   await expect(loadButton(page)).toBeEnabled();
-  await expect(page.getByLabel(/^Decklist/)).toBeEditable();
+  await expect(decklist(page)).toBeEditable();
   await expect(page.getByLabel("Moxfield URL")).toBeEditable();
   pending.resolve({ body: { ...draftFixture(["c"]), count: 99 } });
   await expect(page.getByText("99 cards found", { exact: true })).toBeVisible();
-  await expect(page.getByLabel(/^Commander/)).toHaveValue("c");
+  await expect(commander(page)).toHaveValue("c");
   expect(session.previews).toHaveLength(2);
 });
 
 test("preview failures preserve drafts and URLs except for the paste fallback", async ({
   page,
+  mockTable,
 }) => {
-  const session = await lobby(page);
+  const session = await lobby(mockTable);
   await page
     .getByLabel("Moxfield URL")
     .fill("https://moxfield.com/decks/example");
   await preview(page);
-  await page.getByLabel(/^Commander/).selectOption("c");
+  await commander(page).selectOption("c");
   session.previewReplies.push({
     status: 400,
     body: { message: "Provider unavailable" },
@@ -237,7 +234,7 @@ test("preview failures preserve drafts and URLs except for the paste fallback", 
   await previewButton(page).click();
   await expect(page.getByRole("alert")).toContainText("Provider unavailable");
   await expect(previewButton(page)).toBeEnabled();
-  await expect(page.getByLabel(/^Commander/)).toHaveValue("c");
+  await expect(commander(page)).toHaveValue("c");
   await expect(page.getByLabel("Moxfield URL")).toHaveValue(
     "https://moxfield.com/decks/example",
   );
@@ -254,9 +251,9 @@ test("preview failures preserve drafts and URLs except for the paste fallback", 
   await previewButton(page).click();
   await expect(page.getByRole("alert")).toContainText("Please PASTE");
   await expect(page.getByLabel("Moxfield URL")).toHaveValue("");
-  await expect(page.getByLabel(/^Commander/)).toHaveValue("c");
+  await expect(commander(page)).toHaveValue("c");
   await expect(previewButton(page)).toBeDisabled();
-  await page.getByLabel(/^Decklist/).fill("pasted export");
+  await decklist(page).fill("pasted export");
   await preview(page);
   expect(session.previews).toHaveLength(5);
   expect(session.previews[4]).toEqual({ text: "pasted export", url: "" });
@@ -264,17 +261,17 @@ test("preview failures preserve drafts and URLs except for the paste fallback", 
 
 test("load failures release parent busy state and explicit retries use a fresh command ID", async ({
   page,
+  mockTable,
 }) => {
-  const session = await lobby(page);
-  await page.getByLabel(/^Decklist/).fill("Deck");
+  const session = await lobby(mockTable);
+  await decklist(page).fill("Deck");
   await preview(page);
-  const pending = deferred();
-  session.loadReplies.push(pending.promise);
+  const pending = session.deferLoad();
   await loadButton(page).click();
   await expect.poll(() => session.loads.length).toBe(1);
   await expect(loadButton(page)).toBeDisabled();
   await expect(previewButton(page)).toBeDisabled();
-  await expect(page.getByLabel(/^Decklist/)).toBeEditable();
+  await expect(decklist(page)).toBeEditable();
   pending.resolve({
     status: 400,
     body: { message: "Choose a valid commander" },

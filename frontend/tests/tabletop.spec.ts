@@ -1,3 +1,4 @@
+import { decklist, commander, previewDeck, useDeck } from "./support/selectors";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import type { Snapshot } from "../src/protocol";
 
@@ -244,20 +245,18 @@ test("failed URL import offers a usable pasted-deck fallback", async ({
   await page
     .getByLabel("Moxfield URL")
     .fill("https://moxfield.com/decks/example");
-  await page.getByRole("button", { name: "Preview deck", exact: true }).click();
+  await previewDeck(page).click();
   await expect(page.getByRole("alert")).toContainText("paste");
   await expect(page.getByLabel("Moxfield URL")).toBeEmpty();
   await importDeck(page, "A");
 });
 
 async function importDeck(page: Page, letter: string) {
-  await page
-    .getByLabel("Decklist")
-    .fill(`Commander\n1 Demo Commander\nDeck\n20 Secret ${letter}`);
-  await page.getByRole("button", { name: "Preview deck", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Use this deck", exact: true })
-    .click();
+  await decklist(page).fill(
+    `Commander\n1 Demo Commander\nDeck\n20 Secret ${letter}`,
+  );
+  await previewDeck(page).click();
+  await useDeck(page).click();
   await page.getByLabel("Accept deck warnings").check();
   await page
     .getByRole("button", { name: "Ready to play", exact: true })
@@ -301,15 +300,11 @@ test("private library search filters locally and retains library positions", asy
         .click();
     }
     for (let i = 0; i < 4; i++) {
-      await pages[i]
-        .getByLabel("Decklist")
-        .fill("Commander\n1 Demo Commander\nDeck\n10 Secret A\n10 Secret B");
-      await pages[i]
-        .getByRole("button", { name: "Preview deck", exact: true })
-        .click();
-      await pages[i]
-        .getByRole("button", { name: "Use this deck", exact: true })
-        .click();
+      await decklist(pages[i]).fill(
+        "Commander\n1 Demo Commander\nDeck\n10 Secret A\n10 Secret B",
+      );
+      await previewDeck(pages[i]).click();
+      await useDeck(pages[i]).click();
       await pages[i].getByLabel("Accept deck warnings").check();
       await pages[i]
         .getByRole("button", { name: "Ready to play", exact: true })
@@ -608,27 +603,19 @@ test("two Standard players import without commanders, accept warnings, play and 
       .getByRole("button", { name: "Join table", exact: true })
       .click();
     await expect(pages[2].getByRole("alert")).toContainText("Room is full");
-    await host.getByLabel("Decklist").fill("59 Secret A");
-    await host
-      .getByRole("button", { name: "Preview deck", exact: true })
-      .click();
-    await expect(host.getByLabel("Commander", { exact: true })).toHaveCount(0);
-    await host
-      .getByRole("button", { name: "Use this deck", exact: true })
-      .click();
+    await decklist(host).fill("59 Secret A");
+    await previewDeck(host).click();
+    await expect(commander(host)).toHaveCount(0);
+    await useDeck(host).click();
     await expect(host.getByRole("alert")).toContainText("60–250");
-    await host
-      .getByLabel("Decklist")
-      .fill("55 Secret A\n5 Demo Forbidden\nSideboard\n1 Demo Commander");
-    await host
-      .getByRole("button", { name: "Preview deck", exact: true })
-      .click();
+    await decklist(host).fill(
+      "55 Secret A\n5 Demo Forbidden\nSideboard\n1 Demo Commander",
+    );
+    await previewDeck(host).click();
     await expect(
       host.getByText("60 cards found", { exact: true }),
     ).toBeVisible();
-    await host
-      .getByRole("button", { name: "Use this deck", exact: true })
-      .click();
+    await useDeck(host).click();
     await expect(
       host.getByText("Demo Forbidden is not listed as Standard legal."),
     ).toBeVisible();
@@ -646,13 +633,9 @@ test("two Standard players import without commanders, accept warnings, play and 
       host.getByText("You are ready", { exact: true }),
     ).toBeVisible();
     const opponent = pages[1];
-    await opponent.getByLabel("Decklist").fill("60 Secret B");
-    await opponent
-      .getByRole("button", { name: "Preview deck", exact: true })
-      .click();
-    await opponent
-      .getByRole("button", { name: "Use this deck", exact: true })
-      .click();
+    await decklist(opponent).fill("60 Secret B");
+    await previewDeck(opponent).click();
+    await useDeck(opponent).click();
     await expect(opponent.getByLabel("Accept deck warnings")).toHaveCount(0);
     await opponent
       .getByRole("button", { name: "Ready to play", exact: true })

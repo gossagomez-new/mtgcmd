@@ -46,10 +46,16 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Deck import composition](deck-import-composition.md) | Completed | Medium | Controlled source, preview, and commander-selection components | [App composition](app-composition.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing composition and state-lifetime convention |
 
+| [Shared browser fixtures](shared-browser-fixtures.md) | Completed | Medium | Typed mock setup, observed updates, deferred cleanup, and stable selectors | [App composition](app-composition.md), [Inspector composition](inspector-composition.md), [Deck import composition](deck-import-composition.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing state lifetimes; [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md): existing protocol |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    sharedbrowser["Shared browser fixtures"]
+    sharedbrowser -->|depends on| appcomposition
+    sharedbrowser -->|depends on| inspectorcomposition
+    sharedbrowser -->|depends on| deckimportcomposition
     deckimportcomposition["Deck import composition"]
     deckimportcomposition -->|depends on| appcomposition
     inspectorcomposition["Inspector composition"]
