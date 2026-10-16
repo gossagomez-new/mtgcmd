@@ -46,10 +46,14 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Deck import composition](deck-import-composition.md) | Completed | Medium | Controlled source, preview, and commander-selection components | [App composition](app-composition.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing composition and state-lifetime convention |
 
+| [Frontend analysis review](frontend-analysis-review.md) | Completed | Medium | Contextual review and deterministic frontend report comparisons | [Frontend static analysis](frontend-static-analysis.md) | [ADR-0010](../docs/adr/0010-frontend-static-analysis.md): existing advisory/reporting policy |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    frontendReview["Frontend analysis review"]
+    frontendReview -->|depends on| frontendanalysis
     deckimportcomposition["Deck import composition"]
     deckimportcomposition -->|depends on| appcomposition
     inspectorcomposition["Inspector composition"]

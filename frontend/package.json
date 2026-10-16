@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "analyze": "node scripts/analyze.mjs",
-    "test:analysis": "node --test --test-isolation=none scripts/analyze.test.mjs",
+    "review:analysis": "node scripts/review-analysis.mjs",
+    "test:analysis": "node --test --test-isolation=none scripts/analyze.test.mjs scripts/analysis-review.test.mjs",
     "format:check": "prettier --check src tests scripts *.json *.ts *.js index.html",
     "format": "prettier --write src tests scripts *.json *.ts *.js index.html"
   },

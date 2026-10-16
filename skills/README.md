@@ -38,3 +38,16 @@ Example request:
 
 > Use skills/refactor-design-explanation/SKILL.md to explain how you would refactor
 > JsonHttp.send, including PMD rules, patterns, code examples, and verification.
+
+## Frontend analysis review
+
+[frontend-analysis-review](frontend-analysis-review/SKILL.md) uses the existing
+ESLint/Knip analyzer and deterministic review CLI for source scopes, rule/file
+counts, native metrics, provenance, and saved-baseline comparisons. It reuses the
+audit/refactor skills for recommendations and does not automatically fix code or
+change analysis policy. See the [specification](../spec/frontend-analysis-review.md).
+
+```sh
+npm --prefix frontend run review:analysis
+npm --prefix frontend run test:analysis
+```

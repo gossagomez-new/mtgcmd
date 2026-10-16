@@ -112,6 +112,51 @@ and no Knip findings; this is a dated observation, not a suppression baseline.
 See the [specification](../spec/frontend-static-analysis.md) and
 [ADR-0010](../docs/adr/0010-frontend-static-analysis.md).
 
+## Review analysis and compare baselines
+
+After generating analysis, summarize the native reports without rerunning tools:
+
+```sh
+npm --prefix frontend run review:analysis
+```
+
+The review separates production, tests, and other files; groups findings by rule
+and file; and quotes complexity/length/depth metrics supplied by ESLint. Knip
+counts include unused files as well as per-file issue categories.
+
+To save a baseline and compare a later run, use fresh output paths:
+
+```sh
+npm --prefix frontend run review:analysis -- --json /tmp/frontend-before.json
+npm --prefix frontend run analyze
+npm --prefix frontend run review:analysis -- --baseline /tmp/frontend-before.json --json /tmp/frontend-after.json --markdown /tmp/frontend-after.md
+```
+
+Existing files are never overwritten. Keep baselines outside the regenerated
+report directory and preferably outside frontend input paths (for example in
+`/tmp`). A baseline is the review JSON, not the native `summary.json`. The direct
+CLI `node frontend/scripts/review-analysis.mjs --help` describes custom frontend
+roots and report directories; its defaults do not depend on the current working
+directory.
+
+Freshness is **current**, **stale**, or **unverified**. New analyzer summaries bind
+the raw report hashes to a fingerprint of frontend JS/TS/JSON/HTML/CSS source and
+configuration inputs. Dependencies, generated outputs, and reports are excluded.
+This does not attest backend state, external plugins, environment equivalence,
+or correctness. Source edits during generation fail analysis; legacy completed
+reports without provenance can be reviewed as unverified.
+
+Comparisons preserve duplicate occurrences and ignore line/column moves. File
+renames and changed messages count as resolved/new; these are diagnostic
+identities, not proof of semantic introductions or removals. Compare configuration,
+package lock, and runtime changes before attributing deltas to code quality.
+Exit 0 means successful review regardless of advisory findings, 2 means incomplete
+analysis, and 1 means invalid inputs/outputs or CLI usage. Neither baselines nor
+review counts change build gates or suppress findings.
+
+See the [review specification](../spec/frontend-analysis-review.md) and
+[frontend review skill](../skills/frontend-analysis-review/SKILL.md).
+
 ## Browser tests
 
 Playwright starts a test-only Java server with embedded PostgreSQL on port 8081
