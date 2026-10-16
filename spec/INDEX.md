@@ -42,10 +42,14 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [App composition](app-composition.md) | Completed | Medium | Cohesive screens and session lifecycle | [Validated frontend protocol](validated-frontend-protocol.md), [Frontend static analysis](frontend-static-analysis.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): screen, session, and UI-state boundaries |
 
+| [Inspector composition](inspector-composition.md) | Completed | Medium | Controlled card details and action groups | [App composition](app-composition.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing component/state convention |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    inspectorcomposition["Inspector composition"]
+    inspectorcomposition -->|depends on| appcomposition
     appcomposition["App composition"]
     appcomposition -->|depends on| protocolboundary
     appcomposition -->|depends on| frontendanalysis
