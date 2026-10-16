@@ -204,6 +204,8 @@ and [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md).
 | [src/App.tsx](src/App.tsx)                             | Screen composition, persistent forms, and overlay selection                                 |
 | [src/useTableSession.ts](src/useTableSession.ts)       | Guest bootstrap, room loading, accepted snapshots, and table mutations                      |
 | [src/table/](src/table/)                               | Welcome/lobby/table screens, playing regions, and card/zone components                      |
+| [src/table/DeckImport.tsx](src/table/DeckImport.tsx)   | Import form state and preview request coordination                                          |
+| [src/table/deckImport/](src/table/deckImport/)         | Controlled deck source fields, preview, and commander selection                             |
 | [src/table/Inspector.tsx](src/table/Inspector.tsx)     | Inspector form state and card-bound action dispatch                                         |
 | [src/table/inspector/](src/table/inspector/)           | Card details and controlled movement, counter, relation, combat, reveal, and token controls |
 | [src/protocol.ts](src/protocol.ts)                     | Zod schemas, inferred protocol types, decoding, and revision acceptance                     |
@@ -215,6 +217,7 @@ and [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md).
 | [tests/tabletop.spec.ts](tests/tabletop.spec.ts)       | Browser scenarios                                                                           |
 | [tests/composition.spec.ts](tests/composition.spec.ts) | Form, readiness, overlay, stack, and permission lifetimes                                   |
 | [tests/inspector.spec.ts](tests/inspector.spec.ts)     | Inspector payloads, permissions, state lifetimes, presentation, and token prompts           |
+| [tests/deckImport.spec.ts](tests/deckImport.spec.ts)   | Import payloads, formats, selections, invalidation, and pending/error recovery              |
 | [tests/protocol.spec.ts](tests/protocol.spec.ts)       | Malformed responses, cancellation, and pending-ack browser checks                           |
 
 See the [specification index](../spec/INDEX.md) for the approved behavior and
