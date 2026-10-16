@@ -24,18 +24,18 @@ Reuse these implementations rather than proposing parallel replacements.
 | Frontend-first analyzed packaging                | [Build script](../scripts/build.sh), [build specification](../spec/build-automation.md)                                          | Does not run every frontend unit, formatting, lint, or browser check; `--skip-tests` explicitly skips Java tests.                                                                        |
 | Full CI verification sequence                    | [GitHub Actions workflow](../.github/workflows/verify.yml), [contribution guide](../CONTRIBUTING.md)                             | Provides the canonical full sequence; local scope selection and structured evidence are still manual. Workflow configuration does not establish that remote branch protection is active. |
 | Java report generation and contextual review     | [PMD parser](../scripts/analyze-pmd.py), [PMD analysis skill](../skills/pmd-report-analysis/SKILL.md)                            | Already handles report summaries and baseline comparisons. Do not create another Java report-review skill.                                                                               |
-| Frontend ESLint/Knip generation and reporting    | [Analyzer](../frontend/scripts/analyze.mjs), [static-analysis specification](../spec/frontend-static-analysis.md)                | Produces complete reports and aggregate counts; production/test breakdowns, historical deltas, hotspot selection, and explanation remain manually coordinated.                           |
+| Frontend ESLint/Knip generation and reporting    | [Analyzer](../frontend/scripts/analyze.mjs), [static-analysis specification](../spec/frontend-static-analysis.md)                | Native reports, scope/rule/file summaries, baseline deltas, and provenance checks are implemented; contextual recommendations still require source inspection.                           |
 | Evidence-backed audits and refactor explanations | [Design audit](../skills/codebase-design-audit/SKILL.md), [refactor explanation](../skills/refactor-design-explanation/SKILL.md) | Already supplies contextual review, patterns, examples, and compatibility analysis. New workflows should invoke these skills.                                                            |
-| Specification design and repository policy       | [Specification skill](../skills/spec-design/SKILL.md), [AGENTS.md](../AGENTS.md), [specification index](../spec/INDEX.md)        | Metadata, dependency graphs, links, coverage confirmation, and completion evidence still require manual cross-checking.                                                                  |
-| Browser and database test-server lifecycle       | [Playwright configuration](../frontend/playwright.config.ts), existing test-server fixtures                                      | Server startup is automated; repeated mocked-session/WebSocket setup and stable selectors are not shared across the browser suites.                                                      |
+| Specification design and repository policy       | [Specification skill](../skills/spec-design/SKILL.md), [AGENTS.md](../AGENTS.md), [specification index](../spec/INDEX.md)        | Metadata, local links, ADR sets, and index/graph consistency are checked by `scripts/validate-specs.py`; approval and execution evidence still require human review.                     |
+| Browser and database test-server lifecycle       | [Playwright configuration](../frontend/playwright.config.ts), existing test-server fixtures                                      | Server startup and shared mocked-table/request/selector helpers are implemented; scenario assertions and real-server flows remain explicit.                                              |
 | Deployment configuration validation              | [Deployment checker](../scripts/check_deployment.py), [deployment guide](deployment-oracle.md)                                   | Checks resolved production settings; it is not a general local-environment, daemon-permission, Podman-context, or OCI reachability checker.                                              |
 
-The App, Inspector, and DeckImport decompositions are on `main`. Frontend analysis
-review has been implemented and delivered in [PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5),
-which was open when this task's base branch was checked. This shared-fixture
-implementation starts independently from `main`; it does not include or claim
-the integration of that open PR. Delivery and implementation status below are
-separate from deployment.
+The App, Inspector, and DeckImport decompositions, frontend analysis review
+([PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5)), and shared browser
+fixtures ([PR #6](https://github.com/gossagomez-new/mtgcmd/pull/6)) are on `main`
+at this task's base check. Specification validation is implemented and locally
+verified on its topic branch. Publication and integration remain separate steps;
+implementation status does not imply deployment.
 
 ## Priority and estimation method
 
@@ -49,13 +49,13 @@ priority. Priorities are recommendations, not execution authorization.
 
 Effort assumes one engineer familiar with the repository and includes relevant
 fixture tests, documentation, and integration. Estimates are planning ranges,
-not delivery commitments. Rows 1–2 retain their original planning estimates for comparison; rows 3–9
+not delivery commitments. Rows 1–3 retain their original planning estimates for comparison; rows 4–9
 remain incremental unimplemented work. Shared infrastructure should be implemented
 once.
 
 ## Prioritized backlog
 
-The table retains the original order and estimates. Rows 1–2 are now implemented
+The table retains the original order and estimates. Rows 1–3 are now implemented
 as tracked below; artifacts in the other rows remain proposed additions or
 extensions.
 
@@ -73,16 +73,18 @@ extensions.
 
 ## Implementation tracking
 
-- **1. Frontend analysis review:** implemented and verified in
-  [PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5); integration was pending
-  at this branch's base check. Its code/specification are on that topic branch.
-- **2. Shared browser fixtures:** implemented and locally verified by
-  [the shared-fixture specification](../spec/shared-browser-fixtures.md), including
-  typed transport/request helpers, owned deferred cleanup, stable selectors,
-  migrated mocked suites, and retained real-server coverage. Publication and
-  integration are separate authorized steps.
-- **Next unimplemented proposal:** specification, ADR-link, and index validation
-  (row 3, 8–12 hours). Local verification profiles/evidence follow (row 4).
+- **1. Frontend analysis review:** implemented and integrated through
+  [PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5).
+- **2. Shared browser fixtures:** implemented and integrated through
+  [PR #6](https://github.com/gossagomez-new/mtgcmd/pull/6); see
+  [the specification](../spec/shared-browser-fixtures.md).
+- **3. Specification, ADR-link, and index validation:** implemented and locally
+  verified by [the validation specification](../spec/specification-validation.md).
+  The read-only Python CLI validates metadata, links, ADR references, coverage
+  records, index rows, and graph agreement. CI runs it alongside fixture tests;
+  publication/integration remain separate authorized steps.
+- **Next unimplemented proposal:** local verification profiles and evidence
+  manifest (row 4, 6–9 hours).
 
 The scope descriptions below retain the proposal rationale; implementation
 specifications and their executed verification records define delivered behavior.
@@ -226,23 +228,22 @@ capabilities, not new work estimates.
 
 ## Recommended delivery sequence and budget
 
-1. Frontend analysis review and shared browser fixtures are implemented (rows
-   1–2). Preserve their original combined **9–14-hour estimate** for planning
-   history; it is not measured effort or a remaining-work estimate. Integrate
+1. Frontend analysis review, shared browser fixtures, and specification validation
+   are implemented (rows 1–3). Preserve their combined **17–26-hour estimate**
+   for planning history; it is not measured effort or remaining work. Integrate
    published work through the existing review process when authorized.
-2. Implement **specification/ADR-link/index validation (8–12 hours)** next, then
-   **local verification profiles/evidence (6–9 hours)**. Coordinate validator
-   integration with the existing CI sequence rather than duplicating checks.
+2. Implement **local verification profiles/evidence (6–9 hours)** next, reusing
+   current CI/build commands and the specification validator.
 3. Add the **doctor (3–5 hours)** independently as useful offline preflight, then
    **handoff (3–5 hours)** and **verification guidance (2–3 hours)** once the
    evidence/profile interfaces stabilize.
-4. Finish the **specification-skill extension (1–2 hours)** after the validator;
+4. The **specification-skill extension (1–2 hours)** can now reference the validator;
    defer **import diagnostics (2–4 hours)** until needed.
 
-The remaining unimplemented P1 work totals **14–21 hours**; the complete
-unimplemented backlog is **25–40 hours**. The original four P1 proposals totaled
+The remaining unimplemented P1 work totals **6–9 hours**; the complete
+unimplemented backlog is **17–28 hours**. The original four P1 proposals totaled
 23–35 hours and the full nine-proposal estimate was 34–54 hours. Revised totals
-exclude rows 1–2 and previously completed tooling; integration/review time is not
+exclude rows 1–3 and previously completed tooling; integration/review time is not
 re-estimated here. These ranges are not additive with older estimates. Confirm
 each next implementation's specification and coverage target before revising it.
 

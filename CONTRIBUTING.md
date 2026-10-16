@@ -57,6 +57,7 @@ It runs on Ubuntu as a non-root user with Node 24 and Java 25:
 
 - Frontend lint, type checking, formatting, and unit tests.
 - Analyzer reporting tests, build-wrapper/PMD integration tests, and Python tooling tests.
+- Offline specification, ADR-link, and dependency-index validation.
 - The full analyzed frontend/backend build, including Spotless and Java tests.
 - Chromium browser flows with the embedded PostgreSQL test server.
 
@@ -72,6 +73,36 @@ workflow. For browser tests use the documented Chromium installation or
 `CHROME_PATH`. For local Maven cache overrides use `MAVEN_OPTS`; CI uses its
 ordinary cached Maven repository. Dedicated workflow validation can be run with
 `actionlint .github/workflows/verify.yml` when actionlint is installed.
+
+## Validate specifications locally
+
+From the repository root, run the read-only consistency check and fixture tests:
+
+```sh
+python3 -B scripts/validate-specs.py
+python3 -B -m unittest discover -s scripts -p 'test_validate_specs.py'
+```
+
+The command path above is relative to the repository root. The script locates its
+repository by its own location; pass `--root PATH` to validate a fixture or another
+checkout. Exit codes are 0 for valid input, 1 for validation/read failures, and 2
+for invalid CLI arguments. Diagnostics identify the source file and line.
+
+The checker compares authoritative specification metadata with all index rows
+and the dependency graph, checks local links/Markdown heading anchors and related
+ADR sets, and requires a recorded coverage/verification target. External URLs are
+counted as unchecked; no network requests occur. It cannot prove user approval,
+architectural correctness, or that recorded checks actually ran.
+
+Use ordinary inline or explicit reference Markdown links. In the index graph,
+put each node (`id["Specification title"]`) or dependency
+(`source -->|depends on| target`) on its own line, with optional semicolons and
+`%%` comments. Use a `flowchart TD` (or TB/LR/RL/BT) header. Labels may use spec
+titles or index labels and the existing `(independent)` suffix. Unsupported graph
+syntax fails explicitly. Drafts must also have consistent metadata and links;
+record genuine open questions as prose rather than template placeholders. See
+[the specification](spec/specification-validation.md) and
+[ADR-0014](docs/adr/0014-specification-validation.md) for the complete contract.
 
 ## Activate protection on GitHub
 
