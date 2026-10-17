@@ -51,3 +51,13 @@ change analysis policy. See the [specification](../spec/frontend-analysis-review
 npm --prefix frontend run review:analysis
 npm --prefix frontend run test:analysis
 ```
+
+## Change handoff
+
+[change-handoff](change-handoff/SKILL.md) combines offline scope/title/reference/
+evidence checks with contextual GitHub review and authorized commit/push/PR
+actions. It preserves pre-staging evidence and unrelated local work; it does not
+authorize merging or deployment. See [the specification](../spec/change-handoff.md).
+
+Use `python3 -B scripts/prepare-pr.py --help` for inputs. Run its isolated fixtures
+with `python3 -B -m unittest discover -s scripts -p test_prepare_pr.py`.

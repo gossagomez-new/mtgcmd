@@ -34,7 +34,9 @@ The App, Inspector, and DeckImport decompositions, frontend analysis review
 ([PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5)), and shared browser
 fixtures ([PR #6](https://github.com/gossagomez-new/mtgcmd/pull/6)) are on `main`
 at this task's base check. Specification validation is integrated through [PR #7](https://github.com/gossagomez-new/mtgcmd/pull/7).
-Local verification profiles/evidence are implemented and locally verified.
+Local verification profiles/evidence are published in [PR #8](https://github.com/gossagomez-new/mtgcmd/pull/8);
+its integration status must be checked when preparing the handoff PR. Commit/PR
+preparation is implemented and locally verified on its own branch.
 Publication and integration remain separate steps;
 implementation status does not imply deployment.
 
@@ -50,15 +52,16 @@ priority. Priorities are recommendations, not execution authorization.
 
 Effort assumes one engineer familiar with the repository and includes relevant
 fixture tests, documentation, and integration. Estimates are planning ranges,
-not delivery commitments. Rows 1–4 retain their original planning estimates for comparison; rows 5–9
-remain incremental unimplemented work. Shared infrastructure should be implemented
+not delivery commitments. Rows 1–4 retain their original planning estimates for comparison. Proposal 6
+was revised to 4–6 hours for evidence-phase handling and is now implemented;
+proposals 5 and 7–9 remain incremental unimplemented work. Shared infrastructure should be implemented
 once.
 
 ## Prioritized backlog
 
-The table retains the original order and estimates. Rows 1–4 are now implemented
-as tracked below; artifacts in the other rows remain proposed additions or
-extensions.
+The table retains original proposal numbers for traceability. Proposals 1–4 and
+6 are implemented as tracked below; the remaining delivery order is described
+in the sequence section. Estimates are planning ranges, not measured effort.
 
 | Order | Priority | Proposal                                          | Proposed artifact or extension                                                                                  | Effort     | Why now                                                                                                                                                                                                 |
 | ----- | -------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -67,7 +70,7 @@ extensions.
 | 3     | P1       | Specification, ADR-link, and index validation     | Add `scripts/validate-specs.py` and fixture tests; integrate into `verify`                                      | 8–12 hours | The index and dependency graph are manually updated for each component refactor. Existing metadata and links provide a stable validation contract.                                                      |
 | 4     | P1       | Local verification profiles and evidence manifest | Add `scripts/verify.sh` with a shared command/profile definition and wrapper tests; reuse CI/build commands     | 6–9 hours  | Each refactor repeats check selection, background-process coordination, log inspection, and accurate reporting of passed/skipped checks.                                                                |
 | 5     | P2       | Development environment doctor                    | Add `scripts/doctor.sh`; delegate production configuration checks to the existing checker                       | 3–5 hours  | Java/Node versions, browser paths, local ports, non-root PostgreSQL execution, and container contexts have caused setup friction.                                                                       |
-| 6     | P2       | Commit and PR preparation workflow                | Add `skills/change-handoff/SKILL.md`; add `scripts/prepare-pr.py` for deterministic draft/check output          | 3–5 hours  | Several completed changes needed the same scoped staging, Conventional Commit, push, PR-template, and verification-summary handoff.                                                                     |
+| 6     | P1       | Commit and PR preparation workflow                | Add `skills/change-handoff/SKILL.md`; add `scripts/prepare-pr.py` for deterministic draft/check output          | 4–6 hours  | Several completed changes needed the same scoped staging, Conventional Commit, push, PR-template, and verification-summary handoff.                                                                     |
 | 7     | P2       | Full-stack verification guidance                  | Add `skills/full-stack-verification/SKILL.md`; reuse the verification runner and existing audit/refactor skills | 2–3 hours  | Agent judgment is still needed to choose a profile and explain risk-specific checks; it should not maintain a second command sequence.                                                                  |
 | 8     | P2       | Focused specification-skill extension             | Extend `skills/spec-design/SKILL.md`                                                                            | 1–2 hours  | Explicitly connect coverage confirmation, index validation, and recorded verification to the existing workflow without duplicating repository policy.                                                   |
 | 9     | P3       | Optional external import diagnostics              | Add `scripts/check-imports.sh` or a small equivalent CLI                                                        | 2–4 hours  | Useful for renewed provider incidents, but recent work has focused on frontend structure. Existing fallback tests already cover routine UI recovery.                                                    |
@@ -89,7 +92,13 @@ extensions.
   [The runner](../scripts/verify.sh) executes explicit frontend/backend/full
   profiles sequentially, preserves failed exits, and writes source-bound manifests
   with read-only evidence checks. Publication/integration remain separate steps.
-- **Next unimplemented proposal:** development environment doctor (row 5, 3–5 hours).
+- **6. Commit and PR preparation:** implemented and locally verified by
+  [the handoff specification](../spec/change-handoff.md). The offline preparation
+  CLI emits scoped JSON/Markdown without Git/network mutations; the skill handles
+  live PR history, contextual review, and authorized actions. Original pre-commit
+  evidence is preserved rather than rebound. Publication/integration remain separate.
+- **Next unimplemented proposal:** focused specification-skill extension (row 8,
+  1–2 hours), followed by verification guidance (row 7, 2–3 hours).
 
 The scope descriptions below retain the proposal rationale; implementation
 specifications and their executed verification records define delivered behavior.
@@ -234,24 +243,25 @@ capabilities, not new work estimates.
 ## Recommended delivery sequence and budget
 
 1. Frontend analysis review, shared browser fixtures, specification validation,
-   and local verification profiles/evidence are implemented (rows 1–4). Preserve
-   their combined **23–35-hour estimate** for planning history; it is not measured
-   effort or remaining work. Integrate published work through the existing review
-   process when authorized.
-2. Implement the **doctor (3–5 hours)** next as offline preflight, delegating
-   production settings to the existing deployment validator.
-3. Add **handoff (3–5 hours)** and **verification guidance (2–3 hours)** using the
-   runner's profile/evidence interface. Do not duplicate check commands or infer
-   publication/merge/deployment authorization.
-4. The **specification-skill extension (1–2 hours)** can now reference the validator;
-   defer **import diagnostics (2–4 hours)** until needed.
+   local verification profiles/evidence, and handoff preparation are implemented
+   (proposals 1–4 and 6). Their combined **27–41-hour planning estimate** includes
+   the revised handoff estimate; it is not measured effort or remaining work.
+   Integrate published work through review when authorized.
+2. Extend the existing **specification skill (1–2 hours)** next to call the validator
+   and make coverage/evidence integration explicit without duplicating policy.
+3. Add **verification guidance (2–3 hours)** using the stable runner. It should
+   choose profiles and risk-specific checks rather than own another command list.
+4. Add the **doctor (3–5 hours)** when onboarding or environment friction warrants
+   offline preflight. Reuse the deployment validator. Keep **import diagnostics
+   (2–4 hours)** deferred until provider troubleshooting recurs.
 
 No unimplemented P1 proposal remains. The complete unimplemented backlog is
-**11–19 hours** (P2: **9–15 hours**, P3: **2–4 hours**). The original full
-nine-proposal estimate was 34–54 hours. Revised totals exclude rows 1–4 and
-previously completed tooling; integration/review time is not re-estimated here.
-These ranges are not additive with older estimates. Confirm each next
-implementation's specification and coverage target before revising it.
+**8–14 hours** (P2: **6–10 hours**, P3: **2–4 hours**). The original full
+nine-proposal estimate was 34–54 hours; increasing handoff from 3–5 to 4–6 hours
+makes the comparable revised total 35–55 hours. These are planning ranges, not
+measured effort. Revised remaining totals exclude proposals 1–4 and 6; review/
+integration time is not re-estimated here. Confirm each next specification and
+coverage target before implementation.
 
 ## Boundaries and authorization
 
