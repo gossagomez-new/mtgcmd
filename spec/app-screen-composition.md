@@ -109,6 +109,15 @@ and specification validation. Record actual results and limitations.
 - Backend-only tests were not rerun; real-server browser scenarios started the
   existing backend test server. No dependencies or analysis policies changed.
 
+### Publication verification after integrating main
+
+Merged PR #11 was integrated from main before publication. All 48 browser tests
+passed together on this combined source, including CardButton characterizations.
+All 211 frontend unit tests, typecheck, lint, formatting, specification validation,
+and whitespace checks passed again. Fresh analysis reports three remaining length
+warnings, no complexity or test warnings, zero errors, and zero Knip issues. The
+four-warning result above describes the earlier source before this integration.
+
 ## Architecture decisions
 
 [ADR-0013](../docs/adr/0013-app-composition-boundaries.md) already defines root state,

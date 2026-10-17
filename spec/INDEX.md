@@ -59,6 +59,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [App screen composition](app-screen-composition.md) | Completed | Medium | Screen selection, action availability, and notices with retained root state | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing state and composition boundaries |
 
+| [Card button presentation](card-button-presentation.md) | Completed | Medium | Private card artwork, presentation, and badge composition | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing explicit-prop composition |
+
 ## Dependency graph
 
 ```mermaid
@@ -66,6 +68,11 @@ flowchart TD
     appscreens["App screen composition"]
     appscreens -->|depends on| appcomposition
     appscreens -->|depends on| sharedbrowser
+
+    cardbutton["Card button presentation"]
+    cardbutton -->|depends on| appcomposition
+    cardbutton -->|depends on| sharedbrowser
+
     tabletopprotocol["Tabletop protocol boundaries"]
     tabletopprotocol -->|depends on| protocolboundary
     tabletopprotocol -->|depends on| sharedbrowser
