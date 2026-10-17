@@ -103,13 +103,11 @@ export function CardButton({
   card: Card;
   inspect: (c: Card) => void;
 }) {
-  const face = card.definition?.faces[card.face];
-  const name = face?.name || card.definition?.name || "Face-down card";
-  const image = face?.image || card.definition?.image;
+  const presentation = cardPresentation(card);
   return (
     <button
       className={`card ${card.tapped ? "tapped" : ""} ${card.faceDown ? "face-down" : ""}`}
-      aria-label={`Inspect ${name}`}
+      aria-label={`Inspect ${presentation.name}`}
       onClick={() => inspect(card)}
       draggable={card.editable && card.zone !== "battlefield"}
       onDragStart={(e) => {
@@ -117,17 +115,45 @@ export function CardButton({
         e.dataTransfer.effectAllowed = "move";
       }}
     >
-      {image ? (
-        <img src={image} alt={name} loading="lazy" />
-      ) : (
-        <div className="card-fallback">
-          <span className="card-symbol">◈</span>
-          <strong>{name}</strong>
-          <small>{card.definition?.type || "Hidden identity"}</small>
-          <p>{card.definition?.text}</p>
-        </div>
-      )}
-      <span className="card-caption">{name}</span>
+      <CardArtwork presentation={presentation} />
+      <span className="card-caption">{presentation.name}</span>
+      <CardBadges card={card} />
+    </button>
+  );
+}
+
+function cardPresentation(card: Card) {
+  const { name, image, type, text, faces = [] } = card.definition ?? {};
+  const face = faces[card.face];
+  return {
+    name: face?.name || name || "Face-down card",
+    image: face?.image || image,
+    type: type || "Hidden identity",
+    text,
+  };
+}
+
+function CardArtwork({
+  presentation,
+}: {
+  presentation: ReturnType<typeof cardPresentation>;
+}) {
+  const { name, image, type, text } = presentation;
+  return image ? (
+    <img src={image} alt={name} loading="lazy" />
+  ) : (
+    <div className="card-fallback">
+      <span className="card-symbol">◈</span>
+      <strong>{name}</strong>
+      <small>{type}</small>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+function CardBadges({ card }: { card: Card }) {
+  return (
+    <>
       {card.token && <span className="card-tag">TOKEN</span>}
       {card.faceDown && <span className="face-down-tag">FACE DOWN</span>}
       {card.combat && (
@@ -143,9 +169,10 @@ export function CardButton({
         </span>
       )}
       {card.attachedTo && <span className="attachment-tag">Attached ↗</span>}
-    </button>
+    </>
   );
 }
+
 export function Battlefield({
   cards,
   inspect,
