@@ -59,10 +59,14 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Card button presentation](card-button-presentation.md) | Completed | Medium | Private card artwork, presentation, and badge composition | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing explicit-prop composition |
 
+| [Semantic versioning](semantic-versioning.md) | Completed | Medium | Shared application version, compatibility rules, and release preparation | [GitHub Flow](github-flow.md) | [ADR-0017](../docs/adr/0017-semantic-versioning.md): shared SemVer and reviewed release bumps; [ADR-0012](../docs/adr/0012-github-flow.md): existing tagged manual releases |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    semver["Semantic versioning"]
+    semver -->|depends on| githubflow
     cardbutton["Card button presentation"]
     cardbutton -->|depends on| appcomposition
     cardbutton -->|depends on| sharedbrowser
