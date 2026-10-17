@@ -151,4 +151,53 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>mutation</id>
+      <properties>
+        <jacoco.skip>true</jacoco.skip>
+        <pit.targetClasses>dev.mtgcmd.*</pit.targetClasses>
+        <pit.targetTests>dev.mtgcmd.*</pit.targetTests>
+        <pit.threads>1</pit.threads>
+        <pit.jvmArgs>--enable-native-access=ALL-UNNAMED</pit.jvmArgs>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <version>1.30.1</version>
+            <dependencies>
+              <dependency>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-junit5-plugin</artifactId>
+                <version>1.2.3</version>
+              </dependency>
+            </dependencies>
+            <configuration>
+              <targetClasses>
+                <param>${pit.targetClasses}</param>
+              </targetClasses>
+              <targetTests>
+                <param>${pit.targetTests}</param>
+              </targetTests>
+              <threads>${pit.threads}</threads>
+              <jvmArgs>${pit.jvmArgs}</jvmArgs>
+              <parseSurefireArgLine>false</parseSurefireArgLine>
+              <mutators>
+                <mutator>DEFAULTS</mutator>
+              </mutators>
+              <outputFormats>
+                <param>HTML</param>
+                <param>XML</param>
+              </outputFormats>
+              <reportsDirectory>${project.build.directory}/pit-reports</reportsDirectory>
+              <timestampedReports>false</timestampedReports>
+              <failWhenNoMutations>true</failWhenNoMutations>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

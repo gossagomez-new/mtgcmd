@@ -200,6 +200,102 @@ report to evaluate later changes.
 See the [coverage specification](../spec/backend-code-coverage.md) and
 [ADR-0018](../docs/adr/0018-backend-code-coverage.md).
 
+## Mutation testing
+
+PIT 1.30.1 with its JUnit 5 adapter 1.2.3 tests whether assertions detect deliberate
+changes to production bytecode. It complements JaCoCo execution coverage. Mutation
+scores are reporting-only, with no minimum gate; baseline test failures, empty
+mutation targets, and tool/report failures still fail the command.
+
+Mutation testing is opt-in. A normal Maven test/package/verify, the Docker build,
+and `scripts/build.sh` do not run PIT. Activate the profile and invoke its goal
+explicitly for a fresh full-backend analysis:
+
+```sh
+mvn -f backend/pom.xml -Pmutation clean test-compile pitest:mutationCoverage
+```
+
+Profile activation alone does not run PIT. The profile disables JaCoCo to keep
+agents independent; use ordinary `clean verify` separately for fresh coverage.
+PIT supplies its own worker JVM options instead of inheriting Surefire's argLine.
+The default is one worker, native access enabled, all `dev.mtgcmd.*` production
+classes/tests, and native DEFAULTS mutators, without additional class exclusions.
+Full runs repeat many tests and may take substantially longer than normal builds.
+Tests with PostgreSQL, HTTP fixtures, and resource cleanup still run as a non-root
+user with local process and socket permissions.
+
+For a focused deck-rules analysis:
+
+```sh
+mvn -f backend/pom.xml -Pmutation clean test-compile pitest:mutationCoverage \
+  '-Dpit.targetClasses=dev.mtgcmd.game.DeckRules*' \
+  '-Dpit.targetTests=dev.mtgcmd.game.DeckRulesTest'
+```
+
+Quote globs to avoid shell expansion. A trailing `*` includes nested classes;
+an exact class glob does not. Focused tests/classes change the measurement scope
+and must not be described as a whole-backend result. `-Dtest=...` controls Surefire,
+not PIT; use `pit.targetTests`. Local worker count is configurable through
+`-Dpit.threads=2`; start with one for resource-heavy tests.
+
+To replace worker JVM options, use a comma-separated property, retaining native
+access and supplying every option required by the chosen tests:
+
+```sh
+mvn -f backend/pom.xml -Pmutation clean test-compile pitest:mutationCoverage \
+  '-Dpit.jvmArgs=--enable-native-access=ALL-UNNAMED,-Xmx1g'
+```
+
+The profile deliberately does not copy Surefire's `argLine` or JaCoCo agent into
+PIT workers. Do not enable JaCoCo in a mutation run or pass its agent explicitly.
+The profile changes no production dependencies and adds no runtime instrumentation.
+
+| Report       | Path from the repository root              |
+| ------------ | ------------------------------------------ |
+| HTML         | `backend/target/pit-reports/index.html`    |
+| Mutation XML | `backend/target/pit-reports/mutations.xml` |
+
+Open the HTML report to investigate surviving mutations and their covering tests.
+Killed mutations show that a test detected a change; surviving mutations expose
+potential assertion gaps or equivalent behavior. NO_COVERAGE means no selected
+test exercised the mutant. Timeouts, memory/worker errors, and equivalent mutants
+need separate review; do not describe every detected result as an assertion kill
+or silently exclude code to improve the score. This integration does not rewrite
+tests to raise mutation scores.
+
+Reports are ignored output. Use `clean` before a fresh analysis; failed/non-clean
+runs can leave stale or partial reports. A successful goal, source revision,
+target/test globs, mutator set, and execution status are necessary context for a
+baseline. Enabling incremental history or narrowing tests changes that context.
+A report file alone is not evidence that the current tests completed successfully.
+Maven-exec browser servers and packaged smoke-test JVMs are not PIT test workers.
+
+Initial full-backend baseline (2026-10-17, Java 25, the default globs/mutators,
+one worker): 818 mutations across 51 mutated classes; 648 KILLED, 154 SURVIVED,
+15 NO_COVERAGE, and 1 TIMED_OUT. Maven succeeded in 14 minutes 22 seconds.
+PIT's reported 79% detection includes the timeout; it is not 649 assertion kills.
+No worker execution or memory errors were recorded. These are historical results,
+not gates; see the [specification](../spec/backend-mutation-testing.md) for scope
+and verification details.
+
+[Backend mutation testing](../.github/workflows/mutation.yml) is a separate manual
+GitHub Actions workflow, with optional class/test scope selection, one worker,
+a 60-minute timeout, and HTML/XML/log retention for seven days even on failure.
+It has no PR/push/schedule trigger and does not publish releases or deploy. GitHub
+makes manual dispatch available after the workflow is integrated into the default
+branch; dispatch still requires explicit authorization. Review the selected ref
+and target globs when comparing CI artifacts.
+
+Ordinary CI and the full local verification profile run small Maven fixtures to
+check the PIT integration. They do not run a whole-project mutation campaign:
+
+```sh
+node --test --test-isolation=none scripts/pit.test.mjs
+```
+
+See the [mutation specification](../spec/backend-mutation-testing.md) and
+[ADR-0019](../docs/adr/0019-backend-mutation-testing.md).
+
 ## PMD reports
 
 [The ruleset](pmd-ruleset.xml) enables broad analysis of production and test

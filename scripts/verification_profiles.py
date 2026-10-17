@@ -22,7 +22,7 @@ CHECKS = (
     Check('frontend-build', ('npm', '--prefix', 'frontend', 'run', 'build'), ('frontend',)),
     Check('wrapper-tests', ('node', '--test', '--test-isolation=none',
                             'scripts/build.test.mjs', 'scripts/pmd.test.mjs',
-                            'scripts/jacoco.test.mjs'), ('full',)),
+                            'scripts/jacoco.test.mjs', 'scripts/pit.test.mjs'), ('full',)),
     Check('python-tests', ('python3', '-B', '-m', 'unittest', 'discover', '-s',
                            'scripts', '-p', 'test_*.py'), ('full',)),
     Check('specifications', ('python3', '-B', 'scripts/validate-specs.py'), ('full',)),

@@ -1,0 +1,61 @@
+name: Backend mutation testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_classes:
+        description: "Production class glob (all application classes by default)"
+        required: true
+        default: "dev.mtgcmd.*"
+        type: string
+      target_tests:
+        description: "Test class glob (all application tests by default)"
+        required: true
+        default: "dev.mtgcmd.*"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: mutation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out selected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Java 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Run backend mutation testing
+        shell: bash
+        env:
+          PIT_TARGET_CLASSES: ${{ inputs.target_classes }}
+          PIT_TARGET_TESTS: ${{ inputs.target_tests }}
+        run: |
+          set -euo pipefail
+          mvn -B -f backend/pom.xml -Pmutation clean test-compile pitest:mutationCoverage \
+            "-Dpit.targetClasses=${PIT_TARGET_CLASSES}" \
+            "-Dpit.targetTests=${PIT_TARGET_TESTS}" \
+            2>&1 | tee "$RUNNER_TEMP/pit.log"
+      - name: Retain mutation reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: mutation-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            backend/target/pit-reports/
+            ${{ runner.temp }}/pit.log

@@ -361,7 +361,9 @@ class JsonHttpTest {
         captor.getValue().apply(mock(HttpResponse.ResponseInfo.class));
     final Flow.Subscription subscription = mock(Flow.Subscription.class);
     subscriber.onSubscribe(subscription);
-    subscriber.onNext(List.of(ByteBuffer.wrap(new byte[size])));
+    if (size > 0) {
+      subscriber.onNext(List.of(ByteBuffer.wrap(new byte[size])));
+    }
     subscriber.onComplete();
     if (size > 128) {
       assertThatThrownBy(() -> subscriber.getBody().toCompletableFuture().get(2, TimeUnit.SECONDS))
