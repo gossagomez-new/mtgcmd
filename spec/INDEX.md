@@ -53,10 +53,16 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Local verification](local-verification.md) | Completed | High | Explicit local profiles and source-bound evidence | [Build automation](build-automation.md), [GitHub Flow](github-flow.md), [Specification validation](specification-validation.md) | [ADR-0015](../docs/adr/0015-local-verification-evidence.md): sequential profiles and versioned local evidence |
 
+| [Change handoff](change-handoff.md) | Completed | High | Offline scoped preparation and contextual commit/PR handoff | [Local verification](local-verification.md), [GitHub Flow](github-flow.md), [Specification validation](specification-validation.md) | [ADR-0016](../docs/adr/0016-change-handoff.md): read-only preparation and preserved pre-commit evidence |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    handoff["Change handoff preparation"]
+    handoff -->|depends on| localverify
+    handoff -->|depends on| githubflow
+    handoff -->|depends on| specvalidation
     localverify["Local verification profiles and evidence"]
     localverify -->|depends on| build
     localverify -->|depends on| githubflow

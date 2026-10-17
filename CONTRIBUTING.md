@@ -157,6 +157,44 @@ record genuine open questions as prose rather than template placeholders. See
 [the specification](spec/specification-validation.md) and
 [ADR-0014](docs/adr/0014-specification-validation.md) for the complete contract.
 
+## Prepare a scoped handoff
+
+The [change-handoff skill](skills/change-handoff/SKILL.md) combines local
+preparation with live GitHub review and authorized actions. The offline script
+only creates artifacts; it never stages, commits, fetches, pushes, or opens PRs.
+
+Create summary/review prose outside the checkout, then run, for example:
+
+```sh
+python3 -B scripts/prepare-pr.py --branch feat/example --base origin/main --path frontend/src/example.ts --title "feat(example): add the behavior" --summary-file /tmp/change-summary.md --review-file /tmp/change-review.md --spec spec/example.md --evidence /tmp/your-run/manifest.json --output /tmp/new-handoff-directory
+```
+
+Replace the example inputs with real changed file paths and references. Repeat
+`--path`, `--spec`, `--adr`, `--evidence`, or `--verification-note` as needed.
+Scope paths are exact repository-relative files, including rename endpoints;
+patterns are not expanded. Use `--routine-reason` instead of a specification only
+for a routine change. `--repository OWNER/REPO` can provide an otherwise unknown
+GitHub identity; a recognized conflicting origin is an error.
+
+The fresh output directory must be outside the checkout with an existing parent;
+existing paths/symlink ancestors are refused. Read `handoff.json` and `pr.md`.
+Exit 0 means local deterministic checks passed, 1 means findings or operational
+failure, and 2 means invalid CLI arguments. Remote PR history/base freshness, CI,
+authorization, and human diff/verification review remain explicit pending checks.
+Local ancestry cannot establish whether a topic was already squash-merged.
+
+`stage_paths` lists only scoped unstaged/untracked candidates. Unrelated staged
+or committed PR changes block local preparation; unrelated unstaged/untracked
+files are listed as excluded. Preparation does not alter the index or resolve
+scope automatically. Check whether excluded functional work influenced tests.
+
+Accepted evidence describes the working tree before staging. Staging/committing
+invalidate the runner's exact Git-state fingerprint; preserve the original record
+and report that historical meaning rather than rebinding it. Rejected records
+supply no copied success claims. Author-provided verification notes require review
+against actual executed checks. A generated draft is neither approval nor proof
+that the future commit or hosted CI was verified.
+
 ## Activate protection on GitHub
 
 These files prepare CI; they cannot enable hosting settings. After publishing to
