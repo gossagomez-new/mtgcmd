@@ -227,11 +227,102 @@ is active. Required check names must change in coordination with workflow edits;
 removing/renaming a required check without updating protection can block merges.
 No remote is configured in the current checkout, so activation is still pending.
 
+## Semantic versioning
+
+The application follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+Use one version for the packaged frontend and backend; they are released together.
+The current development version is `0.1.0`. Version declarations change in a
+reviewed release-preparation PR, rather than on every feature or refactor PR.
+
+### Compatibility contract
+
+Judge compatibility against the last published application release, considering
+all changes included in the proposed release. The contract covers:
+
+- Documented HTTP routes, methods, request/response fields, WebSocket messages,
+  command semantics, and error behavior used by existing clients.
+- Documented Commander/Standard workflows and permissions, including private-card
+  visibility and guest access to saved rooms.
+- Preservation and readability of saved rooms/snapshots through the documented
+  upgrade procedure. A migration that preserves this behavior is not automatically
+  a breaking change; dropping saved games or requiring a destructive reset is.
+- Documented deployment configuration and operator-facing commands. Removing a
+  required interface or adding mandatory configuration without a compatible default
+  is a compatibility change.
+
+A compatible release must continue to support previously valid use of these
+interfaces, including the prior release's browser client communicating with the
+new server. Forward compatibility of a new client with an older server is not
+promised. Internal Java/TypeScript helpers, component structure, CSS class names,
+and test fixtures are not public APIs. Visual changes alone need not break the
+contract, but removing a documented supported workflow does.
+
+### Choosing a version
+
+| Included change                                                     | During `0.y.z`                                                      | From `1.0.0` onward                                                 |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Backward-compatible bug fix                                         | PATCH                                                               | PATCH                                                               |
+| Backward-compatible feature or public API deprecation               | MINOR                                                               | MINOR                                                               |
+| Breaking change                                                     | MINOR, with explicit breaking notes                                 | MAJOR                                                               |
+| Internal refactor, dependency/tooling maintenance, or documentation | No release required; PATCH if releasing only compatible maintenance | No release required; PATCH if releasing only compatible maintenance |
+
+The `0.x` bump rules are this project's initial-development policy: SemVer itself
+allows the public API to remain unstable before `1.0.0`. Nevertheless, breaking
+changes must be reviewed and identified, including upgrade instructions and any
+migration or client-refresh requirement. Choose `1.0.0` explicitly when adopting a
+stable compatibility contract; it is not triggered by a particular feature count.
+
+Choose the highest required bump across the full release scope. Reset PATCH to
+zero for a MINOR bump, and both MINOR and PATCH to zero for a MAJOR bump. For
+example, from `0.1.4`, a compatible fix becomes `0.1.5`, while a feature or break
+becomes `0.2.0`; from `1.2.3`, the equivalents are `1.2.4`, `1.3.0`, and `2.0.0`.
+A security fix that breaks the contract still follows the breaking-change rule.
+
+Conventional Commit types help review the release scope: `feat` normally suggests
+MINOR and `fix` PATCH. A `!` or `BREAKING CHANGE:` marker takes precedence, regardless
+of type. Types do not replace compatibility review or automatically publish a
+release. Record breaking changes even during `0.x`. PRs should describe their
+release impact; ordinary PRs do not need to edit version declarations.
+
+For optional prereleases, use a suffix such as `0.2.0-rc.1`, identical in every
+version declaration. Prereleases precede the corresponding final release. Normal
+versions have three numeric components without leading zeroes. Git tags use a
+`v` prefix; the version values in manifests do not. Use the commit and image digest
+for build identity rather than adding build metadata to release versions; SemVer
+build metadata does not affect precedence, and `+` is not a portable image-tag
+character.
+
+### Release preparation
+
+1. Review the last published version and all proposed changes, including remote
+   tag/release history. Classify compatibility impact and choose the version using
+   the table above. Do not infer the baseline solely from a local tag list.
+2. In a focused release-preparation PR, update these values to the same version:
+   `backend/pom.xml`'s project version (not its Spring Boot parent),
+   `frontend/package.json`'s version, and both root package version fields in
+   `frontend/package-lock.json`. Keep dependency versions independent.
+3. Include release notes in that PR: features/fixes, breaking changes or an explicit
+   statement that none are included, and upgrade/migration/client-refresh needs.
+   Check version equality, SemVer syntax, and compatibility impact during review.
+   Run the existing required verification workflow and relevant migration checks.
+4. After the release PR merges and the selected main commit is verified, follow
+   the authorized tagging/build/deployment process below. The annotated tag must
+   be `v` plus the exact manifest version; verify it is unused before creating it.
+   Use the same version for the image tag, and record its immutable digest.
+
+Published versions and tags are immutable, including prereleases. Correct a
+published mistake using a new version; do not replace an existing release. This
+policy establishes manual review checks; CI does not yet enforce version equality,
+classify compatibility, create tags, or publish releases automatically.
+
+The rationale is recorded in [ADR-0017](docs/adr/0017-semantic-versioning.md).
+
 ## Release and deploy
 
 Merging to main makes a change eligible for release; it does not deploy it.
-Select a verified commit on `main`, create an annotated `vMAJOR.MINOR.PATCH` tag
-when authorized, and build the deployment image from that exact clean checkout.
+Select a verified commit on `main`, create an annotated SemVer tag (for example
+`v0.2.0` or `v0.2.0-rc.1`) matching the version declarations when authorized,
+and build the deployment image from that exact clean checkout.
 Release tags are immutable; corrections receive a new tag. Do not use an unrelated
 working-tree image or a mutable `latest` tag as the production release identity.
 

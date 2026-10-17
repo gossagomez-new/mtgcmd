@@ -63,6 +63,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Backend code coverage](backend-code-coverage.md) | Completed | Medium | Surefire coverage with native JaCoCo reports and CI retention | [Build automation](build-automation.md), [GitHub Flow](github-flow.md), [Local verification](local-verification.md) | [ADR-0018](../docs/adr/0018-backend-code-coverage.md): reporting-only JaCoCo and preserved JVM arguments |
 
+| [Semantic versioning](semantic-versioning.md) | Completed | Medium | Shared application version, compatibility rules, and release preparation | [GitHub Flow](github-flow.md) | [ADR-0017](../docs/adr/0017-semantic-versioning.md): shared SemVer and reviewed release bumps; [ADR-0012](../docs/adr/0012-github-flow.md): existing tagged manual releases |
+
 ## Dependency graph
 
 ```mermaid
@@ -71,6 +73,10 @@ flowchart TD
     jacoco -->|depends on| build
     jacoco -->|depends on| githubflow
     jacoco -->|depends on| localverify
+
+    semver["Semantic versioning"]
+    semver -->|depends on| githubflow
+
     appscreens["App screen composition"]
     appscreens -->|depends on| appcomposition
     appscreens -->|depends on| sharedbrowser

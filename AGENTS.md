@@ -44,6 +44,13 @@ reviewed pull requests with the required `verify` check passing once GitHub is
 configured. Squash merge by default using a Conventional Commit PR title; use a
 reviewed exception when preserving multiple commits materially helps maintenance.
 Do not reuse completed topic branches. Keep experiments isolated until adopted.
+Use one shared application version following Semantic Versioning 2.0.0. During
+`0.x`, features and breaking changes increment MINOR; compatible fixes increment
+PATCH. From `1.0.0`, breaking changes increment MAJOR. Compatible maintenance-only
+releases use PATCH; ordinary PRs do not bump versions. Prepare version changes in
+a release PR, keeping the backend project, frontend package, and lockfile root
+versions identical. Review compatibility and the full release scope using
+[CONTRIBUTING.md](CONTRIBUTING.md#semantic-versioning); always mark breaking changes.
 Releases use immutable version tags on verified main commits and manual deployment;
 merging does not authorize deployment. Existing authorization rules below still
 apply. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, hosting activation,
