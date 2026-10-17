@@ -19,22 +19,23 @@ selecting local checks, and preparing commits and PRs.
 
 Reuse these implementations rather than proposing parallel replacements.
 
-| Capability                                       | Evidence                                                                                                                         | Remaining boundary                                                                                                                                                                       |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Frontend-first analyzed packaging                | [Build script](../scripts/build.sh), [build specification](../spec/build-automation.md)                                          | Does not run every frontend unit, formatting, lint, or browser check; `--skip-tests` explicitly skips Java tests.                                                                        |
-| Full CI verification sequence                    | [GitHub Actions workflow](../.github/workflows/verify.yml), [contribution guide](../CONTRIBUTING.md)                             | Provides the canonical full sequence; local scope selection and structured evidence are still manual. Workflow configuration does not establish that remote branch protection is active. |
-| Java report generation and contextual review     | [PMD parser](../scripts/analyze-pmd.py), [PMD analysis skill](../skills/pmd-report-analysis/SKILL.md)                            | Already handles report summaries and baseline comparisons. Do not create another Java report-review skill.                                                                               |
-| Frontend ESLint/Knip generation and reporting    | [Analyzer](../frontend/scripts/analyze.mjs), [static-analysis specification](../spec/frontend-static-analysis.md)                | Native reports, scope/rule/file summaries, baseline deltas, and provenance checks are implemented; contextual recommendations still require source inspection.                           |
-| Evidence-backed audits and refactor explanations | [Design audit](../skills/codebase-design-audit/SKILL.md), [refactor explanation](../skills/refactor-design-explanation/SKILL.md) | Already supplies contextual review, patterns, examples, and compatibility analysis. New workflows should invoke these skills.                                                            |
-| Specification design and repository policy       | [Specification skill](../skills/spec-design/SKILL.md), [AGENTS.md](../AGENTS.md), [specification index](../spec/INDEX.md)        | Metadata, local links, ADR sets, and index/graph consistency are checked by `scripts/validate-specs.py`; approval and execution evidence still require human review.                     |
-| Browser and database test-server lifecycle       | [Playwright configuration](../frontend/playwright.config.ts), existing test-server fixtures                                      | Server startup and shared mocked-table/request/selector helpers are implemented; scenario assertions and real-server flows remain explicit.                                              |
-| Deployment configuration validation              | [Deployment checker](../scripts/check_deployment.py), [deployment guide](deployment-oracle.md)                                   | Checks resolved production settings; it is not a general local-environment, daemon-permission, Podman-context, or OCI reachability checker.                                              |
+| Capability                                       | Evidence                                                                                                                         | Remaining boundary                                                                                                                                                                                              |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend-first analyzed packaging                | [Build script](../scripts/build.sh), [build specification](../spec/build-automation.md)                                          | Does not run every frontend unit, formatting, lint, or browser check; `--skip-tests` explicitly skips Java tests.                                                                                               |
+| Full CI verification sequence                    | [GitHub Actions workflow](../.github/workflows/verify.yml), [contribution guide](../CONTRIBUTING.md)                             | Provides the canonical hosted sequence; local profiles now reuse its commands with source-bound evidence and explicit scope. Workflow configuration does not establish that remote branch protection is active. |
+| Java report generation and contextual review     | [PMD parser](../scripts/analyze-pmd.py), [PMD analysis skill](../skills/pmd-report-analysis/SKILL.md)                            | Already handles report summaries and baseline comparisons. Do not create another Java report-review skill.                                                                                                      |
+| Frontend ESLint/Knip generation and reporting    | [Analyzer](../frontend/scripts/analyze.mjs), [static-analysis specification](../spec/frontend-static-analysis.md)                | Native reports, scope/rule/file summaries, baseline deltas, and provenance checks are implemented; contextual recommendations still require source inspection.                                                  |
+| Evidence-backed audits and refactor explanations | [Design audit](../skills/codebase-design-audit/SKILL.md), [refactor explanation](../skills/refactor-design-explanation/SKILL.md) | Already supplies contextual review, patterns, examples, and compatibility analysis. New workflows should invoke these skills.                                                                                   |
+| Specification design and repository policy       | [Specification skill](../skills/spec-design/SKILL.md), [AGENTS.md](../AGENTS.md), [specification index](../spec/INDEX.md)        | Metadata, local links, ADR sets, and index/graph consistency are checked by `scripts/validate-specs.py`; approval and execution evidence still require human review.                                            |
+| Browser and database test-server lifecycle       | [Playwright configuration](../frontend/playwright.config.ts), existing test-server fixtures                                      | Server startup and shared mocked-table/request/selector helpers are implemented; scenario assertions and real-server flows remain explicit.                                                                     |
+| Deployment configuration validation              | [Deployment checker](../scripts/check_deployment.py), [deployment guide](deployment-oracle.md)                                   | Checks resolved production settings; it is not a general local-environment, daemon-permission, Podman-context, or OCI reachability checker.                                                                     |
 
 The App, Inspector, and DeckImport decompositions, frontend analysis review
 ([PR #5](https://github.com/gossagomez-new/mtgcmd/pull/5)), and shared browser
 fixtures ([PR #6](https://github.com/gossagomez-new/mtgcmd/pull/6)) are on `main`
-at this task's base check. Specification validation is implemented and locally
-verified on its topic branch. Publication and integration remain separate steps;
+at this task's base check. Specification validation is integrated through [PR #7](https://github.com/gossagomez-new/mtgcmd/pull/7).
+Local verification profiles/evidence are implemented and locally verified.
+Publication and integration remain separate steps;
 implementation status does not imply deployment.
 
 ## Priority and estimation method
@@ -49,13 +50,13 @@ priority. Priorities are recommendations, not execution authorization.
 
 Effort assumes one engineer familiar with the repository and includes relevant
 fixture tests, documentation, and integration. Estimates are planning ranges,
-not delivery commitments. Rows 1–3 retain their original planning estimates for comparison; rows 4–9
+not delivery commitments. Rows 1–4 retain their original planning estimates for comparison; rows 5–9
 remain incremental unimplemented work. Shared infrastructure should be implemented
 once.
 
 ## Prioritized backlog
 
-The table retains the original order and estimates. Rows 1–3 are now implemented
+The table retains the original order and estimates. Rows 1–4 are now implemented
 as tracked below; artifacts in the other rows remain proposed additions or
 extensions.
 
@@ -82,9 +83,13 @@ extensions.
   verified by [the validation specification](../spec/specification-validation.md).
   The read-only Python CLI validates metadata, links, ADR references, coverage
   records, index rows, and graph agreement. CI runs it alongside fixture tests;
-  publication/integration remain separate authorized steps.
-- **Next unimplemented proposal:** local verification profiles and evidence
-  manifest (row 4, 6–9 hours).
+  integration is complete through PR #7.
+- **4. Local verification profiles and evidence:** implemented and locally verified
+  by [the local-verification specification](../spec/local-verification.md).
+  [The runner](../scripts/verify.sh) executes explicit frontend/backend/full
+  profiles sequentially, preserves failed exits, and writes source-bound manifests
+  with read-only evidence checks. Publication/integration remain separate steps.
+- **Next unimplemented proposal:** development environment doctor (row 5, 3–5 hours).
 
 The scope descriptions below retain the proposal rationale; implementation
 specifications and their executed verification records define delivered behavior.
@@ -228,24 +233,25 @@ capabilities, not new work estimates.
 
 ## Recommended delivery sequence and budget
 
-1. Frontend analysis review, shared browser fixtures, and specification validation
-   are implemented (rows 1–3). Preserve their combined **17–26-hour estimate**
-   for planning history; it is not measured effort or remaining work. Integrate
-   published work through the existing review process when authorized.
-2. Implement **local verification profiles/evidence (6–9 hours)** next, reusing
-   current CI/build commands and the specification validator.
-3. Add the **doctor (3–5 hours)** independently as useful offline preflight, then
-   **handoff (3–5 hours)** and **verification guidance (2–3 hours)** once the
-   evidence/profile interfaces stabilize.
+1. Frontend analysis review, shared browser fixtures, specification validation,
+   and local verification profiles/evidence are implemented (rows 1–4). Preserve
+   their combined **23–35-hour estimate** for planning history; it is not measured
+   effort or remaining work. Integrate published work through the existing review
+   process when authorized.
+2. Implement the **doctor (3–5 hours)** next as offline preflight, delegating
+   production settings to the existing deployment validator.
+3. Add **handoff (3–5 hours)** and **verification guidance (2–3 hours)** using the
+   runner's profile/evidence interface. Do not duplicate check commands or infer
+   publication/merge/deployment authorization.
 4. The **specification-skill extension (1–2 hours)** can now reference the validator;
    defer **import diagnostics (2–4 hours)** until needed.
 
-The remaining unimplemented P1 work totals **6–9 hours**; the complete
-unimplemented backlog is **17–28 hours**. The original four P1 proposals totaled
-23–35 hours and the full nine-proposal estimate was 34–54 hours. Revised totals
-exclude rows 1–3 and previously completed tooling; integration/review time is not
-re-estimated here. These ranges are not additive with older estimates. Confirm
-each next implementation's specification and coverage target before revising it.
+No unimplemented P1 proposal remains. The complete unimplemented backlog is
+**11–19 hours** (P2: **9–15 hours**, P3: **2–4 hours**). The original full
+nine-proposal estimate was 34–54 hours. Revised totals exclude rows 1–4 and
+previously completed tooling; integration/review time is not re-estimated here.
+These ranges are not additive with older estimates. Confirm each next
+implementation's specification and coverage target before revising it.
 
 ## Boundaries and authorization
 
