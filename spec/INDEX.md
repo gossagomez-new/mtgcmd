@@ -57,10 +57,15 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Change handoff](change-handoff.md) | Completed | High | Offline scoped preparation and contextual commit/PR handoff | [Local verification](local-verification.md), [GitHub Flow](github-flow.md), [Specification validation](specification-validation.md) | [ADR-0016](../docs/adr/0016-change-handoff.md): read-only preparation and preserved pre-commit evidence |
 
+| [App screen composition](app-screen-composition.md) | Completed | Medium | Screen selection, action availability, and notices with retained root state | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing state and composition boundaries |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    appscreens["App screen composition"]
+    appscreens -->|depends on| appcomposition
+    appscreens -->|depends on| sharedbrowser
     tabletopprotocol["Tabletop protocol boundaries"]
     tabletopprotocol -->|depends on| protocolboundary
     tabletopprotocol -->|depends on| sharedbrowser

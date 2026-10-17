@@ -1,11 +1,12 @@
-import { useCallback, useState, type FormEvent } from "react";
-import type { Card, GameFormat } from "./protocol";
+import { useCallback, useState, type ComponentProps } from "react";
+import type { Card, GameFormat, Snapshot } from "./protocol";
 import { useTableSession } from "./useTableSession";
 import { TableHeader } from "./table/TableHeader";
 import { WelcomeScreen } from "./table/WelcomeScreen";
 import { LobbyScreen } from "./table/LobbyScreen";
 import { PlayingTable } from "./table/PlayingTable";
 import { TableOverlays } from "./table/TableOverlays";
+import { actionAvailability } from "./actionAvailability";
 
 export default function App() {
   const [tableFormat, setTableFormat] = useState<GameFormat>("COMMANDER");
@@ -20,86 +21,51 @@ export default function App() {
     setViewer(null);
   }, []);
   const session = useTableSession(onNavigate, setFirstPlayer);
-  const {
+  const { view, socket, act, fail } = session;
+  const { disabled, canPlay } = actionAvailability({
+    connected: socket.connected,
+    pending: socket.pending,
+    busy: session.busy,
     view,
-    room,
-    csrf,
-    busy,
-    socket,
-    saved,
-    error,
-    fail,
-    act,
-    api,
-    loadDraft,
-  } = session;
-  const disabled =
-    !socket.connected || socket.pending || busy || view?.status === "finished";
-  const canPlay = !disabled && !view?.players[view.you]?.conceded;
+  });
   const inspect = (card: Card) => setSelectedId(card.id);
   const openZone = (seat: number, zone: string) => {
     if (zone === "library") act("SEARCH", { target: seat });
     setViewer({ seat, zone });
   };
-  const enter = (event: FormEvent) => {
-    event.preventDefault();
-    void session.enter(name, tableFormat);
-  };
   return (
     <div className="app-shell">
       <TableHeader
-        room={room}
+        room={session.room}
         hasView={!!view}
         connected={socket.connected}
         fail={fail}
       />
-      {error && (
-        <div role="alert" className="error-banner">
-          {error}
-          <button aria-label="Dismiss error" onClick={() => fail("")}>
-            ×
-          </button>
-        </div>
-      )}
-      {!view ? (
-        <WelcomeScreen
-          room={room}
-          name={name}
-          setName={setName}
-          tableFormat={tableFormat}
-          setTableFormat={setTableFormat}
-          csrf={csrf}
-          busy={busy}
-          saved={saved}
-          enter={enter}
-        />
-      ) : view.status === "lobby" ? (
-        <LobbyScreen
-          view={view}
-          disabled={disabled}
-          firstPlayer={firstPlayer}
-          setFirstPlayer={setFirstPlayer}
-          act={act}
-          preview={api.previewDeck}
-          loadDraft={loadDraft}
-          fail={fail}
-        />
-      ) : (
-        <PlayingTable
-          view={view}
-          canPlay={canPlay}
-          disabled={disabled}
-          act={act}
-          inspect={inspect}
-          openZone={openZone}
-          socketOnline={socket.online}
-        />
-      )}
-      {view?.status === "finished" && (
-        <div className="finished-banner">
-          Game finished. Your table has been saved.
-        </div>
-      )}
+      <ErrorNotice error={session.error} dismiss={() => fail("")} />
+      <AppScreen
+        view={view}
+        room={session.room}
+        csrf={session.csrf}
+        busy={session.busy}
+        saved={session.saved}
+        name={name}
+        setName={setName}
+        tableFormat={tableFormat}
+        setTableFormat={setTableFormat}
+        firstPlayer={firstPlayer}
+        setFirstPlayer={setFirstPlayer}
+        disabled={disabled}
+        canPlay={canPlay}
+        act={act}
+        preview={session.api.previewDeck}
+        loadDraft={session.loadDraft}
+        fail={fail}
+        inspect={inspect}
+        openZone={openZone}
+        socketOnline={socket.online}
+        onEnter={() => void session.enter(name, tableFormat)}
+      />
+      <FinishedNotice finished={view?.status === "finished"} />
       {view && (
         <TableOverlays
           view={view}
@@ -117,4 +83,82 @@ export default function App() {
       )}
     </div>
   );
+}
+
+type AppScreenProps = Omit<ComponentProps<typeof WelcomeScreen>, "enter"> &
+  Omit<ComponentProps<typeof LobbyScreen>, "view"> &
+  Omit<ComponentProps<typeof PlayingTable>, "view"> & {
+    view: Snapshot | null;
+    onEnter: () => void;
+  };
+
+function AppScreen(props: AppScreenProps) {
+  if (!props.view) {
+    return (
+      <WelcomeScreen
+        room={props.room}
+        name={props.name}
+        setName={props.setName}
+        tableFormat={props.tableFormat}
+        setTableFormat={props.setTableFormat}
+        csrf={props.csrf}
+        busy={props.busy}
+        saved={props.saved}
+        enter={(event) => {
+          event.preventDefault();
+          props.onEnter();
+        }}
+      />
+    );
+  }
+  if (props.view.status === "lobby") {
+    return (
+      <LobbyScreen
+        view={props.view}
+        disabled={props.disabled}
+        firstPlayer={props.firstPlayer}
+        setFirstPlayer={props.setFirstPlayer}
+        act={props.act}
+        preview={props.preview}
+        loadDraft={props.loadDraft}
+        fail={props.fail}
+      />
+    );
+  }
+  return (
+    <PlayingTable
+      view={props.view}
+      canPlay={props.canPlay}
+      disabled={props.disabled}
+      act={props.act}
+      inspect={props.inspect}
+      openZone={props.openZone}
+      socketOnline={props.socketOnline}
+    />
+  );
+}
+
+function ErrorNotice({
+  error,
+  dismiss,
+}: {
+  error: string;
+  dismiss: () => void;
+}) {
+  return error ? (
+    <div role="alert" className="error-banner">
+      {error}
+      <button aria-label="Dismiss error" onClick={dismiss}>
+        ×
+      </button>
+    </div>
+  ) : null;
+}
+
+function FinishedNotice({ finished }: { finished: boolean }) {
+  return finished ? (
+    <div className="finished-banner">
+      Game finished. Your table has been saved.
+    </div>
+  ) : null;
 }
