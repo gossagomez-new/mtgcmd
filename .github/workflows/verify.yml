@@ -47,8 +47,8 @@ jobs:
           npm --prefix frontend test
       - name: Check analyzer reporting
         run: npm --prefix frontend run test:analysis
-      - name: Check build wrappers, PMD, and coverage integration
-        run: node --test --test-isolation=none scripts/build.test.mjs scripts/pmd.test.mjs scripts/jacoco.test.mjs
+      - name: Check build and analysis integration
+        run: node --test --test-isolation=none scripts/build.test.mjs scripts/pmd.test.mjs scripts/jacoco.test.mjs scripts/pit.test.mjs
       - name: Check report and deployment tooling
         run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
       - name: Validate specifications and dependency index

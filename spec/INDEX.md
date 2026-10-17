@@ -65,10 +65,16 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Semantic versioning](semantic-versioning.md) | Completed | Medium | Shared application version, compatibility rules, and release preparation | [GitHub Flow](github-flow.md) | [ADR-0017](../docs/adr/0017-semantic-versioning.md): shared SemVer and reviewed release bumps; [ADR-0012](../docs/adr/0012-github-flow.md): existing tagged manual releases |
 
+| [Backend mutation testing](backend-mutation-testing.md) | Completed | Medium | Opt-in PIT and JUnit 5 mutation reports with manual CI | [Backend code coverage](backend-code-coverage.md), [Build automation](build-automation.md), [GitHub Flow](github-flow.md) | [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): opt-in PIT, reporting-only scores, and worker JVM isolation; [ADR-0018](../docs/adr/0018-backend-code-coverage.md): existing JaCoCo separation |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    pit["Backend mutation testing"]
+    pit -->|depends on| jacoco
+    pit -->|depends on| build
+    pit -->|depends on| githubflow
     jacoco["Backend code coverage"]
     jacoco -->|depends on| build
     jacoco -->|depends on| githubflow

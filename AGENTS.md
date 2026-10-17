@@ -16,6 +16,10 @@ instance and must run as a non-root user with permission to bind local ports.
 - Run build-wrapper tests: `node --test --test-isolation=none scripts/build.test.mjs`
 - Run backend coverage integration fixtures:
   `node --test --test-isolation=none scripts/jacoco.test.mjs`
+- Run backend mutation integration fixtures:
+  `node --test --test-isolation=none scripts/pit.test.mjs`
+- Run opt-in backend mutation analysis:
+  `mvn -f backend/pom.xml -Pmutation clean test-compile pitest:mutationCoverage`
 - Run browser tests: `npm --prefix frontend run test:e2e` (starts test servers;
   install Chromium with `cd frontend && npx playwright install chromium`, or
   set `CHROME_PATH` to a local Chrome executable)

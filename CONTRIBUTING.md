@@ -56,7 +56,7 @@ delete unmerged experiments or unrelated branches as cleanup.
 It runs on Ubuntu as a non-root user with Node 24 and Java 25:
 
 - Frontend lint, type checking, formatting, and unit tests.
-- Analyzer reporting tests, build-wrapper/PMD/JaCoCo integration tests, and Python tooling tests.
+- Analyzer reporting tests, build-wrapper/PMD/JaCoCo/PIT integration fixtures, and Python tooling tests.
 - Offline specification, ADR-link, and dependency-index validation.
 - The full analyzed frontend/backend build, including Spotless and Java tests.
 - Chromium browser flows with the embedded PostgreSQL test server.
@@ -79,6 +79,17 @@ workflow. For browser tests use the documented Chromium installation or
 `CHROME_PATH`. For local Maven cache overrides use `MAVEN_OPTS`; CI uses its
 ordinary cached Maven repository. Dedicated workflow validation can be run with
 `actionlint .github/workflows/verify.yml` when actionlint is installed.
+
+## Optional backend mutation analysis
+
+PIT is independent of the required `verify` job's application build. Use the
+[backend mutation guide](backend/README.md#mutation-testing) for the opt-in Maven
+profile and HTML/XML reports. Project-wide mutation testing runs only by explicit
+local invocation or the separate [manual workflow](.github/workflows/mutation.yml),
+not on each PR/push. Its scores have no minimum gate. Tiny integration fixtures in
+normal CI verify the tooling configuration; they are not a backend mutation score.
+Manual workflow dispatch still requires authorization, and first becomes available
+when the workflow is on the default branch. No deployment or release is implied.
 
 ## Local verification profiles
 
