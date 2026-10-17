@@ -55,10 +55,15 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Change handoff](change-handoff.md) | Completed | High | Offline scoped preparation and contextual commit/PR handoff | [Local verification](local-verification.md), [GitHub Flow](github-flow.md), [Specification validation](specification-validation.md) | [ADR-0016](../docs/adr/0016-change-handoff.md): read-only preparation and preserved pre-commit evidence |
 
+| [Card button presentation](card-button-presentation.md) | Completed | Medium | Private card artwork, presentation, and badge composition | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing explicit-prop composition |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    cardbutton["Card button presentation"]
+    cardbutton -->|depends on| appcomposition
+    cardbutton -->|depends on| sharedbrowser
     handoff["Change handoff preparation"]
     handoff -->|depends on| localverify
     handoff -->|depends on| githubflow
