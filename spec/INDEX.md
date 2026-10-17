@@ -57,6 +57,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Change handoff](change-handoff.md) | Completed | High | Offline scoped preparation and contextual commit/PR handoff | [Local verification](local-verification.md), [GitHub Flow](github-flow.md), [Specification validation](specification-validation.md) | [ADR-0016](../docs/adr/0016-change-handoff.md): read-only preparation and preserved pre-commit evidence |
 
+| [App screen composition](app-screen-composition.md) | Completed | Medium | Screen selection, action availability, and notices with retained root state | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing state and composition boundaries |
+
 | [Card button presentation](card-button-presentation.md) | Completed | Medium | Private card artwork, presentation, and badge composition | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing explicit-prop composition |
 
 | [Semantic versioning](semantic-versioning.md) | Completed | Medium | Shared application version, compatibility rules, and release preparation | [GitHub Flow](github-flow.md) | [ADR-0017](../docs/adr/0017-semantic-versioning.md): shared SemVer and reviewed release bumps; [ADR-0012](../docs/adr/0012-github-flow.md): existing tagged manual releases |
@@ -67,6 +69,11 @@ Each specification's `Depends on` metadata is authoritative.
 flowchart TD
     semver["Semantic versioning"]
     semver -->|depends on| githubflow
+
+    appscreens["App screen composition"]
+    appscreens -->|depends on| appcomposition
+    appscreens -->|depends on| sharedbrowser
+
     cardbutton["Card button presentation"]
     cardbutton -->|depends on| appcomposition
     cardbutton -->|depends on| sharedbrowser
