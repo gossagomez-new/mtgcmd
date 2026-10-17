@@ -7,6 +7,11 @@ a Java backend owns game state, permissions, and saved rooms.
 This is an assisted tabletop. Players handle card rules, priority, mana,
 combat damage, and game results themselves, and use an external voice/chat tool.
 
+The frontend and backend share one application version under
+[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html). See the
+[versioning policy](CONTRIBUTING.md#semantic-versioning) for compatibility rules,
+initial-development (`0.x`) bumps, and release preparation.
+
 ## Component guides
 
 - **[Contributing](CONTRIBUTING.md):** GitHub Flow, required checks, and tagged manual deployments.

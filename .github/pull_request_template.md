@@ -15,5 +15,9 @@ run and why. New PMD/frontend advisory findings require review, not blanket supp
 
 ## Review and release considerations
 
+State compatibility/release impact (none, fix, feature/deprecation, or breaking),
+including upgrade needs. Ordinary PRs do not bump versions; follow the
+[versioning policy](../CONTRIBUTING.md#semantic-versioning).
+
 Describe material risks, UI evidence when useful, and any manual deployment or
 rollback steps. Merging this PR does not deploy to the production VM.
