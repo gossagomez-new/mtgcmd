@@ -12,6 +12,8 @@
   <version>0.1.0</version>
   <properties>
     <java.version>25</java.version>
+    <jacocoArgLine></jacocoArgLine>
+    <argLine></argLine>
   </properties>
   <dependencies>
     <dependency>
@@ -63,6 +65,37 @@
     </resources>
     <plugins>
       <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.15</version>
+        <configuration>
+          <formats>
+            <format>HTML</format>
+            <format>XML</format>
+            <format>CSV</format>
+          </formats>
+        </configuration>
+        <executions>
+          <execution>
+            <id>coverage-agent</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+            <configuration>
+              <propertyName>jacocoArgLine</propertyName>
+            </configuration>
+          </execution>
+          <execution>
+            <id>coverage-report</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-pmd-plugin</artifactId>
         <version>3.28.0</version>
@@ -113,7 +146,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+          <argLine>@{jacocoArgLine} --enable-native-access=ALL-UNNAMED ${argLine}</argLine>
         </configuration>
       </plugin>
     </plugins>

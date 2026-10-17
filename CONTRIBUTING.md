@@ -56,10 +56,16 @@ delete unmerged experiments or unrelated branches as cleanup.
 It runs on Ubuntu as a non-root user with Node 24 and Java 25:
 
 - Frontend lint, type checking, formatting, and unit tests.
-- Analyzer reporting tests, build-wrapper/PMD integration tests, and Python tooling tests.
+- Analyzer reporting tests, build-wrapper/PMD/JaCoCo integration tests, and Python tooling tests.
 - Offline specification, ADR-link, and dependency-index validation.
 - The full analyzed frontend/backend build, including Spotless and Java tests.
 - Chromium browser flows with the embedded PostgreSQL test server.
+
+Backend JaCoCo coverage is reporting-only, without a minimum percentage gate.
+A clean verified build generates HTML/XML/CSV in `backend/target/site/jacoco/`;
+CI retains those reports and `backend/target/jacoco.exec`. See the
+[backend coverage guide](backend/README.md#code-coverage) for commands, fresh-data
+requirements, and the Surefire-only measurement scope.
 
 New frontend/PMD findings remain advisory under the existing policies. Existing
 lint errors, broken analysis, compilation errors, and failed tests block the job.

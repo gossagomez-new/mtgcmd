@@ -47,8 +47,8 @@ jobs:
           npm --prefix frontend test
       - name: Check analyzer reporting
         run: npm --prefix frontend run test:analysis
-      - name: Check build wrappers and PMD integration
-        run: node --test --test-isolation=none scripts/build.test.mjs scripts/pmd.test.mjs
+      - name: Check build wrappers, PMD, and coverage integration
+        run: node --test --test-isolation=none scripts/build.test.mjs scripts/pmd.test.mjs scripts/jacoco.test.mjs
       - name: Check report and deployment tooling
         run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
       - name: Validate specifications and dependency index
@@ -74,3 +74,5 @@ jobs:
             backend/target/surefire-reports/
             backend/target/pmd.xml
             backend/target/pmd.txt
+            backend/target/site/jacoco/
+            backend/target/jacoco.exec

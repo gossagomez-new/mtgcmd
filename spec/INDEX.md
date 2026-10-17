@@ -61,10 +61,16 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Card button presentation](card-button-presentation.md) | Completed | Medium | Private card artwork, presentation, and badge composition | [App composition](app-composition.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing explicit-prop composition |
 
+| [Backend code coverage](backend-code-coverage.md) | Completed | Medium | Surefire coverage with native JaCoCo reports and CI retention | [Build automation](build-automation.md), [GitHub Flow](github-flow.md), [Local verification](local-verification.md) | [ADR-0018](../docs/adr/0018-backend-code-coverage.md): reporting-only JaCoCo and preserved JVM arguments |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    jacoco["Backend code coverage"]
+    jacoco -->|depends on| build
+    jacoco -->|depends on| githubflow
+    jacoco -->|depends on| localverify
     appscreens["App screen composition"]
     appscreens -->|depends on| appcomposition
     appscreens -->|depends on| sharedbrowser
