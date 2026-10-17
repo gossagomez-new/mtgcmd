@@ -14,6 +14,8 @@ instance and must run as a non-root user with permission to bind local ports.
   `mvn -f backend/pom.xml dependency:resolve`
 - Run tests: `mvn -f backend/pom.xml test` and `npm --prefix frontend test`
 - Run build-wrapper tests: `node --test --test-isolation=none scripts/build.test.mjs`
+- Run backend coverage integration fixtures:
+  `node --test --test-isolation=none scripts/jacoco.test.mjs`
 - Run browser tests: `npm --prefix frontend run test:e2e` (starts test servers;
   install Chromium with `cd frontend && npx playwright install chromium`, or
   set `CHROME_PATH` to a local Chrome executable)

@@ -106,14 +106,15 @@ The suite covers imports and multi-face matching, legality observations, game
 commands and privacy, transactional persistence, revisions/idempotency,
 concurrency, session/origin/CSRF handling, and service diagnostics.
 `spotless:apply` rewrites Java formatting; `spotless:check` only checks it.
-Maven `verify` runs tests, PMD reporting, and packaging, but the Java formatting
+Maven `verify` runs tests, PMD reporting, JaCoCo reporting, and packaging, but the Java formatting
 check is a separate goal unless explicitly included.
 
-For build-wrapper and real PMD fixture tests (Node 24 required):
+For build-wrapper, real PMD, and JaCoCo fixture tests (Node 24 required):
 
 ```sh
 node --test --test-isolation=none scripts/build.test.mjs
 node --test --test-isolation=none scripts/pmd.test.mjs
+node --test --test-isolation=none scripts/jacoco.test.mjs
 ```
 
 To smoke-test the packaged app with temporary PostgreSQL after building:
@@ -126,6 +127,78 @@ Add `--live-import` inside the `-Dexec.args` value to include live Scryfall
 lookups. The normal smoke check uses no live catalog calls. Test helpers and
 browser-test endpoints are not included in the production jar. `MAVEN_OPTS`
 can configure Maven settings such as a custom dependency cache.
+
+## Code coverage
+
+JaCoCo 0.8.15 measures production code exercised by the existing Surefire unit and
+integration tests. Coverage is reporting-only: there is no minimum percentage gate
+or blanket production exclusion. Test failures and coverage/report execution errors
+still fail Maven. The agent is test-only and is not packaged in the application.
+
+For a fresh full-suite report:
+
+```sh
+mvn -f backend/pom.xml clean verify
+```
+
+| Output         | Path from the repository root           |
+| -------------- | --------------------------------------- |
+| HTML report    | `backend/target/site/jacoco/index.html` |
+| XML report     | `backend/target/site/jacoco/jacoco.xml` |
+| CSV report     | `backend/target/site/jacoco/jacoco.csv` |
+| Execution data | `backend/target/jacoco.exec`            |
+
+Open the HTML index in a browser to inspect packages, classes, lines, and branches.
+CI retains the report directory and execution data with the existing verification
+artifacts. Reports are ignored build output, and `clean` removes them. The Docker
+image build skips tests and therefore produces no fresh coverage. Its runtime
+stage copies only the packaged jar, without an agent or coverage reports.
+
+`mvn -f backend/pom.xml test` collects execution data but stops before report
+creation. After a successful test run, `mvn -f backend/pom.xml jacoco:report` renders
+its existing data without rerunning tests. It does not validate freshness or test
+success. For a focused measurement, use `clean verify -Dtest=GameEngineTest`; that
+report measures only the selected tests, not the full suite.
+
+Clean skipped-test builds (`clean verify -DskipTests`, `clean verify
+-Dmaven.test.skip=true`, or the wrapper's `--skip-tests` mode) create no coverage.
+Non-clean runs can retain old reports and append/reuse old execution data, even
+when tests are skipped or instrumentation is disabled. An existing report is not
+proof that the current sources/tests were measured. Use `clean verify` before
+claiming fresh full-suite coverage; a failed test run is incomplete even if it
+left execution data behind.
+
+To disable instrumentation and report generation explicitly:
+
+```sh
+mvn -f backend/pom.xml clean verify -Djacoco.skip=true
+```
+
+Surefire retains `--enable-native-access=ALL-UNNAMED` and accepts additional JVM
+options through `-DargLine=...`. A separate late-evaluated `jacocoArgLine` property
+supplies the agent; disabling coverage does not leave an unresolved JVM token.
+Do not override that internal agent property. Test forking must remain enabled;
+JaCoCo's agent cannot measure tests run inside Maven with `forkCount=0`.
+
+Coverage excludes separately launched Maven-exec browser servers and packaged
+smoke-test JVMs; it does not combine their execution. JaCoCo's native bytecode
+filters apply, so coverage counters do not necessarily map one-to-one to source
+conditions. Coverage measures execution, not assertion quality or correctness.
+
+Initial observed baseline (2026-10-17, Java 25 / JaCoCo 0.8.15, clean full
+Surefire run with 571 tests):
+
+| Counter      | Covered / total | Coverage |
+| ------------ | --------------- | -------- |
+| Lines        | 1,546 / 1,591   | 97.17%   |
+| Branches     | 589 / 682       | 86.36%   |
+| Instructions | 7,809 / 8,045   | 97.07%   |
+
+These are historical observations, not required thresholds. Regenerate a fresh
+report to evaluate later changes.
+
+See the [coverage specification](../spec/backend-code-coverage.md) and
+[ADR-0018](../docs/adr/0018-backend-code-coverage.md).
 
 ## PMD reports
 
