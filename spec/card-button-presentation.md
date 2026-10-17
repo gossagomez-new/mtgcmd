@@ -99,6 +99,15 @@ behavior-preserving extraction introduces no new behavior needing a red test.
 - Backend-only tests and unrelated browser scenarios were not rerun. Real-server
   tabletop scenarios used the existing backend test server.
 
+### Publication verification after integrating main
+
+PR #10 was integrated from main before publication. All 22 selected browser tests
+passed together on the integrated source, including the Commander rotation scenario.
+Typecheck, lint, specification validation, and diff checks passed again. Fresh analysis
+reports five production warnings, no test warnings, zero errors, and zero Knip issues.
+The earlier results above describe the pre-integration source and retained first-run
+failure; the full integrated rerun required no retry.
+
 ## Architecture decisions
 
 [ADR-0013](../docs/adr/0013-app-composition-boundaries.md) establishes composition

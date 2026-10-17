@@ -1,6 +1,13 @@
 import { decklist, commander, previewDeck, useDeck } from "./support/selectors";
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import type { Snapshot } from "../src/protocol";
+import {
+  SnapshotObserver,
+  parseImportRequest,
+  readSnapshot,
+  readSession,
+  sendCommand,
+  waitForFormat,
+} from "./support/tabletopNetwork";
 
 test("four guests play with private cards, explicit reveals, and durable reconnect", async ({
   browser,
@@ -13,16 +20,16 @@ test("four guests play with private cards, explicit reveals, and durable reconne
     ),
   );
   const pages = await Promise.all(contexts.map((c) => c.newPage()));
-  const snapshots: (Snapshot | undefined)[] = [];
+  const observers = pages.map(() => new SnapshotObserver());
   const connections = [0, 0, 0, 0];
   const errors: string[] = [];
   pages.forEach((page, i) => {
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("websocket", (socket) => {
+      if (new URL(socket.url()).pathname !== "/ws") return;
       connections[i]++;
       socket.on("framereceived", ({ payload }) => {
-        const message = JSON.parse(payload.toString());
-        if (message.view) snapshots[i] = message.view;
+        observers[i].receive(payload);
       });
     });
   });
@@ -55,13 +62,13 @@ test("four guests play with private cards, explicit reveals, and durable reconne
           name: `Inspect Secret ${String.fromCharCode(65 + i)}`,
         }),
       ).toHaveCount(7);
-      await expect.poll(() => snapshots[i]?.status).toBe("playing");
+      await expect.poll(() => observers[i].view?.status).toBe("playing");
       await pages[i].evaluate(() => window.scrollTo(0, 0));
       const hand = await pages[i].getByTestId("hand").boundingBox();
       expect(hand!.y + hand!.height).toBeLessThanOrEqual(1000);
       for (let j = 0; j < 4; j++)
         if (j !== i)
-          expect(JSON.stringify(snapshots[i])).not.toContain(
+          expect(observers[i].frames.join("\n")).not.toContain(
             `Secret ${String.fromCharCode(65 + j)}`,
           );
     }
@@ -124,8 +131,9 @@ test("four guests play with private cards, explicit reveals, and durable reconne
     await expect
       .poll(
         () =>
-          snapshots[1]?.cards.filter((c) => c.owner === 0 && c.zone === "hand")
-            .length,
+          observers[1].view?.cards.filter(
+            (c) => c.owner === 0 && c.zone === "hand",
+          ).length,
       )
       .toBe(1);
     await pages[0].getByRole("button", { name: "Close inspector" }).click();
@@ -140,14 +148,14 @@ test("four guests play with private cards, explicit reveals, and durable reconne
         .getByTestId("hand")
         .getByRole("button", { name: "Inspect Secret A" }),
     ).toHaveCount(7);
-    const before = snapshots[0]?.revision;
+    const before = observers[0].view?.revision;
     const previousConnections = connections[0];
     await request.post("/__test/restart");
     await expect
       .poll(() => connections[0], { timeout: 30000 })
       .toBeGreaterThan(previousConnections);
     await expect
-      .poll(() => snapshots[0]?.revision, { timeout: 30000 })
+      .poll(() => observers[0].view?.revision, { timeout: 30000 })
       .toBe(before);
     await expect(pages[0].getByText("Connected", { exact: true })).toBeVisible({
       timeout: 30000,
@@ -163,7 +171,9 @@ test("four guests play with private cards, explicit reveals, and durable reconne
     await pages[0].getByText("Share private zones", { exact: true }).click();
     await pages[0].getByLabel("Bob", { exact: true }).click();
     await expect(pages[0].getByLabel("Bob", { exact: true })).toBeChecked();
-    await expect.poll(() => snapshots[1]?.players[0].privateAccess).toBe(true);
+    await expect
+      .poll(() => observers[1].view?.players[0].privateAccess)
+      .toBe(true);
     await pages[1]
       .getByTestId("opponent-0")
       .getByRole("button", { name: "Library 11", exact: true })
@@ -177,14 +187,16 @@ test("four guests play with private cards, explicit reveals, and durable reconne
       .getByRole("searchbox", { name: "Search library cards" })
       .fill("Secret A");
     expect(
-      snapshots[2]?.cards.filter((c) => c.owner === 0 && c.zone === "library"),
+      observers[2].view?.cards.filter(
+        (c) => c.owner === 0 && c.zone === "library",
+      ),
     ).toHaveLength(0);
     await pages[0].getByLabel("Bob", { exact: true }).click();
     await expect(pages[0].getByLabel("Bob", { exact: true })).not.toBeChecked();
     await expect
       .poll(
         () =>
-          snapshots[1]?.cards.filter(
+          observers[1].view?.cards.filter(
             (c) => c.owner === 0 && c.zone === "library",
           ).length,
       )
@@ -208,7 +220,7 @@ test("four guests play with private cards, explicit reveals, and durable reconne
     await expect
       .poll(
         () =>
-          snapshots[1]?.cards.filter(
+          observers[1].view?.cards.filter(
             (c) =>
               c.owner === 0 &&
               c.zone === "exile" &&
@@ -217,6 +229,7 @@ test("four guests play with private cards, explicit reveals, and durable reconne
           ).length,
       )
       .toBe(1);
+    observers.forEach((observer) => observer.assertHealthy());
     expect(errors).toEqual([]);
   } finally {
     await Promise.all(contexts.map((c) => c.close()));
@@ -230,7 +243,8 @@ test("failed URL import offers a usable pasted-deck fallback", async ({
   await page.getByRole("button", { name: "Create table", exact: true }).click();
   await expect(page).toHaveURL(/\/room\//);
   await page.route("**/api/rooms/*/decks/preview", async (route) => {
-    const body = route.request().postDataJSON();
+    const raw: unknown = route.request().postDataJSON();
+    const body = parseImportRequest(raw);
     if (body.url)
       await route.fulfill({
         status: 400,
@@ -329,7 +343,7 @@ test("private library search filters locally and retains library positions", asy
       `/api/rooms/${new URL(roomUrl).pathname.split("/").pop()}`,
       roomUrl,
     ).toString();
-    const before = (await (await page.request.get(apiUrl)).json()) as Snapshot;
+    const before = await readSnapshot(page.request, apiUrl);
     const library = before.cards.filter(
       (card) => card.zone === "library" && card.zoneOwner === before.you,
     );
@@ -371,12 +385,10 @@ test("private library search filters locally and retains library positions", asy
     await expect(modal.getByRole("button", { name: /^Inspect / })).toHaveCount(
       13,
     );
-    const after = (await (await page.request.get(apiUrl)).json()) as Snapshot;
+    const after = await readSnapshot(page.request, apiUrl);
     expect(after.revision).toBe(before.revision);
     expect(after.cards).toEqual(before.cards);
-    const otherView = (await (
-      await pages[1].request.get(apiUrl)
-    ).json()) as Snapshot;
+    const otherView = await readSnapshot(pages[1].request, apiUrl);
     expect(
       otherView.cards.filter(
         (card) => card.zone === "library" && card.zoneOwner === before.you,
@@ -447,26 +459,12 @@ test("battlefields group types automatically and place lands below other permane
       `/api/rooms/${new URL(roomUrl).pathname.split("/").pop()}`,
       roomUrl,
     ).toString();
-    const { csrf } = await (
-      await page.request.get(new URL("/api/session", roomUrl).toString())
-    ).json();
-    async function command(type: string, data: Record<string, unknown>) {
-      const snapshot = (await (
-        await page.request.get(apiUrl)
-      ).json()) as Snapshot;
-      const response = await page.request.post(`${apiUrl}/commands`, {
-        headers: { "X-CSRF-Token": csrf, Origin: new URL(roomUrl).origin },
-        data: {
-          id: crypto.randomUUID(),
-          revision: snapshot.revision,
-          type,
-          data,
-        },
-      });
-      const result = await response.json();
-      expect(response.ok(), JSON.stringify(result)).toBeTruthy();
-      return result as Snapshot;
-    }
+    const { csrf } = await readSession(
+      page.request,
+      new URL("/api/session", roomUrl).toString(),
+    );
+    const command = (type: string, data: Record<string, unknown>) =>
+      sendCommand(page.request, apiUrl, csrf, type, data);
     await command("TOKEN", {
       name: "First creature",
       type: "Creature — Elf",
@@ -573,7 +571,9 @@ test("two Standard players import without commanders, accept warnings, play and 
   try {
     const host = pages[0];
     let connections = 0;
-    host.on("websocket", () => connections++);
+    host.on("websocket", (socket) => {
+      if (new URL(socket.url()).pathname === "/ws") connections++;
+    });
     await host.goto("/");
     await host.getByLabel("Your name").fill("Standard host");
     await host.getByLabel("Table format").selectOption("STANDARD");
@@ -666,9 +666,7 @@ test("two Standard players import without commanders, accept warnings, play and 
           .locator(".zone-shortcuts")
           .getByRole("button", { name: /^command / }),
       ).toHaveCount(0);
-      const snapshot = (await (
-        await page.request.get(apiUrl)
-      ).json()) as Snapshot;
+      const snapshot = await readSnapshot(page.request, apiUrl);
       expect(snapshot.active).toBe(1);
       expect(
         snapshot.cards.filter(
@@ -714,15 +712,7 @@ test("two Standard players import without commanders, accept warnings, play and 
     await expect(host.getByText("Connected", { exact: true })).toBeVisible({
       timeout: 30000,
     });
-    await expect
-      .poll(async () => {
-        try {
-          return (await (await host.request.get(apiUrl)).json()).format;
-        } catch {
-          return null;
-        }
-      })
-      .toBe("STANDARD");
+    await waitForFormat(host.request, apiUrl, "STANDARD");
     await host
       .getByRole("button", { name: "Draw a card", exact: true })
       .click();
