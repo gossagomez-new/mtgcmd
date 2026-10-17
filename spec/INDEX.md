@@ -55,6 +55,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Tabletop protocol boundaries](tabletop-protocol-boundaries.md) | Completed | Medium | Validated real-server test traffic and raw privacy evidence | [Validated frontend protocol](validated-frontend-protocol.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md): existing runtime decoding |
 
+| [Change handoff](change-handoff.md) | Completed | High | Offline scoped preparation and contextual commit/PR handoff | [Local verification](local-verification.md), [GitHub Flow](github-flow.md), [Specification validation](specification-validation.md) | [ADR-0016](../docs/adr/0016-change-handoff.md): read-only preparation and preserved pre-commit evidence |
+
 ## Dependency graph
 
 ```mermaid
@@ -62,6 +64,11 @@ flowchart TD
     tabletopprotocol["Tabletop protocol boundaries"]
     tabletopprotocol -->|depends on| protocolboundary
     tabletopprotocol -->|depends on| sharedbrowser
+
+    handoff["Change handoff preparation"]
+    handoff -->|depends on| localverify
+    handoff -->|depends on| githubflow
+    handoff -->|depends on| specvalidation
     localverify["Local verification profiles and evidence"]
     localverify -->|depends on| build
     localverify -->|depends on| githubflow
