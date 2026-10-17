@@ -67,10 +67,15 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Backend mutation testing](backend-mutation-testing.md) | Completed | Medium | Opt-in PIT and JUnit 5 mutation reports with manual CI | [Backend code coverage](backend-code-coverage.md), [Build automation](build-automation.md), [GitHub Flow](github-flow.md) | [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): opt-in PIT, reporting-only scores, and worker JVM isolation; [ADR-0018](../docs/adr/0018-backend-code-coverage.md): existing JaCoCo separation |
 
+| [Lifecycle action behavioral verification](lifecycle-actions-verification.md) | Completed | High | Lifecycle outcomes, validation and privacy cleanup with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing lifecycle boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    lifecycletests["Lifecycle action behavioral verification"]
+    lifecycletests -->|depends on| pit
+    lifecycletests -->|depends on| engine
     pit["Backend mutation testing"]
     pit -->|depends on| jacoco
     pit -->|depends on| build
