@@ -69,6 +69,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Lifecycle action behavioral verification](lifecycle-actions-verification.md) | Completed | High | Lifecycle outcomes, validation and privacy cleanup with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing lifecycle boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
 
+| [Permanent action behavioral verification](permanent-actions-verification.md) | Completed | High | Gameplay outcomes, validation and privacy assertions with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing command boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
+
 ## Dependency graph
 
 ```mermaid
@@ -76,6 +78,9 @@ flowchart TD
     lifecycletests["Lifecycle action behavioral verification"]
     lifecycletests -->|depends on| pit
     lifecycletests -->|depends on| engine
+    permanenttests["Permanent action behavioral verification"]
+    permanenttests -->|depends on| pit
+    permanenttests -->|depends on| engine
     pit["Backend mutation testing"]
     pit -->|depends on| jacoco
     pit -->|depends on| build

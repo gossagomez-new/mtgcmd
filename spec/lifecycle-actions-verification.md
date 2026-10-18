@@ -159,7 +159,19 @@ Original XML and post-test PMD snapshots were retained outside target before cle
 logs are in temporary local artifacts. The latest HTML/XML report is focused on
 LifecycleActions only. This is not a fresh full-backend score or exhaustive proof.
 Frontend/browser, Docker, hosted CI and full-backend PIT were not run for this
-backend-test-only change. No commits, publication or deployment were performed.
+backend-test-only change. No release or deployment was performed.
+
+### Handoff integration verification
+
+Before publication, integrated main ddff8d0 (including the PermanentActions test
+PR) and resolved only the specification index by retaining both entries and graph
+edges. No Java file required conflict resolution. Clean Spotless/verify passed
+all 653 tests, and offline validation passed all 38 specifications. A fresh focused
+LifecycleActions PIT run succeeded in 53.142 seconds with the same 54 mutations:
+51 KILLED, two TIMED_OUT, one SURVIVED and none uncovered. The interpretation above
+remains unchanged; no full-backend mutation score is claimed. Hosted verification
+remains pending publication. Logs: lifecycle-integrated-verify.log and
+lifecycle-integrated-pit.log in temporary local artifacts.
 
 ## Architecture decisions
 
