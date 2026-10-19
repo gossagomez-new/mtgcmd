@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Action } from "./types";
 import type { Card } from "../protocol";
 import { CardButton } from "./CardViews";
 
@@ -9,7 +10,11 @@ export function ZoneViewer({
   playerName,
   inspect,
   close,
+  act,
+  disabled,
 }: {
+  act: Action;
+  disabled: boolean;
   cards: Card[];
   seat: number;
   zone: string;
@@ -78,7 +83,12 @@ export function ZoneViewer({
           {matches.map(({ card, position }) => (
             <div key={card.id}>
               {zone === "library" && <small>#{position}</small>}
-              <CardButton card={card} inspect={inspect} />
+              <CardButton
+                card={card}
+                inspect={inspect}
+                act={act}
+                disabled={disabled}
+              />
             </div>
           ))}
         </div>

@@ -1,5 +1,5 @@
 import type { Snapshot } from "../protocol";
-import type { Inspect, OpenZone } from "./types";
+import type { Action, Inspect, OpenZone } from "./types";
 import { PlayerArea } from "./CardViews";
 
 export function OpponentBoards({
@@ -7,7 +7,11 @@ export function OpponentBoards({
   online,
   inspect,
   openZone,
+  act,
+  canPlay,
 }: {
+  act: Action;
+  canPlay: boolean;
   view: Snapshot;
   online: number[];
   inspect: Inspect;
@@ -26,6 +30,8 @@ export function OpponentBoards({
             online={online.includes(p.seat)}
             inspect={inspect}
             openZone={openZone}
+            act={act}
+            disabled={!canPlay}
           />
         ))}
     </div>

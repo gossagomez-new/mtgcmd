@@ -429,7 +429,13 @@ small {
   font-family: Georgia, serif;
   font-size: 29px;
   font-weight: 400;
-  margin-left: auto;
+  margin-left: 0;
+}
+.player-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .opponent-zones {
   display: flex;
@@ -497,8 +503,14 @@ small {
 .turn-strip strong {
   font-size: 14px;
 }
-.turn-strip button {
-  margin-left: auto;
+.turn-strip {
+  flex-wrap: wrap;
+}
+.turn-strip > div:first-child {
+  min-width: 0;
+}
+.turn-strip strong {
+  overflow-wrap: anywhere;
 }
 .phase-reminder {
   font-size: 10px;
@@ -1152,5 +1164,29 @@ details .counter-row {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+}
+
+.turn-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.turn-strip {
+  flex-shrink: 0;
+  background: var(--panel);
+  z-index: 2;
+}
+.drop-active {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background-color: #354734;
+}
+@media (max-width: 850px) {
+  .turn-strip {
+    position: sticky;
+    top: 0;
   }
 }

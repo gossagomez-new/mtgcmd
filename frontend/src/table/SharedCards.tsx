@@ -1,11 +1,15 @@
 import type { Snapshot } from "../protocol";
-import type { Inspect } from "./types";
+import type { Action, Inspect } from "./types";
 import { CardButton } from "./CardViews";
 
 export function SharedCards({
   view,
   inspect,
+  act,
+  canPlay,
 }: {
+  act: Action;
+  canPlay: boolean;
   view: Snapshot;
   inspect: Inspect;
 }) {
@@ -24,7 +28,13 @@ export function SharedCards({
                   c.zoneOwner !== view.you,
               )
               .map((c) => (
-                <CardButton key={c.id} card={c} inspect={inspect} />
+                <CardButton
+                  key={c.id}
+                  card={c}
+                  inspect={inspect}
+                  act={act}
+                  disabled={!canPlay}
+                />
               ))}
           </div>
         </section>

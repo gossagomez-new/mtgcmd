@@ -1,17 +1,27 @@
 import type { Snapshot } from "../protocol";
-import type { Inspect } from "./types";
+import type { Action, Inspect } from "./types";
 import { CardButton } from "./CardViews";
+import { useCardDrop } from "./useCardDrop";
 
 export function YourHand({
   view,
   inspect,
+  act,
+  canPlay,
 }: {
+  act: Action;
+  canPlay: boolean;
   view: Snapshot;
   inspect: Inspect;
 }) {
+  const drop = useCardDrop(view.cards, "hand", !canPlay, act);
   const me = view.players[view.you];
   return (
-    <section className="hand panel">
+    <section
+      {...drop}
+      className={`hand panel ${drop.className}`}
+      title="Drop to the owner’s hand"
+    >
       <div className="zone-heading">
         <h3>
           Your hand <span>{me?.counts.hand || 0}</span>
@@ -22,7 +32,13 @@ export function YourHand({
         {view.cards
           .filter((c) => c.zone === "hand" && c.zoneOwner === view.you)
           .map((c) => (
-            <CardButton key={c.id} card={c} inspect={inspect} />
+            <CardButton
+              key={c.id}
+              card={c}
+              inspect={inspect}
+              act={act}
+              disabled={!canPlay}
+            />
           ))}
         {!me?.counts.hand && <p className="empty-state">Your hand is empty.</p>}
       </div>

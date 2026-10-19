@@ -1,12 +1,12 @@
 # Playtest improvement backlog
 
-Refined on 2026-10-19 from [the original playtest notes](../feedback_20261015.md).
+Refined on 2026-10-19 from the original local playtest notes
+(`feedback_20261015.md`, retained separately from the published backlog).
 The test involved actual players using a two-player Standard table. Shared
 improvements apply to Standard and Commander where applicable; sideboarding
 initially applies to Standard.
 
-This is a planning backlog, not an approved implementation specification. All
-items are pending delivery. Acceptance criteria describe intended outcomes;
+This is a planning backlog, not an approved implementation specification. Delivery status is recorded below. Acceptance criteria describe intended outcomes;
 individual specifications must settle state transitions, contracts, verification
 targets, compatibility and any required architecture decisions. Prioritization
 and delivery order below are recommendations.
@@ -99,6 +99,15 @@ used in the playtest. The feedback does not identify the deployed revision.
   and sideboarding need new specifications; scoring remains deferred.
 - Preserve the [assisted tabletop scope](../spec/commander-tabletop.md): players
   adjudicate timing, payment, triggers and card-specific effects.
+
+## Delivery progress
+
+On 2026-10-19, the [first increment](../spec/table-interactions.md) implements
+R01, R02, R04, R06 and R09 for the current table UI in both formats. R09's future
+focused-view presentation remains part of R10 integration. The other backlog
+items remain pending. Verification results and the intentional active-only
+turn-authority change are recorded in the specification and
+[ADR-0020](adr/0020-table-interaction-contracts.md).
 
 ## Proposed delivery order
 

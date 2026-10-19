@@ -533,8 +533,11 @@ test("battlefields group types automatically and place lands below other permane
     }
     await expect(creatureGroup.getByRole("button").first()).toHaveAttribute(
       "draggable",
-      "false",
+      "true",
     );
+    await expect(
+      otherField.getByRole("button", { name: "Inspect First creature" }),
+    ).toHaveAttribute("draggable", "false");
     await creatureGroup
       .getByRole("button", { name: "Inspect First creature" })
       .click();
@@ -702,6 +705,24 @@ test("two Standard players import without commanders, accept warnings, play and 
         .getByRole("group", { name: "Lands", exact: true })
         .getByRole("button", { name: "Inspect Secret B" }),
     ).toHaveCount(1);
+    await expect(
+      host.getByRole("button", { name: "End turn", exact: true }),
+    ).toBeDisabled();
+    const beforeEnd = await readSnapshot(opponent.request, apiUrl);
+    await opponent
+      .getByRole("button", { name: "End turn", exact: true })
+      .click();
+    await expect
+      .poll(async () => (await readSnapshot(host.request, apiUrl)).active)
+      .toBe(0);
+    const afterEnd = await readSnapshot(opponent.request, apiUrl);
+    expect(afterEnd.turn).toBe(beforeEnd.turn + 1);
+    expect(afterEnd.revision).toBe(beforeEnd.revision + 1);
+    expect(afterEnd.phase).toBe("Untap");
+    expect(afterEnd.cards).toEqual(beforeEnd.cards);
+    await expect(
+      host.getByRole("button", { name: "End turn", exact: true }),
+    ).toBeEnabled();
     await host.reload();
     await expect(host.getByTestId("your-life")).toHaveText("19");
     const previousConnections = connections;

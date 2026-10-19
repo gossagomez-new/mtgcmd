@@ -28,7 +28,7 @@ export default function App() {
     busy: session.busy,
     view,
   });
-  const inspect = (card: Card) => setSelectedId(card.id);
+  const inspect = useCallback((card: Card) => setSelectedId(card.id), []);
   const openZone = (seat: number, zone: string) => {
     if (zone === "library") act("SEARCH", { target: seat });
     setViewer({ seat, zone });

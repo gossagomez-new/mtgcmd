@@ -11,7 +11,7 @@ export function TurnControls({
   act: Action;
 }) {
   return (
-    <div className="turn-strip">
+    <div className="turn-strip" role="region" aria-label="Turn controls">
       <div>
         <span className="eyebrow">TURN {view.turn}</span>
         <strong>
@@ -19,14 +19,27 @@ export function TurnControls({
           <span className="subtle"> / {view.phase}</span>
         </strong>
       </div>
-      <button
-        disabled={
-          !canPlay || (view.you !== view.active && view.you !== view.host)
-        }
-        onClick={() => act("PHASE")}
-      >
-        Next phase →
-      </button>
+      <div className="turn-actions">
+        <button
+          disabled={
+            !canPlay || view.status !== "playing" || view.you !== view.active
+          }
+          onClick={() => act("PHASE")}
+        >
+          Next phase →
+        </button>
+        <button
+          disabled={
+            !canPlay || view.status !== "playing" || view.you !== view.active
+          }
+          onClick={() => act("END_TURN")}
+        >
+          End turn
+        </button>
+        <button disabled={!canPlay} onClick={() => act("UNTAP_ALL")}>
+          Untap all
+        </button>
+      </div>
       <span className="phase-reminder">
         Players manage priority and triggers
       </span>

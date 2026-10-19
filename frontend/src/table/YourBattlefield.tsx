@@ -20,11 +20,9 @@ export function YourBattlefield({
         <h3>
           Your battlefield <span>{me?.counts.battlefield || 0}</span>
         </h3>
-        <button disabled={!canPlay} onClick={() => act("UNTAP_ALL")}>
-          Untap all
-        </button>
       </div>
       <Battlefield
+        allCards={view.cards}
         cards={view.cards.filter(
           (c) => c.zone === "battlefield" && c.controller === view.you,
         )}
@@ -45,7 +43,10 @@ export function YourBattlefield({
         >
           + Create token
         </button>
-        <span>Drag cards onto the battlefield or use their action menu</span>
+        <span>
+          Double-click to tap. Drag cards between zones or inspect for more
+          actions.
+        </span>
       </div>
     </section>
   );

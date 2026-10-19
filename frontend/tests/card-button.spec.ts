@@ -186,10 +186,7 @@ test("inspection follows current snapshots and dragging retains permissions and 
   for (const zone of ["battlefield", "hand"]) {
     for (const editable of [false, true]) {
       await update(mockTable, { zone, editable });
-      await expect(card).toHaveAttribute(
-        "draggable",
-        String(editable && zone !== "battlefield"),
-      );
+      await expect(card).toHaveAttribute("draggable", String(editable));
     }
   }
   await page.evaluate(() => {

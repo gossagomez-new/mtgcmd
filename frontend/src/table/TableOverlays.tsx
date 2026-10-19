@@ -27,6 +27,8 @@ export function TableOverlays({
       {viewer && (
         <ZoneViewer
           key={`${view.id}-${viewer.seat}-${viewer.zone}`}
+          act={act}
+          disabled={!canPlay}
           cards={view.cards}
           seat={viewer.seat}
           zone={viewer.zone}
