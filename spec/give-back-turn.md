@@ -149,3 +149,17 @@ None.
   and compilation, packaged application, PMD log and JaCoCo reports generated.
 - Specification validation: 41 specifications passed offline validation; targeted
   documentation formatting and `git diff --check` passed. No deployment performed.
+
+### Handoff integration verification
+
+Integrated the updated main branch with artwork previews and non-modal battlefield
+focus. Frontend lint, types, formatting, production build, 229 unit tests and
+analysis passed; analysis still reports seven advisory warnings and no Knip issues.
+Offline specification validation now covers 43 specifications. Backend source and
+tests are unchanged from the successful 705-test build above.
+
+The first integrated browser run passed 126 tests and exposed a restart-test race:
+the reload WebSocket could be counted as the restart connection. Waiting for the
+reload connection before capturing the baseline corrects the test's synchronization.
+The corrected real-server Standard flow passed three consecutive runs. Final full
+browser regression results are recorded in the PR.

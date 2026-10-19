@@ -737,6 +737,7 @@ test("two Standard players import without commanders, accept warnings, play and 
     ).toBeEnabled();
     await host.reload();
     await expect(host.getByTestId("your-life")).toHaveText("19");
+    await expect(host.getByText("Connected", { exact: true })).toBeVisible();
     const previousConnections = connections;
     await request.post("/__test/restart");
     await expect
