@@ -89,6 +89,9 @@ test("four guests play with private cards, explicit reveals, and durable reconne
       .getByRole("button", { name: "Play to battlefield", exact: true })
       .click();
     await expect(
+      pages[0].getByRole("dialog", { name: "Card inspector" }),
+    ).toHaveCount(0);
+    await expect(
       pages[0]
         .getByTestId("your-battlefield")
         .getByRole("button", { name: "Inspect Secret A" }),
@@ -107,13 +110,16 @@ test("four guests play with private cards, explicit reveals, and durable reconne
     await expectRotation(ownPermanent, 0);
     await ownPermanent.click();
     await pages[0].getByRole("button", { name: "Tap", exact: true }).click();
+    await pages[0].getByRole("button", { name: "Close inspector" }).click();
     await expectRotation(ownPermanent, 90);
     await expectRotation(opponentPermanent, 90);
     await ownPermanent.hover();
     await expectRotation(ownPermanent, 90);
     await opponentPermanent.hover();
     await expectRotation(opponentPermanent, 90);
+    await ownPermanent.press("Enter");
     await pages[0].getByRole("button", { name: "Untap", exact: true }).click();
+    await pages[0].getByRole("button", { name: "Close inspector" }).click();
     await expectRotation(ownPermanent, 0);
     await expectRotation(opponentPermanent, 0);
     await pages[0]
@@ -505,7 +511,9 @@ test("battlefields group types automatically and place lands below other permane
       name: "Creatures",
       exact: true,
     });
-    await expect(creatureGroup.getByRole("button")).toHaveCount(2);
+    await expect(
+      creatureGroup.getByRole("button", { name: /^Inspect / }),
+    ).toHaveCount(2);
     const handCard = page
       .getByTestId("hand")
       .getByRole("button", { name: "Inspect Secret A" })
@@ -531,10 +539,9 @@ test("battlefields group types automatically and place lands below other permane
         .boundingBox();
       expect(lands!.y).toBeGreaterThanOrEqual(artifacts!.y + artifacts!.height);
     }
-    await expect(creatureGroup.getByRole("button").first()).toHaveAttribute(
-      "draggable",
-      "true",
-    );
+    await expect(
+      creatureGroup.getByRole("button", { name: /^Inspect / }).first(),
+    ).toHaveAttribute("draggable", "true");
     await expect(
       otherField.getByRole("button", { name: "Inspect First creature" }),
     ).toHaveAttribute("draggable", "false");
@@ -542,6 +549,7 @@ test("battlefields group types automatically and place lands below other permane
       .getByRole("button", { name: "Inspect First creature" })
       .click();
     await page.getByRole("button", { name: "Tap", exact: true }).click();
+    await page.getByRole("button", { name: "Close inspector" }).click();
     const tapped = creatureGroup.getByRole("button", {
       name: "Inspect First creature",
     });
@@ -551,9 +559,10 @@ test("battlefields group types automatically and place lands below other permane
       otherField.getByRole("button", { name: "Inspect First creature" }),
       90,
     );
+    await tapped.press("Enter");
     await page.getByRole("button", { name: "Untap", exact: true }).click();
-    await expectRotation(tapped, 0);
     await page.getByRole("button", { name: "Close inspector" }).click();
+    await expectRotation(tapped, 0);
     await page.screenshot({
       path: "test-results/battlefield-grouping.png",
       fullPage: true,
@@ -699,6 +708,9 @@ test("two Standard players import without commanders, accept warnings, play and 
     await opponent
       .getByRole("button", { name: "Play to battlefield", exact: true })
       .click();
+    await expect(
+      opponent.getByRole("dialog", { name: "Card inspector" }),
+    ).toHaveCount(0);
     await expect(
       host
         .getByTestId("opponent-1")

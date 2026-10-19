@@ -79,7 +79,11 @@ async function inspector(mockTable: TableFixture, initial = fixture()) {
       await mockTable.settled();
       expect(commands[count]).toEqual({ type, data: { cardId, ...data } });
       await expect(
-        page.getByRole("button", { name: "Draw a card", exact: true }),
+        page.getByRole("button", {
+          name: "Draw a card",
+          exact: true,
+          includeHidden: true,
+        }),
       ).toBeEnabled();
     },
     commands,
@@ -162,7 +166,7 @@ test("movement and identity actions retain exact payloads and commander restrict
 test("counters, relations, combat and reveals retain targets and filtering", async ({
   mockTable,
 }) => {
-  const { panel, command } = await inspector(mockTable);
+  const { panel, command, update } = await inspector(mockTable);
   await panel.getByLabel("Card counter", { exact: true }).fill("   ");
   await expect(
     panel.getByRole("button", { name: "+ Counter", exact: true }),
@@ -182,11 +186,16 @@ test("counters, relations, combat and reveals retain targets and filtering", asy
     panel.getByLabel("Attach to").locator("option[value=card]"),
   ).toHaveCount(0);
   await panel.getByLabel("Attach to").selectOption("second");
-  await command(click(panel, "Set attachment"), "ATTACH", {
+  await command(click(panel, "Attach"), "ATTACH", {
     targetId: "second",
   });
-  await panel.getByLabel("Attach to").selectOption("");
-  await command(click(panel, "Set attachment"), "ATTACH", { targetId: "" });
+  await update({
+    ...fixture(),
+    cards: fixture().cards.map((card) =>
+      card.id === "card" ? { ...card, attachedTo: "second" } : card,
+    ),
+  });
+  await command(click(panel, "Detach"), "ATTACH", { targetId: "" });
   await command(click(panel, "Mark attacker"), "COMBAT", {
     marker: "attacker",
   });
@@ -216,14 +225,13 @@ test("counters, relations, combat and reveals retain targets and filtering", asy
 
 for (const format of ["COMMANDER", "STANDARD"] as const) {
   test(`${format}: read-only public cards can be copied independently of editing`, async ({
-    page,
     mockTable,
   }) => {
     const view = fixture(format);
     const session = await inspector(mockTable, view);
-    await page
-      .getByRole("button", { name: "Inspect Enemy attacker", exact: true })
-      .click();
+    await session.panel
+      .getByLabel("Inspect another card")
+      .selectOption("attacker");
     await expect(
       session.panel.getByRole("heading", {
         name: "Enemy attacker",
@@ -285,9 +293,7 @@ test("form state survives selection, zone and permission changes but resets afte
   await panel.getByLabel("Transfer control").selectOption("1");
   await panel.getByLabel("Attach to").selectOption("attacker");
   await panel.getByLabel("Block attacker").selectOption("attacker");
-  await page
-    .getByRole("button", { name: "Inspect Second card", exact: true })
-    .click();
+  await panel.getByLabel("Inspect another card").selectOption("second");
   await expect(
     panel.getByRole("heading", { name: "Second card", exact: true }),
   ).toBeVisible();
@@ -336,7 +342,6 @@ test("form state survives selection, zone and permission changes but resets afte
 });
 
 test("hidden and multi-face cards preserve presentation and current snapshot actions", async ({
-  page,
   mockTable,
 }) => {
   const view = fixture();
@@ -391,9 +396,7 @@ test("hidden and multi-face cards preserve presentation and current snapshot act
     panel.getByRole("heading", { name: "Private card name", exact: true }),
   ).toBeVisible();
   await expect(panel.locator(".rules-text")).toHaveText("Fallback rules");
-  await page
-    .getByRole("button", { name: "Inspect Face-down card", exact: true })
-    .click();
+  await panel.getByLabel("Inspect another card").selectOption("hidden");
   await expect(
     panel.getByRole("heading", { name: "Face-down card", exact: true }),
   ).toBeVisible();

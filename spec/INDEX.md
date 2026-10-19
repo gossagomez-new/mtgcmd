@@ -73,10 +73,15 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Frequent table interactions](table-interactions.md) | Completed | High | First playtest increment: turn controls, tapping, dragging and life placement | [Game-engine decomposition](game-engine-decomposition.md), [App screen composition](app-screen-composition.md), [Card button presentation](card-button-presentation.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): active-only atomic advancement and existing card commands; [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing engine ownership; [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing client composition |
 
+| [Card interaction increment](card-interactions.md) | Completed | High | Contextual actions, attachments, atomic selection, focused views and turn notifications | [Frequent table interactions](table-interactions.md), [Inspector composition](inspector-composition.md) | [ADR-0021](../docs/adr/0021-card-interaction-contracts.md): atomic selection and shared interaction boundaries; [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): existing turn and gesture contracts |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    cardinteractions["Card interaction increment"]
+    cardinteractions -->|depends on| tableinteractions
+    cardinteractions -->|depends on| inspectorcomposition
     tableinteractions["Frequent table interactions"]
     tableinteractions -->|depends on| engine
     tableinteractions -->|depends on| appscreens

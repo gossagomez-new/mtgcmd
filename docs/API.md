@@ -79,6 +79,7 @@ and host FINISH. Card IDs come only from filtered snapshots.
 | GRANT | `target, allow=true` | Grant/revoke another seat access to actor's private zones |
 | MOVE | `cardId, zone, top=false, faceDown=false` | Explicit zone move; top affects library ordering |
 | TAP | `cardId, tapped=toggle` | Tap/untap a controlled permanent |
+| TAP_SELECTED | `cardIds, tapped` | Set 1–500 unique controlled battlefield cards to an explicit boolean tapped state; validate the entire selection before mutation; one revision/log entry |
 | UNTAP_ALL | `{}` | Untap controlled permanents |
 | FACE_DOWN | `cardId, faceDown=toggle` | Conceal/reveal a controlled public object |
 | TRANSFORM | `cardId` | Cycle through catalog faces |

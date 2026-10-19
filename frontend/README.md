@@ -252,6 +252,16 @@ in a generic action language. See the [specification](../spec/shared-browser-fix
 - Click a card to inspect it or use its action menu. Drag playable cards onto
   the battlefield. Permanents group by primary type; lands occupy a lower
   section, and tapped cards rotate 90 degrees. Placement is automatic.
+- Right-click a card or use its visible Actions button for a non-modal quick-action popover; Details
+  opens the larger modal inspector. Use arrow keys/Home/End in the menu and
+  Escape or Close to dismiss overlays. The details dialog has a card chooser.
+- Select editable battlefield cards with their checkboxes, then choose Tap
+  selected or Untap selected. The server applies the complete selection together.
+  Use Attach and Detach in details to manage the displayed attachment target.
+- Use Focus battlefield on an opponent panel to enlarge its live grouped cards.
+  The active player's panel has a gold tint and an Active turn label; your turn
+  also produces a visible accessible notification without repeated announcements
+  on ordinary snapshots or reconnects.
 - Open zone viewers to inspect public zones or search a permitted library.
   Library search filters by card name while retaining original position numbers;
   move cards to the top/bottom or shuffle as required.

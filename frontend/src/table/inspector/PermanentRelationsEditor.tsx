@@ -42,7 +42,7 @@ export function PermanentRelationsEditor({
           value={attachment}
           onChange={(e) => setAttachment(e.target.value)}
         >
-          <option value="">None / detach</option>
+          <option value="">Choose a permanent</option>
           {cards
             .filter((c) => c.zone === "battlefield" && c.id !== cardId)
             .map((c) => (
@@ -53,8 +53,24 @@ export function PermanentRelationsEditor({
             ))}
         </select>
       </label>
-      <button onClick={() => send("ATTACH", { targetId: attachment })}>
-        Set attachment
+      <button
+        disabled={
+          !cards.some(
+            (card) =>
+              card.id === attachment &&
+              card.zone === "battlefield" &&
+              card.id !== cardId,
+          )
+        }
+        onClick={() => send("ATTACH", { targetId: attachment })}
+      >
+        Attach
+      </button>
+      <button
+        disabled={!cards.find((card) => card.id === cardId)?.attachedTo}
+        onClick={() => send("ATTACH", { targetId: "" })}
+      >
+        Detach
       </button>
     </>
   );

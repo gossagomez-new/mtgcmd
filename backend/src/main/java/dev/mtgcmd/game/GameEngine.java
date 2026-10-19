@@ -48,6 +48,7 @@ public final class GameEngine {
             Map.entry("GRANT", libraryActions::grant),
             Map.entry("MOVE", permanentActions::move),
             Map.entry("TAP", permanentActions::tap),
+            Map.entry("TAP_SELECTED", permanentActions::tapSelected),
             Map.entry("UNTAP_ALL", permanentActions::untapAll),
             Map.entry("FACE_DOWN", permanentActions::faceDown),
             Map.entry("TRANSFORM", permanentActions::transform),

@@ -144,6 +144,9 @@ test("library filter and inspected card follow their intended snapshot lifetimes
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Close zone viewer" }).click();
   await session.update({ ...view, revision: 11 });
+  await expect(
+    page.getByRole("dialog", { name: "Card inspector" }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "library 59", exact: true }).click();
   await expect(page.getByLabel("Search library cards")).toHaveValue("");
   expect(session.counts()).toEqual({ sessions: 1, connections: 1 });

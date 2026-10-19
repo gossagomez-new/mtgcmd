@@ -39,6 +39,7 @@ export function TableOverlays({
       )}
       {selected && (
         <Inspector
+          inspect={inspect}
           card={selected}
           view={view}
           act={act}

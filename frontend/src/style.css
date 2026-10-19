@@ -1190,3 +1190,124 @@ details .counter-row {
     top: 0;
   }
 }
+
+/* Shared native modal surfaces preserve browser focus containment. */
+.table-modal {
+  color: #e5e9e5;
+  margin: auto;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+}
+.table-modal::backdrop {
+  background: #071116bb;
+}
+.table-modal.inspector {
+  inset: 0;
+  bottom: auto;
+  width: min(720px, calc(100vw - 32px));
+  height: fit-content;
+}
+.table-modal.inspector .inspect-image {
+  max-height: 520px;
+}
+.card-action-menu {
+  width: 250px;
+}
+.card-action-menu:popover-open {
+  display: grid;
+  gap: 8px;
+}
+.card-actions-trigger {
+  display: block;
+  font-size: 10px;
+  padding: 3px 8px;
+  margin: 4px auto;
+}
+.focused-battlefield {
+  width: min(1250px, calc(100vw - 32px));
+}
+.focused-battlefield .opponent-field {
+  min-height: 320px;
+}
+.selection-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.permanent-selection {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+}
+.permanent-selection input {
+  width: auto;
+}
+.turn-notification:not(:empty) {
+  color: var(--accent);
+  font-weight: 700;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.card-interaction {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.panel.active-player {
+  border-color: #d5c58b;
+  background-image: linear-gradient(135deg, #5b512c66, #253e3b55);
+}
+.active-turn-label {
+  display: inline-block;
+  color: #f4e8ba;
+  border: 1px solid #9b915d;
+  border-radius: 4px;
+  padding: 3px 7px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.battlefield-card-slot {
+  height: auto;
+  min-height: calc(var(--battlefield-slot-size, 154px) + 54px);
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.permanent-selection {
+  margin: 0;
+}
+.focused-battlefield .opponent-field {
+  --battlefield-slot-size: 196px;
+}
+.focused-battlefield .opponent-field .card {
+  width: 140px;
+  height: 196px;
+}
+.focused-battlefield .card-caption {
+  font-size: 11px;
+}
+.focused-battlefield .card-fallback strong {
+  font-size: 14px;
+}
+
+.card-action-menu[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 12px;
+  color: #e5e9e5;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+}
