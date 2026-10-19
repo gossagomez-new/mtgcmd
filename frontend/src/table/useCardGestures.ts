@@ -23,6 +23,7 @@ export function useCardGestures(
   );
   const canTap = !disabled && card.editable && card.zone === "battlefield";
   return {
+    cancelInspection: cancel,
     draggable: !disabled && card.editable,
     onClick(event: MouseEvent<HTMLButtonElement>) {
       cancel();

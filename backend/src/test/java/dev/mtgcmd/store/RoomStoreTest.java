@@ -113,6 +113,39 @@ class RoomStoreTest {
   }
 
   @Test
+  void selectedTapPersistsAndRetriesDoNotRepeatTheMutation() {
+    Map<String, Object> view = game();
+    final String identifier = (String) view.get("id");
+    final ObjectMapper mapper = new ObjectMapper();
+    final String cardId = mapper.valueToTree(view).path("cards").get(0).path("id").asText();
+    view =
+        store.execute(
+            guests.getFirst(),
+            identifier,
+            command(rev(view), "MOVE", Map.of("cardId", cardId, "zone", "battlefield")));
+    final Command batch =
+        command(rev(view), "TAP_SELECTED", Map.of("cardIds", List.of(cardId), "tapped", true));
+    final Map<String, Object> result = store.execute(guests.getFirst(), identifier, batch);
+    assertThat(rev(result)).isEqualTo(rev(view) + 1);
+    assertThat(store.execute(guests.getFirst(), identifier, batch)).isEqualTo(result);
+    assertThat(
+            new RoomStore(jdbc, transactions, mapper, new GameEngine())
+                .view(guests.getFirst(), identifier))
+        .isEqualTo(result);
+    assertThatThrownBy(
+            () ->
+                store.execute(
+                    guests.getFirst(),
+                    identifier,
+                    command(
+                        rev(result),
+                        "TAP_SELECTED",
+                        Map.of("cardIds", List.of(cardId, "missing"), "tapped", false))))
+        .hasMessage("Card unavailable");
+    assertThat(store.view(guests.getFirst(), identifier)).isEqualTo(result);
+  }
+
+  @Test
   void duplicateCommandsApplyOnceAndNewStoreRecoversState() {
     final Map<String, Object> view = game();
     final String identifier = (String) view.get("id");

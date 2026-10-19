@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { CardActionMenu } from "./CardActionMenu";
 import type { Card, Player, Snapshot } from "../protocol";
 import { groupBattlefield, type BattlefieldGroup } from "../battlefield";
 import type { Action } from "./types";
@@ -12,9 +14,11 @@ export function PlayerArea({
   openZone,
   act,
   disabled,
+  focus,
 }: {
   act: Action;
   disabled: boolean;
+  focus?: () => void;
   player: Player;
   view: Snapshot;
   online: boolean;
@@ -23,9 +27,12 @@ export function PlayerArea({
 }) {
   return (
     <section
-      className={`opponent panel ${player.conceded ? "conceded" : ""}`}
+      className={`opponent panel ${player.conceded ? "conceded" : ""} ${view.status === "playing" && view.active === player.seat ? "active-player" : ""}`}
       data-testid={`opponent-${player.seat}`}
     >
+      {view.status === "playing" && view.active === player.seat && (
+        <span className="active-turn-label">Active turn</span>
+      )}
       <div className="player-heading">
         <span className={`seat-icon seat-${player.seat}`}>
           {player.seat + 1}
@@ -49,6 +56,11 @@ export function PlayerArea({
           </small>
         </div>
       </div>
+      {focus && (
+        <button onClick={focus} aria-label={`Focus ${player.name} battlefield`}>
+          Focus battlefield
+        </button>
+      )}
       <div className="opponent-zones">
         <button
           disabled={!player.privateAccess}
@@ -122,18 +134,53 @@ export function CardButton({
   card: Card;
   inspect: (c: Card) => void;
 }) {
-  const gestures = useCardGestures(card, inspect, act, disabled);
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const { cancelInspection, ...gestures } = useCardGestures(
+    card,
+    inspect,
+    act,
+    disabled,
+  );
   const presentation = cardPresentation(card);
   return (
-    <button
-      className={`card ${card.tapped ? "tapped" : ""} ${card.faceDown ? "face-down" : ""}`}
-      aria-label={`Inspect ${presentation.name}`}
-      {...gestures}
-    >
-      <CardArtwork presentation={presentation} />
-      <span className="card-caption">{presentation.name}</span>
-      <CardBadges card={card} />
-    </button>
+    <div className="card-interaction">
+      <button
+        className={`card ${card.tapped ? "tapped" : ""} ${card.faceDown ? "face-down" : ""}`}
+        aria-label={`Inspect ${presentation.name}`}
+        {...gestures}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          cancelInspection();
+          setMenu(event.currentTarget);
+        }}
+      >
+        <CardArtwork presentation={presentation} />
+        <span className="card-caption">{presentation.name}</span>
+        <CardBadges card={card} />
+      </button>
+      <button
+        className="card-actions-trigger"
+        aria-label={`Actions for ${presentation.name}`}
+        aria-haspopup="menu"
+        aria-expanded={!!menu}
+        onClick={(event) => {
+          cancelInspection();
+          setMenu(event.currentTarget);
+        }}
+      >
+        Actions
+      </button>
+      {menu && (
+        <CardActionMenu
+          anchor={menu}
+          card={card}
+          disabled={disabled}
+          act={act}
+          inspect={inspect}
+          close={() => setMenu(null)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -195,6 +242,7 @@ export function Battlefield({
   act,
   disabled,
   testId,
+  selection,
 }: {
   cards: Card[];
   allCards: Card[];
@@ -202,6 +250,7 @@ export function Battlefield({
   act: Action;
   disabled: boolean;
   testId: string;
+  selection?: PermanentSelection;
 }) {
   const drop = useCardDrop(allCards, "battlefield", disabled, act);
   return (
@@ -215,6 +264,7 @@ export function Battlefield({
         inspect={inspect}
         act={act}
         disabled={disabled}
+        selection={selection}
       />
       {!cards.length && (
         <div className="field-empty">
@@ -226,12 +276,19 @@ export function Battlefield({
     </div>
   );
 }
+type PermanentSelection = {
+  ids: string[];
+  toggle: (id: string) => void;
+};
+
 function BattlefieldGroups({
   cards,
   inspect,
   act,
   disabled,
+  selection,
 }: {
+  selection?: PermanentSelection;
   act: Action;
   disabled: boolean;
   cards: Card[];
@@ -252,6 +309,7 @@ function BattlefieldGroups({
               inspect={inspect}
               act={act}
               disabled={disabled}
+              selection={selection}
             />
           ))}
         </div>
@@ -259,6 +317,7 @@ function BattlefieldGroups({
       {lands && (
         <PermanentGroup
           group={lands}
+          selection={selection}
           inspect={inspect}
           act={act}
           disabled={disabled}
@@ -273,7 +332,9 @@ function PermanentGroup({
   inspect,
   act,
   disabled,
+  selection,
 }: {
+  selection?: PermanentSelection;
   act: Action;
   disabled: boolean;
   group: BattlefieldGroup;
@@ -289,6 +350,18 @@ function PermanentGroup({
       <div className="battlefield-group-cards">
         {group.cards.map((card) => (
           <div className="battlefield-card-slot" key={card.id}>
+            {selection && card.editable && (
+              <label className="permanent-selection">
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${card.definition?.faces[card.face]?.name || card.definition?.name || "Face-down card"}`}
+                  checked={selection.ids.includes(card.id)}
+                  disabled={disabled}
+                  onChange={() => selection.toggle(card.id)}
+                />
+                Select
+              </label>
+            )}
             <CardButton
               card={card}
               inspect={inspect}

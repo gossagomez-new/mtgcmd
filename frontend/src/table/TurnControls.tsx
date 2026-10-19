@@ -1,3 +1,4 @@
+import { TurnNotification } from "./TurnNotification";
 import type { Snapshot } from "../protocol";
 import type { Action } from "./types";
 
@@ -19,6 +20,7 @@ export function TurnControls({
           <span className="subtle"> / {view.phase}</span>
         </strong>
       </div>
+      <TurnNotification view={view} />
       <div className="turn-actions">
         <button
           disabled={

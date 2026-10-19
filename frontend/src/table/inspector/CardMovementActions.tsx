@@ -14,24 +14,31 @@ const zones = [
 export function CardPlacementButtons({
   card,
   send,
+  menu = false,
 }: {
   card: Card;
   send: Action;
+  menu?: boolean;
 }) {
   return (
     <>
-      <button onClick={() => send("MOVE", { zone: "exile", faceDown: true })}>
+      <button
+        role={menu ? "menuitem" : undefined}
+        onClick={() => send("MOVE", { zone: "exile", faceDown: true })}
+      >
         Exile face down
       </button>
       {card.zone !== "battlefield" && (
         <>
           <button
+            role={menu ? "menuitem" : undefined}
             className="primary"
             onClick={() => send("MOVE", { zone: "battlefield" })}
           >
             Play to battlefield
           </button>
           <button
+            role={menu ? "menuitem" : undefined}
             onClick={() =>
               send("MOVE", { zone: "battlefield", faceDown: true })
             }

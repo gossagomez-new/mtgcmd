@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Card, Snapshot } from "../protocol";
-import type { Action } from "./types";
+import type { Action, Inspect } from "./types";
+import { Modal } from "./Modal";
 import { CardDetails } from "./inspector/CardDetails";
 import { CardQuickActions } from "./inspector/CardQuickActions";
 import { CardMovementActions } from "./inspector/CardMovementActions";
@@ -16,7 +17,9 @@ export function Inspector({
   act,
   disabled,
   close,
+  inspect,
 }: {
+  inspect: Inspect;
   card: Card;
   view: Snapshot;
   act: Action;
@@ -31,12 +34,30 @@ export function Inspector({
   const send: Action = (type, data = {}) =>
     act(type, { cardId: card.id, ...data });
   return (
-    <aside
-      className="inspector panel"
-      role="dialog"
-      aria-label="Card inspector"
-    >
+    <Modal className="inspector" label="Card inspector" close={close}>
+      <label>
+        Inspect another card
+        <select
+          value={card.id}
+          onChange={(event) => {
+            const next = view.cards.find(
+              (candidate) => candidate.id === event.target.value,
+            );
+            if (next) inspect(next);
+          }}
+        >
+          {view.cards.map((candidate) => (
+            <option key={candidate.id} value={candidate.id}>
+              {candidate.definition?.faces[candidate.face]?.name ||
+                candidate.definition?.name ||
+                "Face-down card"}{" "}
+              · {view.players[candidate.controller].name} · {candidate.zone}
+            </option>
+          ))}
+        </select>
+      </label>
       <CardDetails card={card} players={view.players} close={close} />
+      <AttachmentSummary card={card} view={view} />
       {editable && (
         <>
           <CardQuickActions
@@ -82,6 +103,23 @@ export function Inspector({
         </>
       )}
       <CopyCardAction card={card} disabled={disabled} send={send} />
-    </aside>
+    </Modal>
+  );
+}
+
+function AttachmentSummary({ card, view }: { card: Card; view: Snapshot }) {
+  if (!card.attachedTo) return null;
+  const target = view.cards.find(
+    (candidate) => candidate.id === card.attachedTo,
+  );
+  const name =
+    target?.definition?.faces[target.face]?.name ||
+    target?.definition?.name ||
+    "Face-down card";
+  return (
+    <p className="attachment-summary">
+      Attached to: {name}
+      {target ? ` · ${view.players[target.controller].name}` : ""}
+    </p>
   );
 }

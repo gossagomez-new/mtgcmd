@@ -41,6 +41,30 @@ final class PermanentActions {
     return "tap";
   }
 
+  String tapSelected(final Game game, final int seat, final Map<String, Object> data) {
+    final Object input = data.get("cardIds");
+    require(input instanceof List<?>, "Invalid card selection");
+    final List<?> identifiers = (List<?>) input;
+    require(!identifiers.isEmpty() && identifiers.size() <= 500, "Invalid card selection");
+    final Set<String> unique = new HashSet<>();
+    for (final Object identifier : identifiers) {
+      require(identifier instanceof String, "Invalid card selection");
+      final String id = (String) identifier;
+      require(
+          !id.isBlank() && id.length() <= 80 && unique.add(id.trim()), "Invalid card selection");
+    }
+    require(data.get("tapped") instanceof Boolean, "tapped must be true or false");
+    final boolean tapped = (Boolean) data.get("tapped");
+    final List<Card> selected = new ArrayList<>();
+    for (final Object identifier : identifiers) {
+      final Card card = access.editable(game, seat, Map.of("cardId", identifier));
+      battlefield(card);
+      selected.add(card);
+    }
+    selected.forEach(card -> card.tapped = tapped);
+    return tapped ? "tap selected" : "untap selected";
+  }
+
   String untapAll(final Game game, final int seat, Map<String, Object> data) {
     game.cards.stream()
         .filter(c -> BATTLEFIELD.equals(Objects.requireNonNull(c.zone)) && c.controller == seat)

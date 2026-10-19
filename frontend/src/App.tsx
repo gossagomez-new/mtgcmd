@@ -1,4 +1,4 @@
-import { useCallback, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import type { Card, GameFormat, Snapshot } from "./protocol";
 import { useTableSession } from "./useTableSession";
 import { TableHeader } from "./table/TableHeader";
@@ -22,6 +22,14 @@ export default function App() {
   }, []);
   const session = useTableSession(onNavigate, setFirstPlayer);
   const { view, socket, act, fail } = session;
+  useEffect(() => {
+    if (
+      view &&
+      selectedId &&
+      !view.cards.some((card) => card.id === selectedId)
+    )
+      setSelectedId(null);
+  }, [view, selectedId]);
   const { disabled, canPlay } = actionAvailability({
     connected: socket.connected,
     pending: socket.pending,

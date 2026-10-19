@@ -31,14 +31,28 @@ function CardIdentityActions({ card, send }: { card: Card; send: Action }) {
     <>
       {card.zone === "battlefield" && (
         <>
-          <button onClick={() => send("TAP")}>
-            {card.tapped ? "Untap" : "Tap"}
-          </button>
+          <TapCardButton card={card} send={send} />
           <button onClick={() => send("FACE_DOWN")}>
             {card.faceDown ? "Turn face up" : "Turn face down"}
           </button>
         </>
       )}
     </>
+  );
+}
+
+export function TapCardButton({
+  card,
+  send,
+  menu = false,
+}: {
+  card: Card;
+  send: Action;
+  menu?: boolean;
+}) {
+  return (
+    <button role={menu ? "menuitem" : undefined} onClick={() => send("TAP")}>
+      {card.tapped ? "Untap" : "Tap"}
+    </button>
   );
 }

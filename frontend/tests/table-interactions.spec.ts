@@ -252,6 +252,22 @@ for (const format of ["STANDARD", "COMMANDER"] satisfies GameFormat[]) {
             : page
                 .locator(".your-resources")
                 .getByRole("button", { name: new RegExp(`^${zone} `) });
+      if (zone === "stack") {
+        // Keep both endpoints visible: dragTo centers offscreen targets before
+        // starting the gesture, which otherwise moves the source out of view.
+        const origin = (await source.boundingBox())!;
+        const target = (await destination.boundingBox())!;
+        const board = page.locator(".board-scroll");
+        const viewport = (await board.boundingBox())!;
+        const offset =
+          (target.y + origin.y + origin.height) / 2 -
+          (viewport.y + viewport.height / 2);
+        await board.evaluate((element, distance) => {
+          element.scrollTop += distance;
+        }, offset);
+        await expect(source).toBeInViewport({ ratio: 1 });
+        await expect(destination).toBeInViewport({ ratio: 1 });
+      }
       await source.dragTo(destination);
       await expect.poll(() => mockTable.commands.length).toBe(index + 1);
       expect(mockTable.commands[index]).toMatchObject({
