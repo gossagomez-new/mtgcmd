@@ -30,20 +30,20 @@ and delivery order below are recommendations.
 
 ## Shared table interactions
 
-| ID  | Requirement                          | Acceptance criteria                                                                                                                                                                                                        |
-| --- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R01 | Double-click to tap/untap            | Double-clicking an editable battlefield card toggles it exactly once. Inspection does not interfere with the gesture. A visible, keyboard-accessible tap action remains available.                                         |
-| R02 | Persistent turn controls             | Current player, turn, phase, Next phase and End turn remain visible while scrolling the board. Unauthorized controls are disabled. The backend rejects advancement by anyone except the active player, including the host. |
-| R03 | Turn-start notification              | The active player receives a visible, accessible notification when their turn begins. Ordinary snapshot updates and reconnects do not repeatedly announce the same turn.                                                   |
-| R04 | Discoverable Untap all               | Players can find and activate Untap all directly from their battlefield. It affects only battlefield cards they control. This improves access to an existing capability.                                                   |
-| R05 | Group tap/untap                      | Players can select multiple editable battlefield cards and explicitly choose Tap selected or Untap selected. Selection is visible. Invalid or stale selections cannot cause partial changes.                               |
-| R06 | Drag cards out of the battlefield    | Editable battlefield cards can be dragged to supported destinations with clear drop feedback. Invalid drops make no change. Existing movement rules, ownership and cleanup still apply.                                    |
-| R07 | Quick-action menu and details dialog | Right-click or a visible action button opens the card's contextual actions. Keyboard access is supported. A separate dialog presents larger artwork, rules text and detailed controls.                                     |
-| R08 | Clear attachment workflow            | Players can select an attachment source and battlefield target, see the relationship and detach it. Use recognizable attachment terminology. Payment, targeting legality and card effects remain player-managed.           |
-| R09 | Life beside opponent identity        | Each opponent's name and life total appear together, including in the focused battlefield view. Both displays update from the same server state.                                                                           |
-| R10 | Focused opponent battlefield         | Players can enlarge one opponent's battlefield without losing the table session. Cards remain grouped, use current controller placement and retain the same visibility/editing permissions.                                |
-| R11 | Gameplay-oriented logging            | Logs distinguish casting, resolution, zone movement, turn changes and relevant state changes. Public card names are included when appropriate. Drawing, inspecting or sideboarding must not expose private identities.     |
-| R12 | Improved token presentation          | Token name and characteristics are readable at normal battlefield size and in inspection. Tokens remain visually distinguishable from physical cards. Low priority.                                                        |
+| ID  | Requirement                          | Acceptance criteria                                                                                                                                                                                                                      |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R01 | Double-click to tap/untap            | Double-clicking an editable battlefield card toggles it exactly once. Inspection does not interfere with the gesture. A visible, keyboard-accessible tap action remains available.                                                       |
+| R02 | Persistent turn controls             | Current player, turn, phase, Next phase and End turn remain visible while scrolling the board. Unauthorized controls are disabled. The backend rejects advancement by anyone except the active player, including the host.               |
+| R03 | Turn-start notification              | The active player receives a visible, accessible notification when their turn begins. Ordinary snapshot updates and reconnects do not repeatedly announce the same turn.                                                                 |
+| R04 | Discoverable Untap all               | Players can find and activate Untap all directly from their battlefield. It affects only battlefield cards they control. This improves access to an existing capability.                                                                 |
+| R05 | Group tap/untap                      | Players can select multiple editable battlefield cards and explicitly choose Tap selected or Untap selected. Selection is visible. Invalid or stale selections cannot cause partial changes.                                             |
+| R06 | Drag cards out of the battlefield    | Editable battlefield cards can be dragged to supported destinations with clear drop feedback. Invalid drops make no change. Existing movement rules, ownership and cleanup still apply.                                                  |
+| R07 | Quick-action menu and details dialog | Right-click or a visible action button opens the card's contextual actions. Keyboard access is supported. A separate dialog presents larger artwork, rules text and detailed controls.                                                   |
+| R08 | Clear attachment workflow            | Players can select an attachment source and battlefield target, see the relationship and detach it. Use recognizable attachment terminology. Payment, targeting legality and card effects remain player-managed.                         |
+| R09 | Life beside opponent identity        | Each opponent's name and life total appear together, including in the focused battlefield view. Both displays update from the same server state.                                                                                         |
+| R10 | Focused opponent battlefield         | Players can enlarge one opponent's battlefield in a non-modal popover without losing the table session or blocking the table. Cards remain grouped, use current controller placement and retain the same visibility/editing permissions. |
+| R11 | Gameplay-oriented logging            | Logs distinguish casting, resolution, zone movement, turn changes and relevant state changes. Public card names are included when appropriate. Drawing, inspecting or sideboarding must not expose private identities.                   |
+| R12 | Improved token presentation          | Token name and characteristics are readable at normal battlefield size and in inspection. Tokens remain visually distinguishable from physical cards. Low priority.                                                                      |
 
 ## Gameplay workflows
 
@@ -141,7 +141,8 @@ an explicit refinement of R07.
 
 ### R23 — Enlarged artwork on card hover
 
-Applies to Standard and Commander; pending a follow-up increment.
+Applies to Standard and Commander; delivered by the
+[artwork preview increment](../spec/card-artwork-previews.md).
 
 - Hovering a card with available artwork shows a larger artwork tooltip using
   the currently displayed face and the latest server-permitted definition. Offer
@@ -215,12 +216,17 @@ The [second increment](../spec/card-interactions.md) delivers R03, R05, R07, R08
 R10, R21 and R22 in both formats, including R09's focused-view identity/life
 presentation. It includes a non-modal action popover, modal details, explicit
 attachments, atomic group tapping, enlarged focused battlefields, turn notices
-and active-player colour/labels. Verification and compatibility details are in
+and active-player colour/labels. Its originally modal battlefield focus is refined
+by the [focused battlefield popover specification](../spec/focused-battlefield-popover.md)
+at the user’s request. Verification and compatibility details are in
 the specification and [ADR-0021](adr/0021-card-interaction-contracts.md).
 
-The other requirements remain pending, including R19 double-click from hand,
-R20 giving back the turn and R23 enlarged hover artwork. R20 still requires its
-turn-history policy to be confirmed.
+The [third increment](../spec/card-artwork-previews.md) delivers R23 enlarged
+artwork previews on hover and keyboard focus in both formats, preserving privacy,
+card gestures, focused views and access to Actions on narrow screens.
+
+The other requirements remain pending, including R19 double-click from hand and
+R20 giving back the turn. R20 still requires its turn-history policy to be confirmed.
 
 ## Proposed delivery order
 

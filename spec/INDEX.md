@@ -75,10 +75,19 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Card interaction increment](card-interactions.md) | Completed | High | Contextual actions, attachments, atomic selection, focused views and turn notifications | [Frequent table interactions](table-interactions.md), [Inspector composition](inspector-composition.md) | [ADR-0021](../docs/adr/0021-card-interaction-contracts.md): atomic selection and shared interaction boundaries; [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): existing turn and gesture contracts |
 
+| [Card artwork previews](card-artwork-previews.md) | Completed | High | Accessible enlarged permitted artwork on hover/focus | [Card interaction increment](card-interactions.md) | [ADR-0021](../docs/adr/0021-card-interaction-contracts.md): existing popover/modal interactions; [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing UI composition |
+
+| [Focused battlefield popover](focused-battlefield-popover.md) | Completed | High | Non-modal live opponent focus and nested interactions | [Card interaction increment](card-interactions.md), [Card artwork previews](card-artwork-previews.md) | [ADR-0021](../docs/adr/0021-card-interaction-contracts.md): existing shared card rendering; [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): local presentation state |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    focuspopover["Focused battlefield popover"]
+    focuspopover -->|depends on| cardinteractions
+    focuspopover -->|depends on| artworkpreviews
+    artworkpreviews["Card artwork previews"]
+    artworkpreviews -->|depends on| cardinteractions
     cardinteractions["Card interaction increment"]
     cardinteractions -->|depends on| tableinteractions
     cardinteractions -->|depends on| inspectorcomposition

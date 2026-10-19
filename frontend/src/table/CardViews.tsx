@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CardArtworkPreview } from "./CardArtworkPreview";
 import { CardActionMenu } from "./CardActionMenu";
 import type { Card, Player, Snapshot } from "../protocol";
 import { groupBattlefield, type BattlefieldGroup } from "../battlefield";
@@ -15,10 +16,12 @@ export function PlayerArea({
   act,
   disabled,
   focus,
+  isFocused = false,
 }: {
   act: Action;
   disabled: boolean;
-  focus?: () => void;
+  focus?: (anchor: HTMLButtonElement) => void;
+  isFocused?: boolean;
   player: Player;
   view: Snapshot;
   online: boolean;
@@ -57,7 +60,15 @@ export function PlayerArea({
         </div>
       </div>
       {focus && (
-        <button onClick={focus} aria-label={`Focus ${player.name} battlefield`}>
+        <button
+          onClick={(event) => focus(event.currentTarget)}
+          aria-label={`Focus ${player.name} battlefield`}
+          aria-haspopup="dialog"
+          aria-expanded={isFocused}
+          aria-controls={
+            isFocused ? `focused-battlefield-${player.seat}` : undefined
+          }
+        >
           Focus battlefield
         </button>
       )}
@@ -144,20 +155,26 @@ export function CardButton({
   const presentation = cardPresentation(card);
   return (
     <div className="card-interaction">
-      <button
-        className={`card ${card.tapped ? "tapped" : ""} ${card.faceDown ? "face-down" : ""}`}
-        aria-label={`Inspect ${presentation.name}`}
-        {...gestures}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          cancelInspection();
-          setMenu(event.currentTarget);
-        }}
+      <CardArtworkPreview
+        blocked={!!menu}
+        image={presentation.image}
+        name={presentation.name}
       >
-        <CardArtwork presentation={presentation} />
-        <span className="card-caption">{presentation.name}</span>
-        <CardBadges card={card} />
-      </button>
+        <button
+          className={`card ${card.tapped ? "tapped" : ""} ${card.faceDown ? "face-down" : ""}`}
+          aria-label={`Inspect ${presentation.name}`}
+          {...gestures}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            cancelInspection();
+            setMenu(event.currentTarget);
+          }}
+        >
+          <CardArtwork presentation={presentation} />
+          <span className="card-caption">{presentation.name}</span>
+          <CardBadges card={card} />
+        </button>
+      </CardArtworkPreview>
       <button
         className="card-actions-trigger"
         aria-label={`Actions for ${presentation.name}`}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal } from "./Modal";
+import { FocusedBattlefieldPopover } from "./FocusedBattlefieldPopover";
 import type { Snapshot } from "../protocol";
 import type { Action, Inspect, OpenZone } from "./types";
 import { PlayerArea } from "./CardViews";
@@ -19,8 +19,11 @@ export function OpponentBoards({
   inspect: Inspect;
   openZone: OpenZone;
 }) {
-  const [focused, setFocused] = useState<number | null>(null);
-  const player = view.players.find((player) => player.seat === focused);
+  const [focused, setFocused] = useState<{
+    seat: number;
+    anchor: HTMLButtonElement;
+  } | null>(null);
+  const player = view.players.find((player) => player.seat === focused?.seat);
   const usesCommanders = view.format !== "STANDARD";
   return (
     <div className={`opponents ${usesCommanders ? "" : "duel-opponents"}`}>
@@ -29,7 +32,8 @@ export function OpponentBoards({
         .map((p) => (
           <PlayerArea
             key={p.seat}
-            focus={() => setFocused(p.seat)}
+            focus={(anchor) => setFocused({ seat: p.seat, anchor })}
+            isFocused={focused?.seat === p.seat}
             player={p}
             view={view}
             online={online.includes(p.seat)}
@@ -39,28 +43,38 @@ export function OpponentBoards({
             disabled={!canPlay}
           />
         ))}
-      {player && (
-        <Modal
+      {player && focused && (
+        <FocusedBattlefieldPopover
+          key={player.seat}
+          anchor={focused.anchor}
+          id={`focused-battlefield-${player.seat}`}
           label={`${player.name} battlefield`}
-          className="focused-battlefield"
-          close={() => setFocused(null)}
+          close={() =>
+            setFocused((current) =>
+              current?.seat === player.seat ? null : current,
+            )
+          }
         >
-          <button onClick={() => setFocused(null)}>
-            Close focused battlefield
-          </button>
           <PlayerArea
             player={player}
             view={view}
             online={online.includes(player.seat)}
-            inspect={inspect}
+            inspect={(card) => {
+              if (focused.anchor.isConnected)
+                focused.anchor.focus({ preventScroll: true });
+              setFocused(null);
+              inspect(card);
+            }}
             openZone={(seat, zone) => {
+              if (focused.anchor.isConnected)
+                focused.anchor.focus({ preventScroll: true });
               setFocused(null);
               openZone(seat, zone);
             }}
             act={act}
             disabled={!canPlay}
           />
-        </Modal>
+        </FocusedBattlefieldPopover>
       )}
     </div>
   );
