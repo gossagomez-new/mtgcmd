@@ -11,6 +11,7 @@ import java.util.*;
 
 /** Lifecycle tabletop commands; revision and logging belong to the facade. */
 final class LifecycleActions {
+  private static final String ACTIVE_ERROR = "Only the active player can advance turns";
   private final CardZoneTransitions transitions;
 
   LifecycleActions(final CardZoneTransitions transitions) {
@@ -67,23 +68,32 @@ final class LifecycleActions {
 
   String phase(final Game game, final int seat, Map<String, Object> data) {
 
-    require(
-        seat == game.active || seat == game.host, "Only the active player or host advances phases");
+    require(seat == game.active, ACTIVE_ERROR);
     final int index = PHASES.indexOf(game.phase);
     if (index == PHASES.size() - 1) {
-      for (int i = 0; i < game.players.size(); i++) {
-        game.active = (game.active + 1) % game.players.size();
-        if (!game.players.get(game.active).conceded) {
-          break;
-        }
-      }
-      game.turn++;
-      game.phase = PHASES.getFirst();
-      game.cards.forEach(c -> c.combat = "");
+      advanceTurn(game);
     } else {
       game.phase = PHASES.get(index + 1);
     }
     return "advanced to " + game.phase;
+  }
+
+  String endTurn(final Game game, final int seat, Map<String, Object> data) {
+    require(seat == game.active, ACTIVE_ERROR);
+    advanceTurn(game);
+    return "ended the turn";
+  }
+
+  private static void advanceTurn(final Game game) {
+    for (int index = 0; index < game.players.size(); index++) {
+      game.active = (game.active + 1) % game.players.size();
+      if (!game.players.get(game.active).conceded) {
+        break;
+      }
+    }
+    game.turn++;
+    game.phase = PHASES.getFirst();
+    game.cards.forEach(card -> card.combat = "");
   }
 
   String concede(final Game game, final int seat, Map<String, Object> data) {

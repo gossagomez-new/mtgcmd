@@ -71,10 +71,17 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Permanent action behavioral verification](permanent-actions-verification.md) | Completed | High | Gameplay outcomes, validation and privacy assertions with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing command boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
 
+| [Frequent table interactions](table-interactions.md) | Completed | High | First playtest increment: turn controls, tapping, dragging and life placement | [Game-engine decomposition](game-engine-decomposition.md), [App screen composition](app-screen-composition.md), [Card button presentation](card-button-presentation.md), [Shared browser fixtures](shared-browser-fixtures.md) | [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): active-only atomic advancement and existing card commands; [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing engine ownership; [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): existing client composition |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    tableinteractions["Frequent table interactions"]
+    tableinteractions -->|depends on| engine
+    tableinteractions -->|depends on| appscreens
+    tableinteractions -->|depends on| cardbutton
+    tableinteractions -->|depends on| sharedbrowser
     lifecycletests["Lifecycle action behavioral verification"]
     lifecycletests -->|depends on| pit
     lifecycletests -->|depends on| engine

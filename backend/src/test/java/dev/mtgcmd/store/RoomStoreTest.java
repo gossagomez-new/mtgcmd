@@ -90,6 +90,29 @@ class RoomStoreTest {
   }
 
   @Test
+  void endTurnIsAtomicIdempotentAndRejectsTheNonactiveHost() {
+    final Map<String, Object> view = game();
+    final String identifier = (String) view.get("id");
+    final Command end = command(rev(view), "END_TURN", Map.of());
+    final Map<String, Object> result = store.execute(guests.getFirst(), identifier, end);
+    assertThat(result)
+        .containsEntry("active", 1)
+        .containsEntry("turn", 2)
+        .containsEntry("phase", "Untap");
+    assertThat(rev(result)).isEqualTo(rev(view) + 1);
+    assertThat(store.execute(guests.getFirst(), identifier, end)).isEqualTo(result);
+    assertThatThrownBy(
+            () ->
+                store.execute(
+                    guests.getFirst(), identifier, command(rev(result), "PHASE", Map.of())))
+        .hasMessage("Only the active player can advance turns");
+    assertThat(
+            new RoomStore(jdbc, transactions, new ObjectMapper(), new GameEngine())
+                .view(guests.getFirst(), identifier))
+        .isEqualTo(result);
+  }
+
+  @Test
   void duplicateCommandsApplyOnceAndNewStoreRecoversState() {
     final Map<String, Object> view = game();
     final String identifier = (String) view.get("id");

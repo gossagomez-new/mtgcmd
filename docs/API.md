@@ -95,7 +95,8 @@ and host FINISH. Card IDs come only from filtered snapshots.
 | COMBAT | `cardId,marker` | Empty, `attacker`, or `blocks:{publicCardId}` |
 | ABILITY | `text` | Add actor-controlled stack marker |
 | RESOLVE_ABILITY | `abilityId` | Actor removes their marker |
-| PHASE | `{}` | Active player or host advances the informational turn/phase marker |
+| PHASE | `{}` | Only the active player advances the informational phase marker |
+| END_TURN | `{}` | Active player advances to the next non-conceded seat, increments turn, resets to Untap and clears combat; untap/draw and stack resolution remain manual |
 | DICE | `sides=6` | Server rolls 2–1000 sided die and logs result |
 | CONCEDE | `{}` | Mark actor out, revoke private grants, and advance a stranded turn marker |
 | FINISH | `{}` | Host marks game finished |

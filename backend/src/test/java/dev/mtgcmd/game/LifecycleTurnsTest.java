@@ -47,14 +47,15 @@ class LifecycleTurnsTest {
 
   @ParameterizedTest
   @EnumSource(GameFormat.class)
-  void onlyTheHostOrActiveSeatCanAdvancePhases(final GameFormat format) {
+  void onlyTheActiveSeatCanAdvancePhases(final GameFormat format) {
     final LifecycleFixture fixture = new LifecycleFixture(format);
     fixture.startGame();
-    fixture.reject(1, PHASE, Map.of(), "Only the active player or host advances phases");
+    fixture.reject(1, PHASE, Map.of(), "Only the active player can advance turns");
     fixture.game.active = 1;
     fixture.apply(1, PHASE, Map.of());
     assertThat(fixture.game.phase).isEqualTo("Upkeep");
-    fixture.apply(0, PHASE, Map.of());
+    fixture.reject(0, PHASE, Map.of(), "Only the active player can advance turns");
+    fixture.apply(1, PHASE, Map.of());
     assertThat(fixture.game.phase).isEqualTo("Draw");
   }
 

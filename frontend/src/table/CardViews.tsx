@@ -1,6 +1,8 @@
 import type { Card, Player, Snapshot } from "../protocol";
 import { groupBattlefield, type BattlefieldGroup } from "../battlefield";
 import type { Action } from "./types";
+import { useCardDrop } from "./useCardDrop";
+import { useCardGestures } from "./useCardGestures";
 
 export function PlayerArea({
   player,
@@ -8,7 +10,11 @@ export function PlayerArea({
   online,
   inspect,
   openZone,
+  act,
+  disabled,
 }: {
+  act: Action;
+  disabled: boolean;
   player: Player;
   view: Snapshot;
   online: boolean;
@@ -25,7 +31,15 @@ export function PlayerArea({
           {player.seat + 1}
         </span>
         <div>
-          <strong>{player.name}</strong>
+          <div className="player-identity">
+            <strong className="player-name">{player.name}</strong>
+            <strong
+              className="opponent-life"
+              aria-label={`${player.name} life`}
+            >
+              {player.counters.life}
+            </strong>
+          </div>
           <small>
             {player.conceded
               ? "Conceded"
@@ -34,7 +48,6 @@ export function PlayerArea({
                 : "Disconnected"}
           </small>
         </div>
-        <strong className="opponent-life">{player.counters.life}</strong>
       </div>
       <div className="opponent-zones">
         <button
@@ -66,6 +79,8 @@ export function PlayerArea({
               card.zone === "battlefield" && card.controller === player.seat,
           )}
           inspect={inspect}
+          act={act}
+          disabled={disabled}
         />
         {!player.counts.battlefield && (
           <span className="empty-state">Battlefield</span>
@@ -99,21 +114,21 @@ export function PlayerArea({
 export function CardButton({
   card,
   inspect,
+  act,
+  disabled,
 }: {
+  act: Action;
+  disabled: boolean;
   card: Card;
   inspect: (c: Card) => void;
 }) {
+  const gestures = useCardGestures(card, inspect, act, disabled);
   const presentation = cardPresentation(card);
   return (
     <button
       className={`card ${card.tapped ? "tapped" : ""} ${card.faceDown ? "face-down" : ""}`}
       aria-label={`Inspect ${presentation.name}`}
-      onClick={() => inspect(card)}
-      draggable={card.editable && card.zone !== "battlefield"}
-      onDragStart={(e) => {
-        e.dataTransfer.setData("application/card", card.id);
-        e.dataTransfer.effectAllowed = "move";
-      }}
+      {...gestures}
     >
       <CardArtwork presentation={presentation} />
       <span className="card-caption">{presentation.name}</span>
@@ -175,35 +190,32 @@ function CardBadges({ card }: { card: Card }) {
 
 export function Battlefield({
   cards,
+  allCards,
   inspect,
   act,
   disabled,
   testId,
 }: {
   cards: Card[];
+  allCards: Card[];
   inspect: (c: Card) => void;
   act: Action;
   disabled: boolean;
   testId: string;
 }) {
+  const drop = useCardDrop(allCards, "battlefield", disabled, act);
   return (
     <div
-      className="battlefield"
+      {...drop}
+      className={`battlefield ${drop.className}`}
       data-testid={testId}
-      onDragOver={(e) => {
-        if (!disabled) e.preventDefault();
-      }}
-      onDrop={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-        const cardId = e.dataTransfer.getData("application/card");
-        if (!cardId) return;
-        if (!cards.some((card) => card.id === cardId)) {
-          act("MOVE", { cardId, zone: "battlefield" });
-        }
-      }}
     >
-      <BattlefieldGroups cards={cards} inspect={inspect} />
+      <BattlefieldGroups
+        cards={cards}
+        inspect={inspect}
+        act={act}
+        disabled={disabled}
+      />
       {!cards.length && (
         <div className="field-empty">
           <span>◈</span>
@@ -217,7 +229,11 @@ export function Battlefield({
 function BattlefieldGroups({
   cards,
   inspect,
+  act,
+  disabled,
 }: {
+  act: Action;
+  disabled: boolean;
   cards: Card[];
   inspect: (card: Card) => void;
 }) {
@@ -230,11 +246,24 @@ function BattlefieldGroups({
       {nonlands.length > 0 && (
         <div className="battlefield-nonlands">
           {nonlands.map((group) => (
-            <PermanentGroup key={group.type} group={group} inspect={inspect} />
+            <PermanentGroup
+              key={group.type}
+              group={group}
+              inspect={inspect}
+              act={act}
+              disabled={disabled}
+            />
           ))}
         </div>
       )}
-      {lands && <PermanentGroup group={lands} inspect={inspect} />}
+      {lands && (
+        <PermanentGroup
+          group={lands}
+          inspect={inspect}
+          act={act}
+          disabled={disabled}
+        />
+      )}
     </div>
   );
 }
@@ -242,7 +271,11 @@ function BattlefieldGroups({
 function PermanentGroup({
   group,
   inspect,
+  act,
+  disabled,
 }: {
+  act: Action;
+  disabled: boolean;
   group: BattlefieldGroup;
   inspect: (card: Card) => void;
 }) {
@@ -256,7 +289,12 @@ function PermanentGroup({
       <div className="battlefield-group-cards">
         {group.cards.map((card) => (
           <div className="battlefield-card-slot" key={card.id}>
-            <CardButton card={card} inspect={inspect} />
+            <CardButton
+              card={card}
+              inspect={inspect}
+              act={act}
+              disabled={disabled}
+            />
           </div>
         ))}
       </div>

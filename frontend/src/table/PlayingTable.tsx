@@ -29,14 +29,16 @@ export function PlayingTable({
   return (
     <main className="game-layout">
       <div className="table-area">
+        <TurnControls view={view} canPlay={canPlay} act={act} />
         <div className="board-scroll">
           <OpponentBoards
             view={view}
             online={socketOnline}
+            act={act}
+            canPlay={canPlay}
             inspect={inspect}
             openZone={openZone}
           />
-          <TurnControls view={view} canPlay={canPlay} act={act} />
           <GameStack
             view={view}
             canPlay={canPlay}
@@ -56,8 +58,13 @@ export function PlayingTable({
           act={act}
           openZone={openZone}
         />
-        <YourHand view={view} inspect={inspect} />
-        <SharedCards view={view} inspect={inspect} />
+        <YourHand view={view} inspect={inspect} act={act} canPlay={canPlay} />
+        <SharedCards
+          view={view}
+          inspect={inspect}
+          act={act}
+          canPlay={canPlay}
+        />
       </div>
       <GameSidebar
         view={view}

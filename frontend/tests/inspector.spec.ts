@@ -61,6 +61,9 @@ async function inspector(mockTable: TableFixture, initial = fixture()) {
     .getByRole("button", { name: "Inspect Front", exact: true })
     .click();
   const panel = page.getByRole("dialog", { name: "Card inspector" });
+  await expect(
+    panel.getByRole("heading", { name: "Front", exact: true }),
+  ).toBeVisible();
   return {
     panel,
     update,
@@ -221,6 +224,12 @@ for (const format of ["COMMANDER", "STANDARD"] as const) {
     await page
       .getByRole("button", { name: "Inspect Enemy attacker", exact: true })
       .click();
+    await expect(
+      session.panel.getByRole("heading", {
+        name: "Enemy attacker",
+        exact: true,
+      }),
+    ).toBeVisible();
     await session.update({
       ...view,
       cards: view.cards.map((c) =>
@@ -279,6 +288,9 @@ test("form state survives selection, zone and permission changes but resets afte
   await page
     .getByRole("button", { name: "Inspect Second card", exact: true })
     .click();
+  await expect(
+    panel.getByRole("heading", { name: "Second card", exact: true }),
+  ).toBeVisible();
   await expect(panel.getByLabel("Card counter", { exact: true })).toHaveValue(
     "charge",
   );
@@ -312,6 +324,9 @@ test("form state survives selection, zone and permission changes but resets afte
   await page
     .getByRole("button", { name: "Inspect Second card", exact: true })
     .click();
+  await expect(
+    panel.getByRole("heading", { name: "Second card", exact: true }),
+  ).toBeVisible();
   await expect(panel.getByLabel("Card counter", { exact: true })).toHaveValue(
     "+1/+1",
   );

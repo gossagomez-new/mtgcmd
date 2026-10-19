@@ -46,6 +46,7 @@ class GameEngineCommandsTest {
             "ABILITY",
             "RESOLVE_ABILITY",
             "PHASE",
+            "END_TURN",
             "DICE",
             "CONCEDE",
             "FINISH");
@@ -113,6 +114,7 @@ class GameEngineCommandsTest {
           case "DRAW" -> "drew 1 card(s)";
           case "SHUFFLE" -> "shuffled a library";
           case "SEARCH" -> "opened a private library search";
+          case "END_TURN" -> "ended the turn";
           case "PHASE" -> "advanced to Upkeep";
           default -> type.toLowerCase(Locale.ROOT).replace('_', ' ');
         };

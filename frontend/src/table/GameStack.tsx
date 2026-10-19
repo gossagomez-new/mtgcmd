@@ -1,6 +1,7 @@
 import type { Snapshot } from "../protocol";
 import type { Action, Inspect } from "./types";
 import { CardButton } from "./CardViews";
+import { useCardDrop } from "./useCardDrop";
 
 export function GameStack({
   view,
@@ -13,8 +14,14 @@ export function GameStack({
   act: Action;
   inspect: Inspect;
 }) {
+  const drop = useCardDrop(view.cards, "stack", !canPlay, act);
+  const interactions = { inspect, act, disabled: !canPlay };
   return (
-    <section className="stack panel">
+    <section
+      {...drop}
+      className={`stack panel ${drop.className}`}
+      title="Drop onto the stack"
+    >
       <div className="zone-heading">
         <h3>
           The stack{" "}
@@ -40,7 +47,7 @@ export function GameStack({
             .map((c) => ({
               order: c.stackOrder,
               key: c.id,
-              content: <CardButton card={c} inspect={inspect} />,
+              content: <CardButton card={c} {...interactions} />,
             })),
           ...view.abilities.map((a) => ({
             order: a.stackOrder,
