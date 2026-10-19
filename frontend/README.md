@@ -331,3 +331,11 @@ and [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md).
 
 See the [specification index](../spec/INDEX.md) for the approved behavior and
 feature verification requirements.
+
+### Artwork previews
+
+Hover a card or focus its Inspect button for 350 ms to preview its current artwork
+at a larger size. Move into the preview to keep it visible, or press Escape to
+hide it. Clicking, opening Actions or starting a drag dismisses it. Previews use
+only artwork already visible to you; hidden cards have no image preview. On very
+small viewports, a preview is omitted if it cannot fit without covering its card.

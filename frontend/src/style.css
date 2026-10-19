@@ -1311,3 +1311,24 @@ select:focus-visible {
   max-height: calc(100dvh - 16px);
   overflow: auto;
 }
+
+.card-preview-anchor {
+  display: contents;
+}
+.card-artwork-preview[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #172c29;
+  box-shadow: 0 8px 24px #0009;
+  overflow: hidden;
+}
+.card-artwork-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
