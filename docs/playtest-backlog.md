@@ -141,7 +141,8 @@ an explicit refinement of R07.
 
 ### R23 — Enlarged artwork on card hover
 
-Applies to Standard and Commander; pending a follow-up increment.
+Applies to Standard and Commander; delivered by the
+[artwork preview increment](../spec/card-artwork-previews.md).
 
 - Hovering a card with available artwork shows a larger artwork tooltip using
   the currently displayed face and the latest server-permitted definition. Offer
@@ -218,9 +219,12 @@ attachments, atomic group tapping, enlarged focused battlefields, turn notices
 and active-player colour/labels. Verification and compatibility details are in
 the specification and [ADR-0021](adr/0021-card-interaction-contracts.md).
 
-The other requirements remain pending, including R19 double-click from hand,
-R20 giving back the turn and R23 enlarged hover artwork. R20 still requires its
-turn-history policy to be confirmed.
+The [third increment](../spec/card-artwork-previews.md) delivers R23 enlarged
+artwork previews on hover and keyboard focus in both formats, preserving privacy,
+card gestures, focused views and access to Actions on narrow screens.
+
+The other requirements remain pending, including R19 double-click from hand and
+R20 giving back the turn. R20 still requires its turn-history policy to be confirmed.
 
 ## Proposed delivery order
 
