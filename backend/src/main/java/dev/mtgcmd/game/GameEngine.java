@@ -39,6 +39,7 @@ public final class GameEngine {
             Map.entry("START", lifecycleActions::start),
             Map.entry("PHASE", lifecycleActions::phase),
             Map.entry("END_TURN", lifecycleActions::endTurn),
+            Map.entry("GIVE_BACK_TURN", lifecycleActions::giveBackTurn),
             Map.entry("CONCEDE", lifecycleActions::concede),
             Map.entry("FINISH", lifecycleActions::finish),
             Map.entry("DRAW", libraryActions::draw),

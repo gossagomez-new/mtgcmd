@@ -38,6 +38,17 @@ export function TurnControls({
         >
           End turn
         </button>
+        <button
+          disabled={
+            !canPlay ||
+            view.status !== "playing" ||
+            view.you !== view.active ||
+            !view.canGiveBackTurn
+          }
+          onClick={() => act("GIVE_BACK_TURN")}
+        >
+          Give back turn
+        </button>
         <button disabled={!canPlay} onClick={() => act("UNTAP_ALL")}>
           Untap all
         </button>

@@ -68,6 +68,8 @@ const snapshotSchema = z.object({
   host: seat,
   active: seat,
   turn: integer,
+  turnVisit: integer.nonnegative().optional(),
+  canGiveBackTurn: z.boolean().optional(),
   phase: z.string(),
   you: seat,
   players: z.array(playerSchema),

@@ -11,6 +11,8 @@ import java.util.concurrent.*;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -87,6 +89,127 @@ class RoomStoreTest {
 
   static Game.Command command(final long rev, final String type, final Map<String, Object> data) {
     return new Game.Command(UUID.randomUUID().toString(), rev, type, data);
+  }
+
+  @ParameterizedTest
+  @EnumSource(GameFormat.class)
+  void turnReturnSurvivesRecoveryAndDuplicateRetriesDoNotConsumeHistory(final GameFormat format)
+      throws java.io.IOException {
+    final Map<String, Object> started = turnRoom(format);
+    final String identifier = (String) started.get("id");
+    store.execute(guests.getFirst(), identifier, command(rev(started), "END_TURN", Map.of()));
+    final RoomStore restarted =
+        new RoomStore(jdbc, transactions, new ObjectMapper(), new GameEngine());
+    final Map<String, Object> eligible = restarted.view(guests.get(1), identifier);
+    assertThat(eligible).containsEntry("canGiveBackTurn", true).containsEntry("turnVisit", 1L);
+    final Command giveBack = command(rev(eligible), "GIVE_BACK_TURN", Map.of());
+    final Map<String, Object> returned = restarted.execute(guests.get(1), identifier, giveBack);
+    assertThat(returned)
+        .containsEntry("active", 0)
+        .containsEntry("turn", 1)
+        .containsEntry("turnVisit", 2L);
+    assertThat(restarted.execute(guests.get(1), identifier, giveBack)).isEqualTo(returned);
+    final Map<String, Object> advanced =
+        restarted.execute(guests.getFirst(), identifier, command(rev(returned), "PHASE", Map.of()));
+    final Map<String, Object> retry = restarted.execute(guests.get(1), identifier, giveBack);
+    assertThat(rev(retry)).isEqualTo(rev(advanced));
+    assertThat(retry).containsEntry("phase", "Upkeep").containsEntry("turnVisit", 2L);
+    assertThatThrownBy(
+            () ->
+                restarted.execute(
+                    guests.get(1),
+                    identifier,
+                    new Command(
+                        giveBack.id(),
+                        giveBack.revision(),
+                        "GIVE_BACK_TURN",
+                        Map.of("extra", true))))
+        .hasMessageContaining("reused");
+    assertThatThrownBy(
+            () ->
+                restarted.execute(
+                    guests.getFirst(),
+                    identifier,
+                    command(giveBack.revision(), "GIVE_BACK_TURN", Map.of())))
+        .isInstanceOf(RoomStore.Conflict.class);
+    final String saved =
+        jdbc.queryForObject(
+            "SELECT snapshot::text FROM rooms WHERE id=?", String.class, identifier);
+    assertThat(new ObjectMapper().readTree(saved).path("turnTracking").path("history").size())
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM commands WHERE room_id=? AND command_id=?",
+                Integer.class,
+                identifier,
+                giveBack.id()))
+        .isEqualTo(1);
+  }
+
+  @ParameterizedTest
+  @EnumSource(GameFormat.class)
+  void failedTurnReturnPersistenceRollsBackHistoryAndCanBeRetried(final GameFormat format)
+      throws java.io.IOException {
+    final Map<String, Object> started = turnRoom(format);
+    final String identifier = (String) started.get("id");
+    store.execute(guests.getFirst(), identifier, command(rev(started), "END_TURN", Map.of()));
+    final Map<String, Object> before = store.view(guests.get(1), identifier);
+    final Command giveBack = command(rev(before), "GIVE_BACK_TURN", Map.of());
+    jdbc.execute(
+        "CREATE FUNCTION reject_return_action() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'return persistence failure'; END $$");
+    jdbc.execute(
+        "CREATE TRIGGER reject_return BEFORE INSERT ON actions FOR EACH ROW EXECUTE FUNCTION reject_return_action()");
+    try {
+      assertThatThrownBy(() -> store.execute(guests.get(1), identifier, giveBack))
+          .isInstanceOf(org.springframework.dao.DataAccessException.class);
+      assertThat(store.view(guests.get(1), identifier)).isEqualTo(before);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM commands WHERE room_id=? AND command_id=?",
+                  Integer.class,
+                  identifier,
+                  giveBack.id()))
+          .isZero();
+      final String saved =
+          jdbc.queryForObject(
+              "SELECT snapshot::text FROM rooms WHERE id=?", String.class, identifier);
+      assertThat(new ObjectMapper().readTree(saved).path("turnTracking").path("history").size())
+          .isEqualTo(1);
+    } finally {
+      jdbc.execute("DROP TRIGGER reject_return ON actions");
+      jdbc.execute("DROP FUNCTION reject_return_action()");
+    }
+    assertThat(store.execute(guests.get(1), identifier, giveBack))
+        .containsEntry("active", 0)
+        .containsEntry("turnVisit", 2L);
+  }
+
+  private Map<String, Object> turnRoom(final GameFormat format) {
+    Map<String, Object> view = store.create(guests.getFirst(), "A", format);
+    final String identifier = (String) view.get("id");
+    for (int seat = 1; seat < format.seatCapacity(); seat++) {
+      store.join(guests.get(seat), identifier, "Player " + seat);
+    }
+    final Game.Definition card =
+        new Game.Definition(
+            "island", "Island", "", "", "Basic Land — Island", List.of("U"), true, List.of());
+    for (int seat = 0; seat < format.seatCapacity(); seat++) {
+      view = store.view(guests.get(seat), identifier);
+      store.load(
+          guests.get(seat),
+          identifier,
+          UUID.randomUUID().toString(),
+          rev(view),
+          Collections.nCopies(format == GameFormat.STANDARD ? 60 : 20, card),
+          format.usesCommanders() ? List.of("island") : List.of());
+      view = store.view(guests.get(seat), identifier);
+      store.execute(
+          guests.get(seat),
+          identifier,
+          command(rev(view), "READY", Map.of("acceptWarnings", true)));
+    }
+    view = store.view(guests.getFirst(), identifier);
+    return store.execute(guests.getFirst(), identifier, command(rev(view), "START", Map.of()));
   }
 
   @Test

@@ -746,6 +746,28 @@ test("two Standard players import without commanders, accept warnings, play and 
       timeout: 30000,
     });
     await waitForFormat(host.request, apiUrl, "STANDARD");
+    const beforeReturn = await readSnapshot(host.request, apiUrl);
+    await host
+      .getByRole("button", { name: "Give back turn", exact: true })
+      .click();
+    await expect
+      .poll(async () => (await readSnapshot(host.request, apiUrl)).active)
+      .toBe(1);
+    const returned = await readSnapshot(host.request, apiUrl);
+    expect(returned.turn).toBe(beforeEnd.turn);
+    expect(returned.phase).toBe(beforeEnd.phase);
+    expect(returned.turnVisit).toBe((beforeReturn.turnVisit ?? -1) + 1);
+    expect(returned.cards).toEqual(beforeReturn.cards);
+    await expect(
+      opponent.getByRole("status", { name: "Turn notification" }),
+    ).toHaveText("Your turn — turn 1");
+    await opponent.reload();
+    await expect(
+      opponent.getByText("Connected", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      opponent.getByRole("status", { name: "Turn notification" }),
+    ).toBeEmpty();
     await host
       .getByRole("button", { name: "Draw a card", exact: true })
       .click();
