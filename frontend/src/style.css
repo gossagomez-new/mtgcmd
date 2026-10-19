@@ -1332,3 +1332,16 @@ select:focus-visible {
   height: 100%;
   object-fit: contain;
 }
+
+.focused-battlefield[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 16px;
+  color: var(--text, #e5e9e5);
+  max-width: calc(100vw - 16px);
+  max-height: min(70dvh, calc(100dvh - 16px));
+  overflow: auto;
+  box-sizing: border-box;
+  box-shadow: 0 12px 40px #0009;
+}

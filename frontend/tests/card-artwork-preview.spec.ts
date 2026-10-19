@@ -215,7 +215,7 @@ for (const format of ["STANDARD", "COMMANDER"] as const) {
 }
 
 for (const format of ["STANDARD", "COMMANDER"] as const) {
-  test(`${format}: focused previews dismiss before their parent dialog`, async ({
+  test(`${format}: focused previews dismiss before their parent popover`, async ({
     mockTable,
     page,
   }) => {

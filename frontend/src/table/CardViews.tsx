@@ -16,10 +16,12 @@ export function PlayerArea({
   act,
   disabled,
   focus,
+  isFocused = false,
 }: {
   act: Action;
   disabled: boolean;
-  focus?: () => void;
+  focus?: (anchor: HTMLButtonElement) => void;
+  isFocused?: boolean;
   player: Player;
   view: Snapshot;
   online: boolean;
@@ -58,7 +60,15 @@ export function PlayerArea({
         </div>
       </div>
       {focus && (
-        <button onClick={focus} aria-label={`Focus ${player.name} battlefield`}>
+        <button
+          onClick={(event) => focus(event.currentTarget)}
+          aria-label={`Focus ${player.name} battlefield`}
+          aria-haspopup="dialog"
+          aria-expanded={isFocused}
+          aria-controls={
+            isFocused ? `focused-battlefield-${player.seat}` : undefined
+          }
+        >
           Focus battlefield
         </button>
       )}

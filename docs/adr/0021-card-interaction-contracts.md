@@ -61,3 +61,12 @@ Backend must support the additive batch command before the frontend uses it. No 
 - [ADR-0005](0005-game-engine-component-boundaries.md)
 - [ADR-0013](0013-app-composition-boundaries.md)
 - [ADR-0020](0020-table-interaction-contracts.md)
+
+## Subsequent presentation refinement
+
+The user explicitly requested replacing the focused battlefield modal with a
+non-modal popover. The [focused battlefield specification](../../spec/focused-battlefield-popover.md)
+supersedes the focused-modal presentation choice above. Card details and zone
+viewers remain modal; shared PlayerArea rendering, authoritative snapshots and
+local presentation state remain as decided here. No new dependency, ownership
+boundary or server contract is introduced by this refinement.
