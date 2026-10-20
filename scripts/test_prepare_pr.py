@@ -388,5 +388,27 @@ class PreparePullRequestTest(unittest.TestCase):
         self.assertIn('references', self.codes(data))
 
 
+    def test_task_evidence_with_local_settings_is_consumed_without_environment_wrappers(self):
+        config = self.root / '.verification.local.json'
+        # Browser paths support spaces and have no JVM argument splitting.
+        config.write_text(json.dumps({'chromePath': str(self.root / 'bin/npm')}))
+        self.fixture.env.pop('CHROME_PATH', None)
+        result = self.fixture.run_cli('--task', 'handoff-check', 'browser')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        path = Path(next(line.removeprefix('Manifest: ') for line in result.stdout.splitlines()
+                         if line.startswith('Manifest: ')))
+        self.addCleanup(shutil.rmtree, path.parent)
+        result, data, _ = self.prepare(evidence=path)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(data['local_checks_passed'])
+        self.assertEqual(data['evidence'][0]['state'], 'current')
+        self.assertEqual(data['evidence'][0]['profile'], 'browser')
+        config.write_text(json.dumps({'chromePath': str(self.root / 'bin/mvn')}))
+        result, data, _ = self.prepare(evidence=path)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(data['evidence'][0]['state'], 'rejected')
+        self.assertNotIn('checks', data['evidence'][0])
+
+
 if __name__ == '__main__':
     unittest.main()

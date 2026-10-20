@@ -11,3 +11,5 @@ frontend/test-results/
 !.env.production.example
 /backups/
 *.log
+
+/.verification.local.json

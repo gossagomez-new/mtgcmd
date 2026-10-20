@@ -1,0 +1,5 @@
+{
+  "mavenRepository": "/absolute/path/to/existing/maven-cache",
+  "javaTemporaryDirectory": "/absolute/path/to/existing/java-temp",
+  "chromePath": "/absolute/path/to/existing/chrome"
+}

@@ -105,6 +105,7 @@ Use the same checks through an explicit local profile:
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `frontend` | Lint, formatting, unit/analyzer tests, analysis, and production build (including TypeScript checks).                                                                          |
 | `backend`  | Spotless, Maven verification/Java tests, and PMD; does not refresh bundled frontend assets.                                                                                   |
+| `browser`  | Browser tests only, including their existing backend/frontend test-server startup.                                                                                            |
 | `full`     | Frontend lint/format/unit/analyzer tests, build-wrapper/PMD and Python tooling tests, specification validation, Java formatting, and the existing frontend-first clean build. |
 
 `--browser` adds browser tests last to any profile and needs both toolchains.
@@ -143,6 +144,63 @@ them before sharing. Evidence does not prove approval, correctness, or authentic
 A passing frontend profile does not claim backend or browser checks passed.
 See [the specification](spec/local-verification.md) and
 [ADR-0015](docs/adr/0015-local-verification-evidence.md).
+
+### Task-scoped approvals
+
+For repeated verification during one feature, refactor or chore, put a unique task
+label first and reuse that prefix for the required scopes:
+
+```sh
+./scripts/verify.sh --task card-actions frontend
+./scripts/verify.sh --task card-actions backend
+./scripts/verify.sh --task card-actions browser
+./scripts/verify.sh --task card-actions full --browser
+```
+
+Request approval for the exact prefix `./scripts/verify.sh --task card-actions`.
+That prefix permits only the runner's predefined profiles and optional browser
+addition, rather than a shell/interpreter permission. Use the same label for
+red/green reruns, and a new label for each task. Labels contain 1–64 lowercase
+ASCII letters/digits separated by single hyphens. Task execution rejects custom
+commands, unknown/repeated options, task option reordering and `--output`/`--check`.
+Read-only evidence checking remains a separate `verify.sh --check MANIFEST` command.
+Each run creates a fresh private task-labelled directory and prints its manifest
+path; no environment prefix or shell log redirection is needed. Run verification
+sequentially within a checkout because builds and browser startup share outputs.
+
+Codex owns command approvals. A task label does not grant permission, bind an
+approval to script contents, or expire a saved rule. Existing broader rules may
+already cover a command. Do not add broad shell/interpreter rules or edit approval
+settings through this runner. Review changes to the runner, build/test scripts,
+dependencies and local settings. Remove old task rules manually when desired.
+See [official OpenAI command-rule documentation](https://learn.chatgpt.com/docs/agent-configuration/rules).
+
+For machine-specific defaults, copy `.verification.local.example.json` to the
+ignored `.verification.local.json`, replace the example paths, and remove any keys
+you do not need. All three settings are optional; an empty object is valid.
+The runner validates existing absolute paths before creating evidence or starting
+checks. Directory paths cannot contain whitespace, quotes, backslashes or glob
+characters because JVM option variables are split by launchers. The Chrome path
+may contain spaces and must identify an executable file. Settings JSON must not
+be a symlink and rejects duplicate/unknown keys. It never creates configured paths,
+evaluates commands or installs dependencies/browsers.
+
+| Local path key           | Default supplied when the environment variable is absent |
+| ------------------------ | -------------------------------------------------------- |
+| `mavenRepository`        | `MAVEN_OPTS=-Dmaven.repo.local=PATH`                     |
+| `javaTemporaryDirectory` | `JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=PATH`                |
+| `chromePath`             | `CHROME_PATH=PATH`                                       |
+
+Existing environment variables, including empty values, win in full; defaults
+are not appended to existing JVM options. Legacy runs without `--task` ignore
+this file. Task manifests retain the task label and effective settings using the
+existing JVM-option hashes and allowlisted paths. Evidence checking (including
+handoff preparation) reapplies the same defaults and rejects changed effective
+settings. Local JSON is not copied into reports. Child logs remain verbatim and
+must be reviewed before sharing.
+
+See [task-scoped verification](spec/task-scoped-verification.md) and
+[ADR-0023](docs/adr/0023-task-scoped-verification.md).
 
 ## Validate specifications locally
 
