@@ -18,12 +18,21 @@ public final class Game {
   public int active;
   public int turn = 1;
   public String phase = "Untap";
+  public TurnTracking turnTracking = new TurnTracking();
   public List<Player> players = new ArrayList<>();
   public List<Card> cards = new ArrayList<>();
   public List<Ability> abilities = new ArrayList<>();
   public Map<Integer, Set<Integer>> grants = new HashMap<>();
   public Map<Integer, Integer> searches = new HashMap<>();
   public List<String> log = new ArrayList<>();
+
+  /** Persisted turn metadata; missing legacy fields retain these defaults. */
+  public static final class TurnTracking {
+    public long visit;
+    public List<TurnCheckpoint> history = new ArrayList<>();
+  }
+
+  public record TurnCheckpoint(int active, int turn, String phase) {}
 
   public static final class Player {
     public int seat;

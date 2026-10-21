@@ -81,6 +81,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Task-scoped verification](task-scoped-verification.md) | Completed | High | Task-first fixed verification scopes and local path defaults | [Local verification](local-verification.md) | [ADR-0023](../docs/adr/0023-task-scoped-verification.md): task prefixes and local settings; [ADR-0015](../docs/adr/0015-local-verification-evidence.md): existing sequential evidence |
 
+| [Give back turn](give-back-turn.md) | Completed | High | Restore saved turn tracking without undoing gameplay | [Frequent table interactions](table-interactions.md), [Card interaction increment](card-interactions.md) | [ADR-0022](../docs/adr/0022-turn-return-checkpoints.md): bounded server checkpoints and visit identity; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing authority and persistence; [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): active-only turn control |
+
 ## Dependency graph
 
 ```mermaid
@@ -92,6 +94,10 @@ flowchart TD
     focuspopover -->|depends on| artworkpreviews
     artworkpreviews["Card artwork previews"]
     artworkpreviews -->|depends on| cardinteractions
+
+    giveback["Give back turn"]
+    giveback -->|depends on| tableinteractions
+    giveback -->|depends on| cardinteractions
     cardinteractions["Card interaction increment"]
     cardinteractions -->|depends on| tableinteractions
     cardinteractions -->|depends on| inspectorcomposition

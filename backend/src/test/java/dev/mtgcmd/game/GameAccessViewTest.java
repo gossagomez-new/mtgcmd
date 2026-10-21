@@ -74,6 +74,8 @@ class GameAccessViewTest {
             "host",
             "active",
             "turn",
+            "turnVisit",
+            "canGiveBackTurn",
             "phase",
             "you",
             "grants",

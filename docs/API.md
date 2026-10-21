@@ -98,6 +98,7 @@ and host FINISH. Card IDs come only from filtered snapshots.
 | RESOLVE_ABILITY | `abilityId` | Actor removes their marker |
 | PHASE | `{}` | Only the active player advances the informational phase marker |
 | END_TURN | `{}` | Active player advances to the next non-conceded seat, increments turn, resets to Untap and clears combat; untap/draw and stack resolution remain manual |
+| GIVE_BACK_TURN | `{}` | Active player restores the latest saved seat, phase and turn number; cards and all other gameplay state stay unchanged. Rejects empty history or a conceded predecessor |
 | DICE | `sides=6` | Server rolls 2–1000 sided die and logs result |
 | CONCEDE | `{}` | Mark actor out, revoke private grants, and advance a stranded turn marker |
 | FINISH | `{}` | Host marks game finished |
@@ -113,3 +114,12 @@ Player counters use `life`, `poison`, `casts:{commanderKey}`, and
 negative corrections and are bounded to ±99,999. Commanders' public metadata
 includes their separate damage-tracking keys. Face-down card projections must
 not include identity-bearing definitions or commander keys for observers.
+
+### Turn correction metadata
+
+Snapshots expose `turnVisit`, a monotonic handoff identifier, and viewer-specific
+`canGiveBackTurn`. The server retains up to 100 private turn checkpoints across
+restarts. Returning consumes the latest checkpoint; it does not undo gameplay.
+Notifications use the visit identifier even when the displayed turn decreases.
+Older snapshots without these fields keep return controls disabled until support
+and a new handoff are available. See [the specification](../spec/give-back-turn.md).
