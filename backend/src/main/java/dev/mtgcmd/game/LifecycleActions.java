@@ -84,7 +84,13 @@ final class LifecycleActions {
     return "ended the turn";
   }
 
+  String giveBackTurn(final Game game, final int seat, Map<String, Object> data) {
+    require(seat == game.active, "Only the active player can give back the turn");
+    return TurnHistory.giveBack(game);
+  }
+
   private static void advanceTurn(final Game game) {
+    TurnHistory.record(game);
     for (int index = 0; index < game.players.size(); index++) {
       game.active = (game.active + 1) % game.players.size();
       if (!game.players.get(game.active).conceded) {
@@ -99,11 +105,17 @@ final class LifecycleActions {
   String concede(final Game game, final int seat, Map<String, Object> data) {
     final Player player = player(game, seat);
 
+    final boolean handoff =
+        game.active == seat
+            && game.players.stream().anyMatch(other -> other.seat != seat && !other.conceded);
+    if (handoff) {
+      TurnHistory.record(game);
+    }
     player.conceded = true;
     game.grants.remove(seat);
     game.grants.values().forEach(s -> s.remove(seat));
     game.searches.remove(seat);
-    if (game.active == seat && game.players.stream().anyMatch(other -> !other.conceded)) {
+    if (handoff) {
       do {
         game.active = (game.active + 1) % game.players.size();
       } while (game.players.get(game.active).conceded);

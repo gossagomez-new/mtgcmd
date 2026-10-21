@@ -84,7 +84,7 @@ coordinate gesture handling with R01 and R07.
 
 ### R20 — Give back the turn
 
-Applies to Standard and Commander; pending delivery.
+Applies to Standard and Commander; implemented in the turn-return increment.
 
 - Provide a visible, keyboard-accessible Give back turn button in the persistent
   turn controls. Only the current active player may use it; the host has no
@@ -95,8 +95,8 @@ Applies to Standard and Commander; pending delivery.
   action is pending, or if that previous player has conceded.
 - Giving back the turn changes turn tracking only. It does not reverse draws,
   moves, taps, life changes or stack actions. Those remain manual corrections.
-  Any phase, turn-number and history restoration policy must be confirmed in the
-  implementation specification before this requirement is implemented.
+  Restore the saved phase and displayed turn number, walking backward through
+  retained handoffs on repeated returns.
 - All players see the updated active player and an explicit public log entry.
   Apply the handoff atomically with existing revision and idempotency safeguards;
   rejected requests leave state unchanged, and reconnects do not repeat it.
@@ -105,9 +105,9 @@ Applies to Standard and Commander; pending delivery.
   duplicate requests, reconnects, and preservation of unrelated gameplay state.
 
 Added from a follow-up user request. This extends R02's active-player-only turn
-controls. Before implementation, confirm whether repeated Give back turn actions
-should alternate between two players or walk backwards through turn history, and
-which phase and turn number should be restored. These choices remain unresolved.
+controls. The user confirmed walking backward through saved handoffs and restoring
+the previous phase and displayed turn number. Implementation is specified in
+[Give back turn](../spec/give-back-turn.md); all other gameplay state remains unchanged.
 
 ### R21 — Distinguish the active player's table colour
 
@@ -225,8 +225,11 @@ The [third increment](../spec/card-artwork-previews.md) delivers R23 enlarged
 artwork previews on hover and keyboard focus in both formats, preserving privacy,
 card gestures, focused views and access to Actions on narrow screens.
 
-The other requirements remain pending, including R19 double-click from hand and
-R20 giving back the turn. R20 still requires its turn-history policy to be confirmed.
+The [turn-return increment](../spec/give-back-turn.md) delivers R20 in both formats,
+with bounded saved handoffs, restored phase/turn number, unchanged gameplay state,
+and durable notification deduplication. See [ADR-0022](adr/0022-turn-return-checkpoints.md).
+
+The other requirements remain pending, including R19 double-click from hand.
 
 ## Proposed delivery order
 
@@ -235,7 +238,7 @@ R20 giving back the turn. R20 still requires its turn-history policy to be confi
 2. **Card interaction:** R07 quick-action menu, R08 attachments, R05 group tapping,
    R10 focused battlefield, R03 turn notifications, R21 active-player colour,
    R22 non-modal card actions, then R23 artwork previews and R20 give back turn
-   (after its turn-history policy is confirmed).
+   (using the confirmed turn-history policy).
 3. **Gameplay workflows:** R15 casting/resolution, R19 double-click from hand and
    R11 logging together;
    then R13 bounded library actions, R14 scry and R16 mulligans.

@@ -24,6 +24,13 @@ final class GameViewMapper {
     out.put("host", game.host);
     out.put("active", game.active);
     out.put("turn", game.turn);
+    out.put("turnVisit", TurnHistory.visit(game));
+    out.put(
+        "canGiveBackTurn",
+        "playing".equals(game.status)
+            && seat == game.active
+            && !game.players.get(seat).conceded
+            && TurnHistory.available(game));
     out.put("phase", game.phase);
     out.put("you", seat);
     out.put("grants", game.grants.getOrDefault(seat, Set.of()));

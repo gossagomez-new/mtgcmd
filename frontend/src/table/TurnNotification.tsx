@@ -5,7 +5,8 @@ import { turnNotice, type NoticeStorage } from "../turnNotification";
 export function TurnNotification({ view }: { view: Snapshot }) {
   const memory = useRef(new Map<string, string>());
   const [notice, setNotice] = useState({ key: "", text: "" });
-  const { id, you, turn, active, status } = view;
+  const { id, you, turn, turnVisit, active, status } = view;
+  const currentKey = `${id}:${you}:${turnVisit === undefined ? "turn" : "visit"}:${turnVisit ?? turn}`;
   useEffect(() => {
     const fallback = memory.current;
     const storage: NoticeStorage = {
@@ -25,13 +26,14 @@ export function TurnNotification({ view }: { view: Snapshot }) {
         }
       },
     };
-    const text = turnNotice({ id, you, turn, active, status }, storage);
-    if (text) setNotice({ key: `${id}:${you}:${turn}`, text });
-  }, [id, you, turn, active, status]);
+    const text = turnNotice(
+      { id, you, turn, turnVisit, active, status },
+      storage,
+    );
+    if (text) setNotice({ key: currentKey, text });
+  }, [id, you, turn, turnVisit, active, status, currentKey]);
   const visible =
-    status === "playing" &&
-    active === you &&
-    notice.key === `${id}:${you}:${turn}`;
+    status === "playing" && active === you && notice.key === currentKey;
   return (
     <div
       role="status"

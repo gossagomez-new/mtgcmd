@@ -79,6 +79,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Focused battlefield popover](focused-battlefield-popover.md) | Completed | High | Non-modal live opponent focus and nested interactions | [Card interaction increment](card-interactions.md), [Card artwork previews](card-artwork-previews.md) | [ADR-0021](../docs/adr/0021-card-interaction-contracts.md): existing shared card rendering; [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): local presentation state |
 
+| [Give back turn](give-back-turn.md) | Completed | High | Restore saved turn tracking without undoing gameplay | [Frequent table interactions](table-interactions.md), [Card interaction increment](card-interactions.md) | [ADR-0022](../docs/adr/0022-turn-return-checkpoints.md): bounded server checkpoints and visit identity; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing authority and persistence; [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): active-only turn control |
+
 ## Dependency graph
 
 ```mermaid
@@ -88,6 +90,10 @@ flowchart TD
     focuspopover -->|depends on| artworkpreviews
     artworkpreviews["Card artwork previews"]
     artworkpreviews -->|depends on| cardinteractions
+
+    giveback["Give back turn"]
+    giveback -->|depends on| tableinteractions
+    giveback -->|depends on| cardinteractions
     cardinteractions["Card interaction increment"]
     cardinteractions -->|depends on| tableinteractions
     cardinteractions -->|depends on| inspectorcomposition
