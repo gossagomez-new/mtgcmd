@@ -1,3 +1,4 @@
+import { exerciseLibraryWorkflow } from "./support/libraryWorkflow";
 import { decklist, commander, previewDeck, useDeck } from "./support/selectors";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
@@ -235,6 +236,8 @@ test("four guests play with private cards, explicit reveals, and durable reconne
           ).length,
       )
       .toBe(1);
+    await pages[0].getByRole("button", { name: "Close inspector" }).click();
+    await exerciseLibraryWorkflow(pages[0], pages[1]);
     observers.forEach((observer) => observer.assertHealthy());
     expect(errors).toEqual([]);
   } finally {
@@ -769,6 +772,7 @@ test("two Standard players import without commanders, accept warnings, play and 
     await expect(
       opponent.getByRole("status", { name: "Turn notification" }),
     ).toBeEmpty();
+    await exerciseLibraryWorkflow(host, opponent);
     await host
       .getByRole("button", { name: "Draw a card", exact: true })
       .click();

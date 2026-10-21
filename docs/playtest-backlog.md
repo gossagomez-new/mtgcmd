@@ -229,6 +229,11 @@ The [turn-return increment](../spec/give-back-turn.md) delivers R20 in both form
 with bounded saved handoffs, restored phase/turn number, unchanged gameplay state,
 and durable notification deduplication. See [ADR-0022](adr/0022-turn-return-checkpoints.md).
 
+The [bounded library increment](../spec/bounded-library-actions.md) delivers R13
+and R14 in both formats: private top-N inspection, face-up top exile, and ordered
+atomic scry. Server-owned sessions preserve bounded privacy and support reconnect;
+unconfirmed arrangements remain local. See [ADR-0024](adr/0024-bounded-library-inspections.md).
+
 The other requirements remain pending, including R19 double-click from hand.
 
 ## Proposed delivery order
@@ -241,7 +246,7 @@ The other requirements remain pending, including R19 double-click from hand.
    (using the confirmed turn-history policy).
 3. **Gameplay workflows:** R15 casting/resolution, R19 double-click from hand and
    R11 logging together;
-   then R13 bounded library actions, R14 scry and R16 mulligans.
+   R13 bounded library actions and R14 scry are delivered together; R16 mulligans remains pending.
 4. **Repeated games:** R17 replay and R18 sideboarding together.
 5. **Presentation polish:** R12 token appearance.
 

@@ -20,7 +20,26 @@ final class GameAccess {
       return false;
     }
     return !LIBRARY.equals(Objects.requireNonNull(card.zone))
-        || Objects.equals(game.searches.get(seat), card.zoneOwner);
+        || Objects.equals(game.searches.get(seat), card.zoneOwner)
+        || boundedVisibility(game, seat, card);
+  }
+
+  Game.LibraryInspection libraryInspection(final Game game, final int seat) {
+    final Game.LibraryInspection inspection = LibraryInspections.current(game, seat);
+    return inspection != null
+            && "playing".equals(game.status)
+            && !player(game, seat).conceded
+            && !player(game, inspection.target()).conceded
+            && canAccessPrivate(game, seat, inspection.target())
+        ? inspection
+        : null;
+  }
+
+  private boolean boundedVisibility(final Game game, final int seat, final Card card) {
+    final Game.LibraryInspection inspection = libraryInspection(game, seat);
+    return inspection != null
+        && inspection.target() == card.zoneOwner
+        && inspection.cardIds().contains(card.id);
   }
 
   boolean canSeeDefinition(final Game game, final int seat, final Card card) {

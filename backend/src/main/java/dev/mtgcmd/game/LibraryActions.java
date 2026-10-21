@@ -44,6 +44,7 @@ final class LibraryActions {
 
     final int target = integer(data, TARGET_FIELD, seat, 0, game.players.size() - 1);
     access.privatePermission(game, seat, target);
+    LibraryInspections.close(game, seat);
     game.searches.put(seat, target);
     return "opened a private library search";
   }
@@ -62,6 +63,7 @@ final class LibraryActions {
       grants.add(target);
     } else {
       grants.remove(target);
+      LibraryInspections.revoke(game, target, seat);
       if (Objects.equals(game.searches.get(target), seat)) {
         game.searches.remove(target);
       }

@@ -59,6 +59,19 @@ const playerSchema = z.object({
     z.object({ key: z.string(), name: z.string(), casts: integer }),
   ),
 });
+const libraryInspectionSchema = z.object({
+  id: z.string().min(1).max(80),
+  target: seat,
+  mode: z.enum(["look", "scry"]),
+  cardIds: z
+    .array(z.string().min(1).max(80))
+    .min(1)
+    .max(100)
+    .refine(
+      (ids) => new Set(ids).size === ids.length,
+      "Duplicate inspected card",
+    ),
+});
 const snapshotSchema = z.object({
   format: formatSchema,
   seatCapacity: integer.positive(),
@@ -85,6 +98,7 @@ const snapshotSchema = z.object({
   log: z.array(z.string()),
   grants: z.array(seat),
   search: seat.nullable(),
+  libraryInspection: libraryInspectionSchema.nullish(),
 });
 const sessionSchema = z.object({ csrf: z.string() });
 const savedRoomsSchema = z.array(
@@ -115,6 +129,7 @@ export type GameFormat = z.infer<typeof formatSchema>;
 export type CardDefinition = z.infer<typeof definitionSchema>;
 export type Card = z.infer<typeof cardSchema>;
 export type Player = z.infer<typeof playerSchema>;
+export type LibraryInspection = z.infer<typeof libraryInspectionSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
 export type Draft = z.infer<typeof draftSchema>;
 export type SavedRoom = z.infer<typeof savedRoomsSchema>[number];

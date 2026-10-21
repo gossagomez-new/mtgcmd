@@ -115,6 +115,8 @@ final class LifecycleActions {
     game.grants.remove(seat);
     game.grants.values().forEach(s -> s.remove(seat));
     game.searches.remove(seat);
+    LibraryInspections.close(game, seat);
+    LibraryInspections.invalidate(game, seat);
     if (handoff) {
       do {
         game.active = (game.active + 1) % game.players.size();
@@ -131,6 +133,7 @@ final class LifecycleActions {
 
     require(seat == game.host, "Only the host can finish");
     game.status = "finished";
+    LibraryInspections.clear(game);
 
     return "finish";
   }

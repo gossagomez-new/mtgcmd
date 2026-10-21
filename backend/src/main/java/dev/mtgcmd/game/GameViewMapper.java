@@ -35,6 +35,7 @@ final class GameViewMapper {
     out.put("you", seat);
     out.put("grants", game.grants.getOrDefault(seat, Set.of()));
     out.put("search", game.searches.get(seat));
+    out.put("libraryInspection", access.libraryInspection(game, seat));
     out.put("log", game.log);
     out.put(
         "players",

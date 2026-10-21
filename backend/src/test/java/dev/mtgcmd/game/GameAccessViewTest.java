@@ -80,6 +80,7 @@ class GameAccessViewTest {
             "you",
             "grants",
             "search",
+            "libraryInspection",
             "log",
             "players",
             "cards",

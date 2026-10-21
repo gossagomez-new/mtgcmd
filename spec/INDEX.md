@@ -83,12 +83,18 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Give back turn](give-back-turn.md) | Completed | High | Restore saved turn tracking without undoing gameplay | [Frequent table interactions](table-interactions.md), [Card interaction increment](card-interactions.md) | [ADR-0022](../docs/adr/0022-turn-return-checkpoints.md): bounded server checkpoints and visit identity; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing authority and persistence; [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): active-only turn control |
 
+| [Bounded library actions](bounded-library-actions.md) | Completed | High | Private top-N actions and atomic ordered scry | [Card interaction increment](card-interactions.md), [Validated frontend protocol](validated-frontend-protocol.md) | [ADR-0024](../docs/adr/0024-bounded-library-inspections.md): bounded sessions and atomic scry; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): authority/transactions; [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md): wire decoding |
+
 ## Dependency graph
 
 ```mermaid
 flowchart TD
     taskverify["Task-scoped verification"]
     taskverify -->|depends on| localverify
+
+    boundedlibrary["Bounded library actions"]
+    boundedlibrary -->|depends on| cardinteractions
+    boundedlibrary -->|depends on| protocolboundary
     focuspopover["Focused battlefield popover"]
     focuspopover -->|depends on| cardinteractions
     focuspopover -->|depends on| artworkpreviews
