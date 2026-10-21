@@ -67,6 +67,7 @@ export function PlayingTable({
         />
       </div>
       <GameSidebar
+        inspect={inspect}
         view={view}
         canPlay={canPlay}
         disabled={disabled}

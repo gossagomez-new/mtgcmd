@@ -22,6 +22,12 @@ final class CardZoneTransitions {
       final boolean top,
       final boolean faceDown) {
     final String previousZone = card.zone;
+    if (LIBRARY.equals(previousZone)) {
+      LibraryInspections.invalidate(game, card.zoneOwner);
+    }
+    if (LIBRARY.equals(destination)) {
+      LibraryInspections.invalidate(game, card.owner);
+    }
     detachReferences(game, card.id);
     resetTransientState(card);
     assignDestination(card, destination, faceDown);
@@ -92,13 +98,18 @@ final class CardZoneTransitions {
   void shuffle(final Game game, final int owner) {
     final List<Card> library = zone(game, owner, LIBRARY);
     Collections.shuffle(library, random);
-    game.cards.removeAll(library);
+    reorderLibrary(game, owner, library);
+  }
+
+  void reorderLibrary(final Game game, final int owner, final List<Card> library) {
+    game.cards.removeAll(zone(game, owner, LIBRARY));
     for (final Card c : library) {
       rekey(game, c);
       c.revealedTo.clear();
     }
     game.cards.addAll(library);
     game.searches.entrySet().removeIf(e -> e.getValue() == owner);
+    LibraryInspections.invalidate(game, owner);
   }
 
   private void rekey(final Game game, final Card card) {

@@ -9,6 +9,13 @@ See the [project README](../README.md) for game features and complete deployment
 setup, and the [frontend README](../frontend/README.md) for the browser client.
 **Run all commands below from the repository root.**
 
+Bounded library inspections and scry use server-selected top cards, actor-only
+filtered views, and existing RoomStore transactions. Library transitions invalidate
+saved inspections; scry confirms an exact ordered partition atomically. Existing
+private-access grants apply, while bounded visibility grants no editing rights.
+See [the API](../docs/API.md#bounded-library-inspections) and
+[the specification](../spec/bounded-library-actions.md).
+
 ## Requirements
 
 - Java 25 and Maven 3.9+.

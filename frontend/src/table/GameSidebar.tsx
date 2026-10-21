@@ -1,22 +1,31 @@
 import type { Snapshot } from "../protocol";
-import type { Action } from "./types";
+import type { Action, Inspect } from "./types";
 import { PlayerCounters } from "./PlayerCounters";
+import { BoundedLibraryControls } from "./BoundedLibraryControls";
 
 export function GameSidebar({
   view,
   canPlay,
   disabled,
   act,
+  inspect,
 }: {
   view: Snapshot;
   canPlay: boolean;
   disabled: boolean;
   act: Action;
+  inspect: Inspect;
 }) {
   const me = view.players[view.you];
   const usesCommanders = view.format !== "STANDARD";
   return (
     <aside className="sidebar">
+      <BoundedLibraryControls
+        view={view}
+        canPlay={canPlay}
+        act={act}
+        inspect={inspect}
+      />
       <section className="panel game-tools">
         <p className="eyebrow">TABLE TOOLS</p>
         {me && (

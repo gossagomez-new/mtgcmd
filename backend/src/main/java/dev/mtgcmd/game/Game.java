@@ -24,6 +24,7 @@ public final class Game {
   public List<Ability> abilities = new ArrayList<>();
   public Map<Integer, Set<Integer>> grants = new HashMap<>();
   public Map<Integer, Integer> searches = new HashMap<>();
+  public Map<Integer, LibraryInspection> libraryInspections = new HashMap<>();
   public List<String> log = new ArrayList<>();
 
   /** Persisted turn metadata; missing legacy fields retain these defaults. */
@@ -33,6 +34,8 @@ public final class Game {
   }
 
   public record TurnCheckpoint(int active, int turn, String phase) {}
+
+  public record LibraryInspection(String id, int target, String mode, List<String> cardIds) {}
 
   public static final class Player {
     public int seat;

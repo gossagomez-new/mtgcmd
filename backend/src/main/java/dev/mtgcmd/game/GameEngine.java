@@ -29,6 +29,7 @@ public final class GameEngine {
     final CardZoneTransitions transitions = new CardZoneTransitions(random);
     views = new GameViewMapper(access);
     final LifecycleActions lifecycleActions = new LifecycleActions(transitions);
+    final BoundedLibraryActions boundedLibrary = new BoundedLibraryActions(access, transitions);
     final LibraryActions libraryActions = new LibraryActions(access, transitions);
     final PermanentActions permanentActions = new PermanentActions(access, transitions);
     final ObjectActions objectActions = new ObjectActions(access);
@@ -44,6 +45,11 @@ public final class GameEngine {
             Map.entry("FINISH", lifecycleActions::finish),
             Map.entry("DRAW", libraryActions::draw),
             Map.entry("SHUFFLE", libraryActions::shuffle),
+            Map.entry("LOOK_TOP", boundedLibrary::look),
+            Map.entry("SCRY", boundedLibrary::scry),
+            Map.entry("EXILE_TOP", boundedLibrary::exile),
+            Map.entry("APPLY_SCRY", boundedLibrary::applyScry),
+            Map.entry("CLOSE_INSPECTION", boundedLibrary::close),
             Map.entry("SEARCH", libraryActions::search),
             Map.entry("CLOSE_SEARCH", libraryActions::closeSearch),
             Map.entry("GRANT", libraryActions::grant),

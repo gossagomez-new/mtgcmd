@@ -37,6 +37,17 @@ API_PORT=8081 npm --prefix frontend run dev -- --port 5173 --strictPort
 origin as the packaged app. Changing the Vite port requires a matching backend
 `PUBLIC_ORIGIN`. The `/__test` proxy is used by the isolated browser-test server.
 
+## Bounded library actions
+
+During play, select an authorized library and a count from 1 to 100, then use
+**Look at top**, **Exile top**, or **Scry**. Exile is face-up. The private popover
+shows only inspected cards; opening card details does not close the selection.
+For scry, move cards between top/bottom groups and use earlier/later controls to
+order them, then confirm once. Close, Escape or an outside click cancels without
+reordering. Reload restores the server selection; an unconfirmed arrangement is
+local. Other library changes invalidate the selection. Both formats use the
+same workflow. See [the specification](../spec/bounded-library-actions.md).
+
 ## Build and checks
 
 Commands are defined in [package.json](package.json).

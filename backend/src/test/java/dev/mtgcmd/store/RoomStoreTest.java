@@ -58,23 +58,27 @@ class RoomStoreTest {
   }
 
   Map<String, Object> game() {
-    Map<String, Object> view = store.create(guests.getFirst(), "A");
+    return game(GameFormat.COMMANDER);
+  }
+
+  Map<String, Object> game(final GameFormat format) {
+    Map<String, Object> view = store.create(guests.getFirst(), "A", format);
     final String identifier = (String) view.get("id");
-    for (int i = 1; i < 4; i++) {
+    for (int i = 1; i < format.seatCapacity(); i++) {
       store.join(guests.get(i), identifier, "Player " + i);
     }
     final Game.Definition card =
         new Game.Definition(
             "island", "Island", "", "", "Basic Land — Island", List.of("U"), true, List.of());
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < format.seatCapacity(); i++) {
       view = store.view(guests.get(i), identifier);
       store.load(
           guests.get(i),
           identifier,
           UUID.randomUUID().toString(),
           rev(view),
-          Collections.nCopies(20, card),
-          List.of("island"));
+          Collections.nCopies(format == GameFormat.STANDARD ? 60 : 20, card),
+          format.usesCommanders() ? List.of("island") : List.of());
       view = store.view(guests.get(i), identifier);
       store.execute(
           guests.get(i), identifier, command(rev(view), "READY", Map.of("acceptWarnings", true)));
@@ -210,6 +214,104 @@ class RoomStoreTest {
     }
     view = store.view(guests.getFirst(), identifier);
     return store.execute(guests.getFirst(), identifier, command(rev(view), "START", Map.of()));
+  }
+
+  @ParameterizedTest
+  @EnumSource(GameFormat.class)
+  void boundedInspectionAndScrySurviveRecoveryAndDuplicateRetries(final GameFormat format) {
+    final Map<String, Object> started = game(format);
+    final String id = (String) started.get("id");
+    final Command open = command(rev(started), "SCRY", Map.of("count", 3));
+    final Map<String, Object> opened = store.execute(guests.getFirst(), id, open);
+    final RoomStore recovered =
+        new RoomStore(jdbc, transactions, new ObjectMapper(), new GameEngine());
+    assertThat(recovered.view(guests.getFirst(), id)).isEqualTo(opened);
+    assertThat(recovered.execute(guests.getFirst(), id, open)).isEqualTo(opened);
+    final com.fasterxml.jackson.databind.JsonNode session =
+        new ObjectMapper().valueToTree(opened.get("libraryInspection"));
+    final List<String> cards = new ArrayList<>();
+    session.path("cardIds").forEach(value -> cards.add(value.asText()));
+    for (final String cardId : cards)
+      assertThat(recovered.view(guests.get(1), id).toString()).doesNotContain(cardId);
+    final Command apply =
+        command(
+            rev(opened),
+            "APPLY_SCRY",
+            Map.of(
+                "inspectionId",
+                session.path("id").asText(),
+                "top",
+                List.of(cards.get(2)),
+                "bottom",
+                List.of(cards.get(1), cards.get(0))));
+    final Map<String, Object> result = recovered.execute(guests.getFirst(), id, apply);
+    assertThat(result.get("libraryInspection")).isNull();
+    assertThat(rev(result)).isEqualTo(rev(opened) + 1);
+    assertThat(recovered.execute(guests.getFirst(), id, apply)).isEqualTo(result);
+    assertThat(recovered.execute(guests.getFirst(), id, open)).isEqualTo(result);
+    assertThat(
+            new RoomStore(jdbc, transactions, new ObjectMapper(), new GameEngine())
+                .view(guests.getFirst(), id))
+        .isEqualTo(result);
+    assertThatThrownBy(
+            () ->
+                recovered.execute(
+                    guests.getFirst(),
+                    id,
+                    new Command(apply.id(), apply.revision(), "CLOSE_INSPECTION", apply.data())))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                recovered.execute(
+                    guests.getFirst(), id, command(rev(opened), "APPLY_SCRY", apply.data())))
+        .isInstanceOf(RoomStore.Conflict.class);
+  }
+
+  @ParameterizedTest
+  @EnumSource(GameFormat.class)
+  void failedScryPersistenceRollsBackOrderSessionAndCommandRecord(final GameFormat format) {
+    final Map<String, Object> started = game(format);
+    final String id = (String) started.get("id");
+    final Map<String, Object> opened =
+        store.execute(guests.getFirst(), id, command(rev(started), "SCRY", Map.of("count", 1)));
+    final com.fasterxml.jackson.databind.JsonNode session =
+        new ObjectMapper().valueToTree(opened.get("libraryInspection"));
+    final Command apply =
+        command(
+            rev(opened),
+            "APPLY_SCRY",
+            Map.of(
+                "inspectionId",
+                session.path("id").asText(),
+                "top",
+                List.of(),
+                "bottom",
+                List.of(session.path("cardIds").get(0).asText())));
+    final String saved =
+        jdbc.queryForObject("SELECT snapshot::text FROM rooms WHERE id=?", String.class, id);
+    jdbc.execute(
+        "CREATE FUNCTION reject_scry_action() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'scry persistence failure'; END $$");
+    jdbc.execute(
+        "CREATE TRIGGER reject_scry BEFORE INSERT ON actions FOR EACH ROW EXECUTE FUNCTION reject_scry_action()");
+    try {
+      assertThatThrownBy(() -> store.execute(guests.getFirst(), id, apply))
+          .isInstanceOf(org.springframework.dao.DataAccessException.class);
+      assertThat(store.view(guests.getFirst(), id)).isEqualTo(opened);
+      assertThat(
+              jdbc.queryForObject("SELECT snapshot::text FROM rooms WHERE id=?", String.class, id))
+          .isEqualTo(saved);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM commands WHERE room_id=? AND command_id=?",
+                  Integer.class,
+                  id,
+                  apply.id()))
+          .isZero();
+    } finally {
+      jdbc.execute("DROP TRIGGER reject_scry ON actions");
+      jdbc.execute("DROP FUNCTION reject_scry_action()");
+    }
+    assertThat(store.execute(guests.getFirst(), id, apply).get("libraryInspection")).isNull();
   }
 
   @Test

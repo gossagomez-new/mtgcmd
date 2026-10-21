@@ -1345,3 +1345,48 @@ select:focus-visible {
   box-sizing: border-box;
   box-shadow: 0 12px 40px #0009;
 }
+
+.bounded-library-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+  padding: 0.8rem;
+}
+.bounded-library-controls label {
+  display: grid;
+  gap: 0.25rem;
+}
+.bounded-library-controls input {
+  width: 6rem;
+}
+.library-inspection {
+  position: fixed;
+  inset: auto 12px 90px auto;
+  width: min(850px, calc(100vw - 24px));
+  max-height: calc(100dvh - 110px);
+  overflow: auto;
+  padding: 1rem;
+  color: var(--text);
+}
+.scry-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 1rem;
+}
+.scry-card-list {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.scry-card-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0.8rem 0;
+}
+.scry-card-controls {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 190px;
+}
