@@ -14,6 +14,7 @@ import uuid
 from verification_evidence import (Report, SCHEMA_VERSION, execution, file_digest,
                                    settings, source_snapshot, utc_now, validate_evidence)
 from verification_profiles import PROFILES, plan
+from verification_environment import environment, task_name
 
 
 class Once(argparse.Action):
@@ -28,18 +29,27 @@ class Once(argparse.Action):
 
 
 def arguments():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser.add_argument('--task', type=task_name, action=Once,
+                        help='task label; must be the first option, followed by its value')
     parser.add_argument('profile', nargs='?', choices=PROFILES)
     parser.add_argument('--browser', nargs=0, action=Once, default=False,
                         help='run browser checks last (requires both toolchains)')
     parser.add_argument('--output', type=Path, action=Once, help='fresh evidence directory outside the checkout')
     parser.add_argument('--check', type=Path, action=Once, help='read-only check of existing evidence; runs no checks')
     args = parser.parse_args()
+    if args.task is not None:
+        if sys.argv[1:3] != ['--task', args.task]:
+            parser.error('task commands must start with --task TASK')
+        if args.check is not None or args.output is not None:
+            parser.error('task execution cannot use --check or --output')
+    if args.profile == 'browser' and args.browser:
+        parser.error('browser profile already selects browser checks')
     if args.check is not None:
         if args.profile or args.browser or args.output is not None:
             parser.error('--check cannot be combined with a profile, --browser, or --output')
     elif args.profile is None:
-        parser.error('choose an explicit frontend, backend, or full profile')
+        parser.error('choose an explicit frontend, backend, full, or browser profile')
     return args
 
 
@@ -78,10 +88,10 @@ class Processes:
         for signum, handler in self.previous.items():
             signal.signal(signum, handler)
 
-    def run(self, argv, root, log):
+    def run(self, argv, root, log, env):
         try:
             self.active = subprocess.Popen(argv, cwd=root, stdout=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT, start_new_session=True)
+                                           stderr=subprocess.STDOUT, start_new_session=True, env=env)
         except FileNotFoundError:
             log.write(b'Executable or interpreter not found.\n')
             return 127
@@ -122,19 +132,23 @@ def skip_pending(data, reason):
 
 def run_profile(root, args):
     # Validate all setup before any verification command executes.
-    report = Report(root, args.output)
+    child_environment = environment(root, args.task)
+    report = Report(root, args.output, task=args.task)
     source = source_snapshot(root)
     data = {
         'schema_version': SCHEMA_VERSION, 'run_id': str(uuid.uuid4()), 'root': str(root),
         'profile': args.profile, 'browser': args.browser, 'started_at': utc_now(),
         'finished_at': None, 'status': 'running', 'exit_code': None,
         'source_before': source, 'source_after': None, 'source_unchanged': None,
-        'settings': settings(), 'execution': execution(root), 'failure': None,
+        'settings': settings(child_environment), 'execution': execution(root), 'failure': None,
         'checks': [{**check, 'cwd': str(root),
                     'status': 'pending' if check['selected'] else 'skipped',
                     'reason': None if check['selected'] else 'not selected by profile/browser options'}
                    for check in plan(args.profile, args.browser)],
     }
+    if args.task is not None:
+        data['task'] = args.task
+        print(f'Task: {args.task}', flush=True)
     report.save(data)
     print(f'Manifest: {report.path}', flush=True)
     code = 0
@@ -152,7 +166,7 @@ def run_profile(root, args):
                 report.save(data)
                 print(f'Running {check["id"]}…', flush=True)
                 with report.open_log(check['log']) as output:
-                    code = processes.run(check['argv'], root, output)
+                    code = processes.run(check['argv'], root, output, child_environment)
                 check.update(status='passed' if code == 0 else 'failed', exit_code=code,
                              finished_at=utc_now(), duration_seconds=round(time.monotonic() - start, 6),
                              sha256=file_digest(report.directory / check['log']))

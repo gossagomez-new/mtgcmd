@@ -20,7 +20,9 @@ root = pathlib.Path(os.environ['FIXTURE_ROOT'])
 with open(os.environ['EVENTS'], 'a') as events:
     events.write(json.dumps({'name': name, 'args': args, 'cwd': os.getcwd(),
                              'maven_opts': os.environ.get('MAVEN_OPTS'),
-                             'secret': os.environ.get('FIXTURE_SECRET')}) + '\\n')
+                             'secret': os.environ.get('FIXTURE_SECRET'),
+                             'java_options': os.environ.get('JAVA_TOOL_OPTIONS'),
+                             'chrome': os.environ.get('CHROME_PATH')}) + '\\n')
 print(name + ' stdout', flush=True)
 print(name + ' stderr', file=sys.stderr, flush=True)
 if os.environ.get('BLOCK') == '1':
@@ -74,7 +76,7 @@ class LocalVerificationTest(unittest.TestCase):
         self.root.mkdir()
         for folder in ('scripts', 'frontend', 'backend', 'bin'):
             (self.root / folder).mkdir()
-        for name in ('verify.sh', 'verify.py', 'verification_profiles.py', 'verification_evidence.py', 'build.sh'):
+        for name in ('verify.sh', 'verify.py', 'verification_profiles.py', 'verification_evidence.py', 'verification_environment.py', 'build.sh'):
             shutil.copy2(SCRIPTS / name, self.root / 'scripts' / name)
         self.events = self.directory / 'events.jsonl'
         self.child_pid = self.directory / 'child.pid'
@@ -84,7 +86,7 @@ class LocalVerificationTest(unittest.TestCase):
         for tool in ('git', 'bash'):
             (self.root / 'bin' / tool).symlink_to(shutil.which(tool))
         (self.root / '.gitignore').write_text(
-            'frontend/dist/\nfrontend/reports/\nbackend/target/\n__pycache__/\n')
+            'frontend/dist/\nfrontend/reports/\nbackend/target/\n__pycache__/\n.verification.local.json\n')
         (self.root / 'source.txt').write_text('original')
         self.git('init', '-q')
         self.git('config', 'user.name', 'fixture')

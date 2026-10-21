@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-PROFILES = ('frontend', 'backend', 'full')
+PROFILES = ('frontend', 'backend', 'full', 'browser')
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ CHECKS = (
     Check('backend-verify', ('mvn', '-f', 'backend/pom.xml', 'spotless:check', 'verify'), ('backend',)),
     Check('backend-format', ('mvn', '-f', 'backend/pom.xml', 'spotless:check'), ('full',)),
     Check('package', ('bash', 'scripts/build.sh'), ('full',)),
-    Check('browser', ('npm', '--prefix', 'frontend', 'run', 'test:e2e'), ()),
+    Check('browser', ('npm', '--prefix', 'frontend', 'run', 'test:e2e'), ('browser',)),
 )
 
 

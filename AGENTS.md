@@ -37,6 +37,27 @@ instance and must run as a non-root user with permission to bind local ports.
   Underlying troubleshooting commands: `npm --prefix frontend run build`, then
   `mvn -f backend/pom.xml clean verify`.
 
+For repeated verification during a feature, refactor or chore, prefer the task-scoped
+runner from the repository root:
+
+```sh
+./scripts/verify.sh --task <task-slug> frontend
+./scripts/verify.sh --task <task-slug> backend
+./scripts/verify.sh --task <task-slug> browser
+./scripts/verify.sh --task <task-slug> full --browser
+```
+
+Choose a unique lowercase task slug and keep it unchanged throughout that task.
+When sandbox approval is needed, request the exact task-specific prefix
+`["./scripts/verify.sh", "--task", "<task-slug>"]` once and reuse it for that task's
+fixed verification scopes. Invoke the runner directly without environment
+assignments, log redirection or shell wrappers. Use the optional ignored local
+path settings described in [CONTRIBUTING.md](CONTRIBUTING.md#task-scoped-approvals)
+when needed. Direct project commands remain available for checks outside these
+profiles. Approval persistence is controlled by the host; the task label does not
+authorize execution or expire saved rules. Do not broaden approval rules or change
+Codex settings through the runner. Test coverage confirmation remains separate.
+
 Do not invent project commands. Discover them from repository configuration or
 ask the user when they cannot be determined safely.
 

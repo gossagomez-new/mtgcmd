@@ -79,12 +79,16 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Focused battlefield popover](focused-battlefield-popover.md) | Completed | High | Non-modal live opponent focus and nested interactions | [Card interaction increment](card-interactions.md), [Card artwork previews](card-artwork-previews.md) | [ADR-0021](../docs/adr/0021-card-interaction-contracts.md): existing shared card rendering; [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): local presentation state |
 
+| [Task-scoped verification](task-scoped-verification.md) | Completed | High | Task-first fixed verification scopes and local path defaults | [Local verification](local-verification.md) | [ADR-0023](../docs/adr/0023-task-scoped-verification.md): task prefixes and local settings; [ADR-0015](../docs/adr/0015-local-verification-evidence.md): existing sequential evidence |
+
 | [Give back turn](give-back-turn.md) | Completed | High | Restore saved turn tracking without undoing gameplay | [Frequent table interactions](table-interactions.md), [Card interaction increment](card-interactions.md) | [ADR-0022](../docs/adr/0022-turn-return-checkpoints.md): bounded server checkpoints and visit identity; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): existing authority and persistence; [ADR-0020](../docs/adr/0020-table-interaction-contracts.md): active-only turn control |
 
 ## Dependency graph
 
 ```mermaid
 flowchart TD
+    taskverify["Task-scoped verification"]
+    taskverify -->|depends on| localverify
     focuspopover["Focused battlefield popover"]
     focuspopover -->|depends on| cardinteractions
     focuspopover -->|depends on| artworkpreviews

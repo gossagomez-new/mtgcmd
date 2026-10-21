@@ -16,6 +16,7 @@ import tempfile
 import uuid
 
 from verification_profiles import PROFILES, plan
+from verification_environment import environment, task_name
 
 
 SCHEMA_VERSION = 1
@@ -88,14 +89,15 @@ def source_snapshot(root):
     return first
 
 
-def settings():
-    result = {key: os.environ.get(key) for key in ('CHROME_PATH', 'JAVA_HOME')}
+def settings(values=None):
+    values = os.environ if values is None else values
+    result = {key: values.get(key) for key in ('CHROME_PATH', 'JAVA_HOME')}
     for key in OPTION_NAMES:
-        value = os.environ.get(key)
+        value = values.get(key)
         result[key] = {'present': value is not None,
                        'sha256': digest(value.encode()) if value is not None else None}
     for key in ('CI', 'API_PORT'):
-        value = os.environ.get(key)
+        value = values.get(key)
         if value is None or value in ('true', 'false', '0', '1') or (key == 'API_PORT' and value.isdecimal()):
             result[key] = value
         else:
@@ -118,7 +120,7 @@ def no_symlinks(path):
 
 
 class Report:
-    def __init__(self, root, requested):
+    def __init__(self, root, requested, task=None):
         if requested is not None:
             directory = Path(os.path.abspath(requested))
             no_symlinks(directory)
@@ -132,7 +134,8 @@ class Report:
             no_symlinks(parent)
             if parent.resolve().is_relative_to(root):
                 raise ValueError('temporary evidence directory must be outside the checkout')
-            directory = Path(tempfile.mkdtemp(prefix='mtgcmd-verify-', dir=parent))
+            prefix = f'mtgcmd-verify-{task_name(task)}-' if task is not None else 'mtgcmd-verify-'
+            directory = Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
         self.directory = directory
         self.path = directory / 'manifest.json'
 
@@ -189,6 +192,10 @@ def validate_evidence(root, manifest):
         raise ValueError('evidence describes another checkout')
     if data.get('profile') not in PROFILES or type(data.get('browser')) is not bool:
         raise ValueError('invalid evidence profile/browser selection')
+    if 'task' in data:
+        task_name(data['task'])
+    if data['profile'] == 'browser' and data['browser']:
+        raise ValueError('redundant browser evidence selection')
     expected = plan(data['profile'], data['browser'])
     checks = data.get('checks')
     if not isinstance(checks, list) or len(checks) != len(expected):
@@ -220,6 +227,6 @@ def validate_evidence(root, manifest):
     current = source_snapshot(root)
     if data.get('source_before') != current or data.get('source_after') != current:
         raise ValueError('evidence is stale: source state does not match this checkout')
-    if data.get('settings') != settings() or data.get('execution') != execution(root):
+    if data.get('settings') != settings(environment(root, data.get('task'))) or data.get('execution') != execution(root):
         raise ValueError('evidence settings or tool paths do not match this execution environment')
     return data
