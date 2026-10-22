@@ -16,6 +16,7 @@ import {
 import { useGameSocket } from "./useGameSocket";
 import { errorMessage } from "./errors";
 import type { Action } from "./table/types";
+import { savePlayerName } from "./namePreference";
 const currentRoom = () =>
   /^\/room\/([a-f0-9-]{36})$/.exec(location.pathname)?.[1] || "";
 
@@ -54,7 +55,7 @@ export function useTableSession(
       const next = await (room
         ? api.joinRoom(name)
         : api.createRoom(name, tableFormat));
-      localStorage.setItem("table-name", name);
+      savePlayerName(name);
       history.pushState({}, "", `/room/${next.id}`);
       receive(next);
       onEnter(next.host);

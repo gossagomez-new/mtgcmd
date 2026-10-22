@@ -8,11 +8,12 @@ import { PlayingTable } from "./table/PlayingTable";
 import { OpeningHands } from "./table/OpeningHands";
 import { TableOverlays } from "./table/TableOverlays";
 import { actionAvailability } from "./actionAvailability";
+import { readPlayerName } from "./namePreference";
 
 export default function App() {
   const [tableFormat, setTableFormat] = useState<GameFormat>("COMMANDER");
   const [firstPlayer, setFirstPlayer] = useState(0);
-  const [name, setName] = useState(localStorage.getItem("table-name") || "");
+  const [name, setName] = useState(readPlayerName);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{ seat: number; zone: string } | null>(
     null,
