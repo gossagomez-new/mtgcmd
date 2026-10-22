@@ -1384,6 +1384,7 @@ select:focus-visible {
   max-width: 1200px;
   margin: 1rem auto;
   padding: 1.5rem;
+  overflow-wrap: anywhere;
 }
 .opening-cards {
   display: grid;

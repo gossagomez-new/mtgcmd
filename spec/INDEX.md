@@ -105,6 +105,10 @@ Each specification's `Depends on` metadata is authoritative.
 | ---------------------------------------------------------------------------------------- | --------- | -------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | [RoomStore response and durable-event verification](room-store-contract-verification.md) | Completed | Medium   | TD04 response, action history and transactional contracts | [Persisted inspection cleanup verification](inspection-cleanup-verification.md), [Backend mutation testing](backend-mutation-testing.md) | [ADR-0007](../docs/adr/0007-api-component-boundaries.md): retained RoomStore transactions |
 
+| Specification                                                                        | Status    | Priority | Purpose                                                   | Depends on                                                                                                                                                   | Related ADRs                                                                                  |
+| ------------------------------------------------------------------------------------ | --------- | -------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| [Opening-hand waiting names and hand hover clarity](opening-hand-playtest-polish.md) | Completed | Medium   | R26 pending-player status and R27 unobstructed hand hover | [Configurable mulligans](configurable-mulligans.md), [Card artwork previews](card-artwork-previews.md), [Frequent table interactions](table-interactions.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): retained screen/session ownership |
+
 ## Dependency graph
 
 ```mermaid
@@ -254,6 +258,11 @@ flowchart TD
     roomcontracts["RoomStore response and durable-event verification"]
     roomcontracts -->|depends on| inspectioncleanup
     roomcontracts -->|depends on| pit
+
+    openingpolish["Opening-hand waiting names and hand hover clarity"]
+    openingpolish -->|depends on| mulligans
+    openingpolish -->|depends on| artworkpreviews
+    openingpolish -->|depends on| tableinteractions
     build -->|depends on| tabletop
 ```
 

@@ -258,12 +258,12 @@ for (const format of ["STANDARD", "COMMANDER"] as const) {
       await expect(
         page
           .getByRole("status")
-          .filter({ hasText: "Waiting for other players" }),
+          .filter({ hasText: "Waiting for the game to begin." }),
       ).toBeVisible();
     });
     await page.reload();
     await expect(
-      page.getByText("Waiting for other players", { exact: true }),
+      page.getByText("Waiting for the game to begin.", { exact: true }),
     ).toBeVisible();
     expect(mockTable.commands).toHaveLength(1);
   });

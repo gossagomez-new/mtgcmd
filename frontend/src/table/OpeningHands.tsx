@@ -3,6 +3,7 @@ import type { Card, Snapshot } from "../protocol";
 import type { Action, Inspect } from "./types";
 import { mulliganSettings } from "./MulliganSettings";
 import { CardArtworkPreview } from "./CardArtworkPreview";
+import { openingHandWaitingMessage } from "../openingHandStatus";
 
 export function OpeningHands({
   view,
@@ -42,6 +43,7 @@ export function OpeningHands({
           key={cards.map((card) => card.id).join(",")}
           cards={cards}
           kept={own.kept}
+          waitingMessage={openingHandWaitingMessage(view)}
           debt={own.bottomCount}
           redrawDisabled={
             settings.mode === "LONDON" &&
@@ -64,6 +66,7 @@ export function OpeningHands({
 function HandChoice({
   cards,
   kept,
+  waitingMessage,
   debt,
   redrawDisabled,
   disabled,
@@ -72,6 +75,7 @@ function HandChoice({
 }: {
   cards: Card[];
   kept: boolean;
+  waitingMessage: string;
   debt: number;
   redrawDisabled: boolean;
   disabled: boolean;
@@ -97,7 +101,14 @@ function HandChoice({
   return (
     <section aria-label="Your opening hand">
       {kept ? (
-        <p role="status">Waiting for other players</p>
+        <p
+          role="status"
+          aria-label="Opening hand status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {waitingMessage}
+        </p>
       ) : (
         <p role="status">
           Select {debt} card(s) to put on the bottom before keeping.
