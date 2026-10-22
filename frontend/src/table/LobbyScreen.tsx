@@ -2,6 +2,7 @@ import type { Snapshot, Draft } from "../protocol";
 import type { Action } from "./types";
 import { DeckImport } from "./DeckImport";
 import { Readiness } from "./Readiness";
+import { MulliganSettings } from "./MulliganSettings";
 
 export function LobbyScreen({
   view,
@@ -54,6 +55,7 @@ export function LobbyScreen({
             setFirstPlayer={setFirstPlayer}
             act={act}
           />
+          <MulliganSettings view={view} disabled={disabled} act={act} />
         </section>
         <section className="panel deck-panel">
           <DeckImport

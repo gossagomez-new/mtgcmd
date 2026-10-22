@@ -115,12 +115,18 @@ load `.env` automatically; pass configuration through environment variables.
 
 1. Create a table, choose its format, and share the room URL with the other players.
 2. Import and preview each deck. Choose commanders for Commander tables, load
-   the deck, accept applicable warnings, and become ready.
-3. The host starts once every required seat is ready. Standard lets the host
-   choose the starting player, defaulting to the host.
-4. Use card menus and player/zone controls to perform tabletop actions. Resolve
+   the deck and review applicable warnings.
+3. Review the visible mulligan rules before becoming ready. The host can choose
+   London mode and a free-mulligan count, or unlimited seven-card redraws. Changing
+   rules resets readiness. Defaults are London with zero free for Standard and one for Commander.
+   Accept applicable warnings and become ready after reviewing the rules.
+4. The host starts once every required seat is ready. Standard lets the host
+   choose the starting player, defaulting to the host. Each player independently
+   redraws or keeps their opening hand. For paid London mulligans, select and
+   order the cards to bottom when keeping; play begins after everyone keeps.
+5. Use card menus and player/zone controls to perform tabletop actions. Resolve
    card effects yourselves; the server does not interpret card text.
-5. The host marks the game finished after players settle the result. Corrections
+6. The host marks the game finished after players settle the result. Corrections
    are explicit actions; there is no automatic undo.
 
 URL imports depend on Moxfield availability and deck access. If they fail,

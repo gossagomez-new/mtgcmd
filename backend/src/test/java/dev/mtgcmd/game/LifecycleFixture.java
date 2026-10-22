@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.mtgcmd.testsupport.OpeningHands;
 import java.util.*;
 
 /** Lifecycle commands use the public engine; fixtures load decks before readiness. */
@@ -72,6 +73,7 @@ final class LifecycleFixture {
   void startGame() {
     readyAllPlayers();
     apply(game.host, START, Map.of());
+    OpeningHands.keepAll(engine, game);
   }
 
   JsonNode view(final int seat) {

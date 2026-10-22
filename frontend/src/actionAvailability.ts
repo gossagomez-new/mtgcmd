@@ -12,5 +12,11 @@ export function actionAvailability({
   view: Snapshot | null;
 }) {
   const disabled = !connected || pending || busy || view?.status === "finished";
-  return { disabled, canPlay: !disabled && !view?.players[view.you]?.conceded };
+  return {
+    disabled,
+    canPlay:
+      !disabled &&
+      view?.status !== "opening" &&
+      !view?.players[view.you]?.conceded,
+  };
 }

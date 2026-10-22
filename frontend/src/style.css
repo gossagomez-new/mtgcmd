@@ -1390,3 +1390,39 @@ select:focus-visible {
   gap: 0.35rem;
   max-width: 190px;
 }
+.opening-screen {
+  max-width: 1200px;
+  margin: 1rem auto;
+  padding: 1.5rem;
+}
+.opening-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.opening-card {
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--line, #777);
+  border-radius: 0.5rem;
+  overflow-wrap: anywhere;
+}
+.opening-art {
+  width: 100%;
+  min-height: 8rem;
+}
+.opening-art img {
+  display: block;
+  width: 100%;
+  border-radius: 0.4rem;
+}
+.opening-card p {
+  white-space: pre-wrap;
+}
+.opening-card [aria-pressed="true"] {
+  outline: 3px solid currentColor;
+}
+.mulligan-settings {
+  margin-top: 1rem;
+}

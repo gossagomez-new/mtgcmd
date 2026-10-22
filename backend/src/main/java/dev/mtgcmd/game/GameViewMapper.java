@@ -19,6 +19,7 @@ final class GameViewMapper {
     out.put("id", game.id);
     out.put("revision", game.revision);
     out.put("status", game.status);
+    out.put("mulligans", mulliganView(game));
     out.put("format", game.format().name());
     out.put("seatCapacity", game.format().seatCapacity());
     out.put("host", game.host);
@@ -108,5 +109,27 @@ final class GameViewMapper {
             .toList());
     out.put("abilities", game.abilities);
     return out;
+  }
+
+  private static Map<String, Object> mulliganView(final Game game) {
+    return Map.of(
+        "mode",
+        MulliganActions.mode(game),
+        "freeMulligans",
+        MulliganActions.free(game),
+        "players",
+        game.players.stream()
+            .map(
+                p ->
+                    Map.of(
+                        "seat",
+                        p.seat,
+                        "redraws",
+                        MulliganActions.progress(game, p.seat).redraws(),
+                        "kept",
+                        MulliganActions.progress(game, p.seat).kept(),
+                        "bottomCount",
+                        MulliganActions.bottomCount(game, p.seat)))
+            .toList());
   }
 }

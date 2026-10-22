@@ -87,6 +87,8 @@ Each specification's `Depends on` metadata is authoritative.
 
 | [Bounded library actions](bounded-library-actions.md) | Completed | High | Private top-N actions and atomic ordered scry | [Card interaction increment](card-interactions.md), [Validated frontend protocol](validated-frontend-protocol.md) | [ADR-0024](../docs/adr/0024-bounded-library-inspections.md): bounded sessions and atomic scry; [ADR-0001](../docs/adr/0001-authoritative-game-state.md): authority/transactions; [ADR-0011](../docs/adr/0011-validated-frontend-protocol-boundary.md): wire decoding |
 
+| [Configurable mulligans](configurable-mulligans.md) | Completed | High | R16 settings, opening hands and atomic redraw/keep | [Game-engine decomposition](game-engine-decomposition.md), [Validated frontend protocol](validated-frontend-protocol.md) | [ADR-0025](../docs/adr/0025-configurable-mulligans.md): server-owned settings and opening progress |
+
 ## Dependency graph
 
 ```mermaid
@@ -217,6 +219,9 @@ flowchart TD
     resources -->|depends on| transport
     decomposition["Catalog decomposition"]
     decomposition -->|depends on| diagnostics
+    mulligans["Configurable mulligans"]
+    mulligans -->|depends on| engine
+    mulligans -->|depends on| protocolboundary
     engine["Game-engine decomposition"]
     engine -->|depends on| standard
     security["Security filter refactor"]

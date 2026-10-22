@@ -32,7 +32,7 @@ class LifecycleStartupShuffleTest {
     final long revision = fixture.game.revision;
     final List<String> log = List.copyOf(fixture.game.log);
     assertThat(actions.start(fixture.game, 0, Map.of())).isEqualTo("start");
-    assertThat(fixture.game.status).isEqualTo("playing");
+    assertThat(fixture.game.status).isEqualTo("opening");
     for (final Game.Player player : fixture.game.players) {
       final List<String> expected = shuffled.get(player.seat);
       assertThat(GameLookup.zone(fixture.game, player.seat, GameZones.HAND))

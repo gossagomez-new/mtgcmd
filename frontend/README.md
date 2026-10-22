@@ -260,6 +260,13 @@ in a generic action language. See the [specification](../spec/shared-browser-fix
   excluded. Common printing annotations are stripped.
 - Preview, choose commanders when applicable, load, review warnings, and ready
   up. The host starts once the required seats are ready.
+- Before readiness, review the host's mulligan settings. London defaults to zero
+  free mulligans for Standard and one for Commander; unlimited redraws have no
+  bottoming. Setting changes reset readiness. After starting, independently
+  redraw or keep. Select owed London bottom cards and use Earlier/Later to order
+  them (first nearer the top). Keep commits that arrangement; everyone must keep
+  before play begins. Reconnecting restores progress, but unconfirmed selections
+  are local. The host can cancel a stalled opening table.
 - Click a card to inspect it or use its action menu. Drag playable cards onto
   the battlefield. Permanents group by primary type; lands occupy a lower
   section, and tapped cards rotate 90 degrees. Placement is automatic.

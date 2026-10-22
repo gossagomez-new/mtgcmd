@@ -3,6 +3,7 @@ package dev.mtgcmd.game;
 import static org.assertj.core.api.Assertions.*;
 
 import dev.mtgcmd.game.Game.Definition;
+import dev.mtgcmd.testsupport.OpeningHands;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -89,6 +90,7 @@ class GameEngineCommandsTest {
   Game playing(final GameFormat format) {
     final Game game = ready(format);
     apply(game, 0, START_COMMAND, Map.of());
+    OpeningHands.keepAll(engine, game);
     return game;
   }
 
@@ -144,6 +146,7 @@ class GameEngineCommandsTest {
     assertThat(game.revision).isEqualTo(initialRevision);
     assertThat(game.log).containsExactlyElementsOf(log);
     apply(game, 0, START_COMMAND, Map.of());
+    OpeningHands.keepAll(engine, game);
     apply(game, 1, "CONCEDE", Map.of());
     final long revision = game.revision;
     log = List.copyOf(game.log);

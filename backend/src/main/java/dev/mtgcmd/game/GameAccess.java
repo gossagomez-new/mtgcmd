@@ -10,6 +10,9 @@ import java.util.*;
 /** Shared policies for object visibility, definition inspection, and editing. */
 final class GameAccess {
   boolean visible(final Game game, final int seat, final Card card) {
+    if ("opening".equals(game.status) && isPrivate(card)) {
+      return HAND.equals(card.zone) && card.zoneOwner == seat;
+    }
     if (!isPrivate(card)) {
       return true;
     }
@@ -48,6 +51,9 @@ final class GameAccess {
   }
 
   boolean mayEdit(final Game game, final int seat, final Card card) {
+    if ("opening".equals(game.status)) {
+      return false;
+    }
     if (player(game, seat).conceded) {
       return false;
     }

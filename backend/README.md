@@ -375,6 +375,14 @@ Grouped action handlers share `GameAccess` and `CardZoneTransitions`;
 ownership. See the [engine decomposition specification](../spec/game-engine-decomposition.md)
 and [engine boundary ADR](../docs/adr/0005-game-engine-component-boundaries.md).
 
+New games pass through `opening` after START. `CONFIGURE_MULLIGANS` changes
+host-owned lobby settings and resets readiness; `MULLIGAN` redraws the actor's
+hand and `KEEP_HAND` commits ordered bottom cards. Normal gameplay is blocked until
+all players keep. Settings/progress persist in snapshots; legacy playing games
+continue without a new opening stage. See [R16](../spec/configurable-mulligans.md)
+and [ADR-0025](../docs/adr/0025-configurable-mulligans.md). Deploy bundled frontend
+and backend together because START's lifecycle behavior changes.
+
 HTTP routes are grouped in `SessionController`, `RoomController`, and
 `DeckController`. `DeckImportService` coordinates deck operations;
 `DeckDraftRepository` owns guest-scoped draft SQL/JSON. `ApiExceptionHandler`
