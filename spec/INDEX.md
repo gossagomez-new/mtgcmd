@@ -97,6 +97,14 @@ Each specification's `Depends on` metadata is authoritative.
 | --------------------------------------------------------- | --------- | -------- | ------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | [Zone viewer keyboard lifecycle](zone-viewer-keyboard.md) | Completed | Medium   | TD07 native modal focus and dismissal | [App composition](app-composition.md), [Card and library UX](tabletop-card-and-library-ux.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): retained screen and overlay ownership |
 
+| Specification                                                                   | Status    | Priority | Purpose                                          | Depends on                                                                                                     | Related ADRs                                                                                       |
+| ------------------------------------------------------------------------------- | --------- | -------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Persisted inspection cleanup verification](inspection-cleanup-verification.md) | Completed | Medium   | TD03 durable cleanup and preservation assertions | [Bounded library actions](bounded-library-actions.md), [Backend mutation testing](backend-mutation-testing.md) | [ADR-0024](../docs/adr/0024-bounded-library-inspections.md): existing session/persistence contract |
+
+| Specification                                                                            | Status    | Priority | Purpose                                                   | Depends on                                                                                                                               | Related ADRs                                                                              |
+| ---------------------------------------------------------------------------------------- | --------- | -------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [RoomStore response and durable-event verification](room-store-contract-verification.md) | Completed | Medium   | TD04 response, action history and transactional contracts | [Persisted inspection cleanup verification](inspection-cleanup-verification.md), [Backend mutation testing](backend-mutation-testing.md) | [ADR-0007](../docs/adr/0007-api-component-boundaries.md): retained RoomStore transactions |
+
 ## Dependency graph
 
 ```mermaid
@@ -239,6 +247,13 @@ flowchart TD
     zonekeyboard["Zone viewer keyboard lifecycle"]
     zonekeyboard -->|depends on| appcomposition
     zonekeyboard -->|depends on| ux
+
+    inspectioncleanup["Persisted inspection cleanup verification"]
+    inspectioncleanup -->|depends on| boundedlibrary
+    inspectioncleanup -->|depends on| pit
+    roomcontracts["RoomStore response and durable-event verification"]
+    roomcontracts -->|depends on| inspectioncleanup
+    roomcontracts -->|depends on| pit
     build -->|depends on| tabletop
 ```
 
