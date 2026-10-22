@@ -2,7 +2,7 @@
 
 - Created: 2026-10-21.
 - Refined: 2026-10-22; delivery boundaries clarified without refreshing analysis measurements.
-- Status: TD01, TD02, TD06 and TD07 implemented and verified locally; other items remain open. Creating this backlog does not authorize implementation.
+- Status: TD01, TD02, TD03, TD06 and TD07 implemented and verified; other items remain open. Creating this backlog does not authorize implementation.
 - Audited revision: `0f4a41ed2d63f7564cfe18d64fe477b706aed479`, integrated into `main` as `d2ba354` through PR #24.
 - Scope: Backend/frontend source review, JaCoCo, PMD, full-backend PIT, and ESLint/Knip findings; TD13a and TD17–TD20 add focused enum/behavior-registry source review on 2026-10-22.
 
@@ -74,8 +74,9 @@ feature work, so a cheap presentation change need not precede transport assuranc
 
 ## Prioritized register
 
-TD01 and TD02 are Done locally (merge/release pending); TD06 is Done locally (publication pending);
-TD07 is Done locally (publication pending); all other entries are Open. Investigation entries require diagnosis before proposing a fix.
+TD01 and TD02 are Done locally (merge/release pending); TD03 is Done locally
+(publication pending); TD06 and TD07 are merged through PR #27. All other entries
+are Open. Investigation entries require diagnosis before proposing a fix.
 
 | ID   | Area  | Work                                                     | Evidence type                           | Severity | Confidence | Effort | Calculation / priority    | Coordination                                             |
 | ---- | ----- | -------------------------------------------------------- | --------------------------------------- | -------- | ---------- | ------ | ------------------------- | -------------------------------------------------------- |
@@ -176,7 +177,13 @@ grouped by domain invariant rather than creating a class for every mutation.
 
 ### TD03 — Assert persisted inspection cleanup
 
-Evidence: [BoundedLibraryTest](../backend/src/test/java/dev/mtgcmd/game/BoundedLibraryTest.java)
+- Status: Done locally, 2026-10-22; publication pending, no deployment.
+- Specification: [Persisted inspection cleanup verification](../spec/inspection-cleanup-verification.md).
+- Confirmed target: Comprehensive coverage, 2026-10-22.
+- Branch: `test/inspection-cleanup-assurance`, independent of PR #27.
+- Result: Added 20 both-format parameterized cases, including 44 database cleanup/recovery/rollback scenarios. All 809 backend tests passed; final convention cleanup passed the 40 affected cases, formatting and PMD checks. Focused PIT detected 16 former survivors: LibraryInspections 25→33/37, CardZoneTransitions 31→34/38, LifecycleActions 64→67/70 assertion kills (two unchanged timeouts), LibraryActions 15→17/22. No production changes. See the specification for evidence and out-of-scope findings.
+
+Original evidence: [BoundedLibraryTest](../backend/src/test/java/dev/mtgcmd/game/BoundedLibraryTest.java)
 checks filtered views; [GameAccess](../backend/src/main/java/dev/mtgcmd/game/GameAccess.java)
 can hide sessions even when cleanup is removed. LibraryInspections has 12 survivors;
 related cleanup-call removal also survives in lifecycle and transition handlers.
