@@ -2,7 +2,7 @@
 
 - Created: 2026-10-21.
 - Refined: 2026-10-22; delivery boundaries clarified without refreshing analysis measurements.
-- Status: TD01, TD02, TD03, TD06 and TD07 implemented and verified; other items remain open. Creating this backlog does not authorize implementation.
+- Status: TD01, TD02, TD03, TD04, TD06 and TD07 implemented and verified; other items remain open. Creating this backlog does not authorize implementation.
 - Audited revision: `0f4a41ed2d63f7564cfe18d64fe477b706aed479`, integrated into `main` as `d2ba354` through PR #24.
 - Scope: Backend/frontend source review, JaCoCo, PMD, full-backend PIT, and ESLint/Knip findings; TD13a and TD17–TD20 add focused enum/behavior-registry source review on 2026-10-22.
 
@@ -74,9 +74,9 @@ feature work, so a cheap presentation change need not precede transport assuranc
 
 ## Prioritized register
 
-TD01 and TD02 are Done locally (merge/release pending); TD03 is Done locally
-(publication pending); TD06 and TD07 are merged through PR #27. All other entries
-are Open. Investigation entries require diagnosis before proposing a fix.
+TD01 and TD02 are Done locally (merge/release pending); TD03 and TD04 await merge
+through PR #28; TD06 and TD07 are merged through PR #27. All other entries are
+Open. Investigation entries require diagnosis before proposing a fix.
 
 | ID   | Area  | Work                                                     | Evidence type                           | Severity | Confidence | Effort | Calculation / priority    | Coordination                                             |
 | ---- | ----- | -------------------------------------------------------- | --------------------------------------- | -------- | ---------- | ------ | ------------------------- | -------------------------------------------------------- |
@@ -201,8 +201,20 @@ not establish a current disclosure bug. Coordinate with replay R17 before reuse.
 
 ### TD04 — Assert room responses and action history
 
-Evidence: [RoomStore](../backend/src/main/java/dev/mtgcmd/store/RoomStore.java)
-has seven survivors, including removed create/join events and empty join/load responses.
+- Status: Done locally, 2026-10-22; PR #28 awaiting merge.
+- Specification: [RoomStore response and durable-event verification](../spec/room-store-contract-verification.md).
+- Confirmed target: Comprehensive coverage, 2026-10-22.
+- Branch: `test/room-store-assurance`, retaining TD03 commit `7b2cd06`.
+
+Baseline evidence: [RoomStore](../backend/src/main/java/dev/mtgcmd/store/RoomStore.java)
+had seven survivors, including removed create/join events and empty join/load responses.
+The test-only change adds 13 cases across both formats for responses, durable events,
+current-state retries, rejection and injected create/join/load rollback/recovery.
+Backend verification passes all 822 tests. Focused PIT improves **35/42 → 41/42**
+assertion kills with no timeouts or uncovered mutants; all six new kills are
+attributed to the new tests. The remaining null-format normalization survivor is
+masked by the existing `Game.format()` Commander fallback. Production and PMD/PIT
+policy are unchanged. See the specification for comparison scope and local evidence.
 
 Acceptance criteria:
 

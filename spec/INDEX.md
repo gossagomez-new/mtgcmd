@@ -101,6 +101,10 @@ Each specification's `Depends on` metadata is authoritative.
 | ------------------------------------------------------------------------------- | --------- | -------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Persisted inspection cleanup verification](inspection-cleanup-verification.md) | Completed | Medium   | TD03 durable cleanup and preservation assertions | [Bounded library actions](bounded-library-actions.md), [Backend mutation testing](backend-mutation-testing.md) | [ADR-0024](../docs/adr/0024-bounded-library-inspections.md): existing session/persistence contract |
 
+| Specification                                                                            | Status    | Priority | Purpose                                                   | Depends on                                                                                                                               | Related ADRs                                                                              |
+| ---------------------------------------------------------------------------------------- | --------- | -------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [RoomStore response and durable-event verification](room-store-contract-verification.md) | Completed | Medium   | TD04 response, action history and transactional contracts | [Persisted inspection cleanup verification](inspection-cleanup-verification.md), [Backend mutation testing](backend-mutation-testing.md) | [ADR-0007](../docs/adr/0007-api-component-boundaries.md): retained RoomStore transactions |
+
 ## Dependency graph
 
 ```mermaid
@@ -247,6 +251,9 @@ flowchart TD
     inspectioncleanup["Persisted inspection cleanup verification"]
     inspectioncleanup -->|depends on| boundedlibrary
     inspectioncleanup -->|depends on| pit
+    roomcontracts["RoomStore response and durable-event verification"]
+    roomcontracts -->|depends on| inspectioncleanup
+    roomcontracts -->|depends on| pit
     build -->|depends on| tabletop
 ```
 
