@@ -68,6 +68,8 @@ Each specification's `Depends on` metadata is authoritative.
 | [Backend mutation testing](backend-mutation-testing.md) | Completed | Medium | Opt-in PIT and JUnit 5 mutation reports with manual CI | [Backend code coverage](backend-code-coverage.md), [Build automation](build-automation.md), [GitHub Flow](github-flow.md) | [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): opt-in PIT, reporting-only scores, and worker JVM isolation; [ADR-0018](../docs/adr/0018-backend-code-coverage.md): existing JaCoCo separation |
 
 | [Lifecycle action behavioral verification](lifecycle-actions-verification.md) | Completed | High | Lifecycle outcomes, validation and privacy cleanup with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing lifecycle boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
+| [Counter action behavioral verification](counter-actions-verification.md) | Completed | High | TD01 counter outcomes, permissions, boundaries and deterministic dice with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing command boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
+| [Object action behavioral verification](object-actions-verification.md) | Completed | High | TD02 token, copy and ability invariants with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing command boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
 
 | [Permanent action behavioral verification](permanent-actions-verification.md) | Completed | High | Gameplay outcomes, validation and privacy assertions with focused PIT | [Backend mutation testing](backend-mutation-testing.md), [Game-engine decomposition](game-engine-decomposition.md) | [ADR-0005](../docs/adr/0005-game-engine-component-boundaries.md): existing command boundaries; [ADR-0019](../docs/adr/0019-backend-mutation-testing.md): existing mutation policy |
 
@@ -113,6 +115,12 @@ flowchart TD
     tableinteractions -->|depends on| cardbutton
     tableinteractions -->|depends on| sharedbrowser
     lifecycletests["Lifecycle action behavioral verification"]
+    countertests["Counter action behavioral verification"]
+    objecttests["Object action behavioral verification"]
+    objecttests -->|depends on| pit
+    objecttests -->|depends on| engine
+    countertests -->|depends on| pit
+    countertests -->|depends on| engine
     lifecycletests -->|depends on| pit
     lifecycletests -->|depends on| engine
     permanenttests["Permanent action behavioral verification"]
