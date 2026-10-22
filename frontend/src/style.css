@@ -920,16 +920,6 @@ details .counter-row {
   padding: 17px;
   margin-top: 16px;
 }
-.modal-shade {
-  position: fixed;
-  inset: 0;
-  background: #031017b8;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 35px;
-}
 .zone-modal {
   width: min(950px, 90vw);
   max-height: 85vh;

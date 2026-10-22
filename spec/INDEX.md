@@ -93,6 +93,10 @@ Each specification's `Depends on` metadata is authoritative.
 | ----------------------------------------------------------------- | --------- | -------- | ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------ |
 | [Browser preference resilience](browser-preference-resilience.md) | Completed | Medium   | TD06 safe optional player-name persistence | [App composition](app-composition.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): retained App/session ownership |
 
+| Specification                                             | Status    | Priority | Purpose                               | Depends on                                                                                    | Related ADRs                                                                                      |
+| --------------------------------------------------------- | --------- | -------- | ------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [Zone viewer keyboard lifecycle](zone-viewer-keyboard.md) | Completed | Medium   | TD07 native modal focus and dismissal | [App composition](app-composition.md), [Card and library UX](tabletop-card-and-library-ux.md) | [ADR-0013](../docs/adr/0013-app-composition-boundaries.md): retained screen and overlay ownership |
+
 ## Dependency graph
 
 ```mermaid
@@ -232,6 +236,9 @@ flowchart TD
     security -->|depends on| tabletop
     preferences["Browser preference resilience"]
     preferences -->|depends on| appcomposition
+    zonekeyboard["Zone viewer keyboard lifecycle"]
+    zonekeyboard -->|depends on| appcomposition
+    zonekeyboard -->|depends on| ux
     build -->|depends on| tabletop
 ```
 

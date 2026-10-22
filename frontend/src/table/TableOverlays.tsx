@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Card, Snapshot } from "../protocol";
 import type { Inspect, Action } from "./types";
 import { ZoneViewer } from "./ZoneViewer";
@@ -14,7 +15,7 @@ export function TableOverlays({
   closeInspector,
 }: {
   view: Snapshot;
-  viewer: { seat: number; zone: string } | null;
+  viewer: { seat: number; zone: string; trigger: HTMLElement | null } | null;
   selected: Card | undefined;
   inspect: Inspect;
   act: Action;
@@ -22,6 +23,19 @@ export function TableOverlays({
   closeViewer: () => void;
   closeInspector: () => void;
 }) {
+  const viewerTrigger = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (viewer) {
+      viewerTrigger.current = viewer.trigger;
+      return;
+    }
+    const trigger = viewerTrigger.current;
+    if (!trigger || trigger.matches(":disabled")) return;
+    viewerTrigger.current = null;
+    // A pending CLOSE_SEARCH can disable the trigger until its acknowledgment.
+    if (trigger.isConnected && document.activeElement === document.body)
+      trigger.focus();
+  }, [viewer, canPlay]);
   return (
     <>
       {viewer && (

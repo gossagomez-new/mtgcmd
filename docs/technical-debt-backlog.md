@@ -2,7 +2,7 @@
 
 - Created: 2026-10-21.
 - Refined: 2026-10-22; delivery boundaries clarified without refreshing analysis measurements.
-- Status: TD01, TD02 and TD06 implemented and verified locally; other items remain open. Creating this backlog does not authorize implementation.
+- Status: TD01, TD02, TD06 and TD07 implemented and verified locally; other items remain open. Creating this backlog does not authorize implementation.
 - Audited revision: `0f4a41ed2d63f7564cfe18d64fe477b706aed479`, integrated into `main` as `d2ba354` through PR #24.
 - Scope: Backend/frontend source review, JaCoCo, PMD, full-backend PIT, and ESLint/Knip findings; TD13a and TD17–TD20 add focused enum/behavior-registry source review on 2026-10-22.
 
@@ -75,7 +75,7 @@ feature work, so a cheap presentation change need not precede transport assuranc
 ## Prioritized register
 
 TD01 and TD02 are Done locally (merge/release pending); TD06 is Done locally (publication pending);
-all other entries are Open. Investigation entries require diagnosis before proposing a fix.
+TD07 is Done locally (publication pending); all other entries are Open. Investigation entries require diagnosis before proposing a fix.
 
 | ID   | Area  | Work                                                     | Evidence type                           | Severity | Confidence | Effort | Calculation / priority    | Coordination                                             |
 | ---- | ----- | -------------------------------------------------------- | --------------------------------------- | -------- | ---------- | ------ | ------------------------- | -------------------------------------------------------- |
@@ -227,7 +227,7 @@ must complement each other; a survivor is not automatically a privacy leak.
 - Status: Done locally, 2026-10-22; no PR or deployment.
 - Specification: [Browser preference resilience](../spec/browser-preference-resilience.md).
 - Confirmed target: Comprehensive coverage, 2026-10-22.
-- Branch: `fix/browser-preferences`; local commit authorized, push/PR pending.
+- Branch: `fix/browser-preferences`; commit `5c7987c`; push/PR pending.
 - Result: Guarded player-name reads/writes and lazy initial loading preserve React state and successful room entry when optional storage fails. All 240 unit tests (nine new), 41 analyzer fixtures and 170 browser tests (21 new) passed, along with frontend lint/format/type/build/analysis checks. Existing eight advisory warnings remain; zero Knip issues.
 
 Original evidence: [App](../frontend/src/App.tsx) read localStorage during render;
@@ -246,7 +246,13 @@ Do not change guest-cookie identity or other session storage as incidental scope
 
 ### TD07 — Unify zone-viewer keyboard behavior
 
-Evidence: [ZoneViewer](../frontend/src/table/ZoneViewer.tsx) uses a visual modal
+- Status: Done locally, 2026-10-22; publication pending, no deployment.
+- Specification: [Zone viewer keyboard lifecycle](../spec/zone-viewer-keyboard.md).
+- Confirmed target: Comprehensive coverage, 2026-10-22.
+- Branch: `fix/zone-viewer-keyboard`, retaining the preceding TD06 commit `5c7987c`.
+- Result: Shared native modal supplies zone-viewer focus/dismissal; deferred opener restoration handles pending search closure without stealing focus. All 240 unit tests, 41 analyzer fixtures and 182 browser tests (12 new) passed, with frontend lint/format/type/build/analysis checks. Focused battlefields and card actions remain non-modal popovers.
+
+Original evidence: [ZoneViewer](../frontend/src/table/ZoneViewer.tsx) used a visual modal
 and dialog role without native focus/Escape handling; [Modal](../frontend/src/table/Modal.tsx)
 already provides much of the required lifecycle.
 
