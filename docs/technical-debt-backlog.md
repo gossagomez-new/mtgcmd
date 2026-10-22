@@ -2,7 +2,7 @@
 
 - Created: 2026-10-21.
 - Refined: 2026-10-22; delivery boundaries clarified without refreshing analysis measurements.
-- Status: TD01 implemented and verified locally; other items remain open. Creating this backlog does not authorize implementation.
+- Status: TD01 and TD02 implemented and verified locally; other items remain open. Creating this backlog does not authorize implementation.
 - Audited revision: `0f4a41ed2d63f7564cfe18d64fe477b706aed479`, integrated into `main` as `d2ba354` through PR #24.
 - Scope: Backend/frontend source review, JaCoCo, PMD, full-backend PIT, and ESLint/Knip findings.
 
@@ -74,7 +74,7 @@ feature work, so a cheap presentation change need not precede transport assuranc
 
 ## Prioritized register
 
-TD01 is Done locally (merge/release pending); all other entries
+TD01 and TD02 are Done locally (merge/release pending); all other entries
 are Open. Investigation entries require diagnosis before proposing a fix.
 
 | ID   | Area  | Work                                                     | Evidence type                           | Severity | Confidence | Effort | Calculation / priority    | Coordination                                             |
@@ -130,6 +130,7 @@ their priority solely because their eventual implementation could be larger.
 - Specification: [Counter action behavioral verification](../spec/counter-actions-verification.md).
 - Confirmed target: Comprehensive coverage, 2026-10-22.
 - Branch: `test/counter-command-assurance`; PR: not created.
+- Commit: `288e96d` (`test(game): strengthen counter command assurance`).
 - Result: 12 new parameterized cases across both formats; 751 backend tests passed. Focused PIT killed all 24 CounterActions mutations, versus 13 killed/11 surviving in the saved baseline. No production changes.
 
 Evidence: [CounterActions](../backend/src/main/java/dev/mtgcmd/game/CounterActions.java)
@@ -148,6 +149,12 @@ Prefer behavioral assertions over reproducing implementation branches. This is
 test-strength work; production changes require a demonstrated original-code defect.
 
 ### TD02 — Protect object command invariants
+
+- Status: Done locally, 2026-10-22; commit/merge/release pending.
+- Specification: [Object action behavioral verification](../spec/object-actions-verification.md).
+- Confirmed target: Comprehensive coverage, 2026-10-22.
+- Branch: `test/object-command-assurance`; PR: not created. Local branch includes the preceding TD01 commit; TD02's behavioral work does not depend on TD01.
+- Result: 18 new parameterized cases across both formats; 769 backend tests passed. Focused PIT killed all 24 ObjectActions mutations, versus 11 killed/12 surviving/one uncovered in the saved baseline. All 13 previous survivors/uncovered mutations are caught by new tests. No production changes.
 
 Evidence: [ObjectActions](../backend/src/main/java/dev/mtgcmd/game/ObjectActions.java)
 has 100% JaCoCo line coverage but killed only 11/24 mutations, with 12 survivors
