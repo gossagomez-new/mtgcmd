@@ -2,9 +2,9 @@
 
 - Created: 2026-10-21.
 - Refined: 2026-10-22; delivery boundaries clarified without refreshing analysis measurements.
-- Status: TD01 and TD02 implemented and verified locally; other items remain open. Creating this backlog does not authorize implementation.
+- Status: TD01, TD02, TD06 and TD07 implemented and verified locally; other items remain open. Creating this backlog does not authorize implementation.
 - Audited revision: `0f4a41ed2d63f7564cfe18d64fe477b706aed479`, integrated into `main` as `d2ba354` through PR #24.
-- Scope: Backend/frontend source review, JaCoCo, PMD, full-backend PIT, and ESLint/Knip findings.
+- Scope: Backend/frontend source review, JaCoCo, PMD, full-backend PIT, and ESLint/Knip findings; TD13a and TD17–TD20 add focused enum/behavior-registry source review on 2026-10-22.
 
 ## Purpose and boundaries
 
@@ -74,8 +74,8 @@ feature work, so a cheap presentation change need not precede transport assuranc
 
 ## Prioritized register
 
-TD01 and TD02 are Done locally (merge/release pending); all other entries
-are Open. Investigation entries require diagnosis before proposing a fix.
+TD01 and TD02 are Done locally (merge/release pending); TD06 is Done locally (publication pending);
+TD07 is Done locally (publication pending); all other entries are Open. Investigation entries require diagnosis before proposing a fix.
 
 | ID   | Area  | Work                                                     | Evidence type                           | Severity | Confidence | Effort | Calculation / priority    | Coordination                                             |
 | ---- | ----- | -------------------------------------------------------- | --------------------------------------- | -------- | ---------- | ------ | ------------------------- | -------------------------------------------------------- |
@@ -88,12 +88,16 @@ are Open. Investigation entries require diagnosis before proposing a fix.
 | TD07 | FE    | Zone-viewer keyboard and modal lifecycle                 | Source-supported accessibility gap      | Medium   | High       | S      | 30 + 15 + 20 = 65, Medium | Preserve nested details and search lifecycle             |
 | TD08 | FE    | Decompose PlayerArea by cohesive regions                 | Maintainability finding                 | Medium   | High       | S      | 30 + 15 + 20 = 65, Medium | Opportunistic with battlefield UI work                   |
 | TD09 | BE    | HTTP subscriber terminal-event assertions                | Coverage and mutation gap               | Medium   | High       | S      | 30 + 15 + 20 = 65, Medium | Preserve established client ownership                    |
+| TD18 | BE    | Mulligan mode behavior enum                              | Maintainability finding                 | Medium   | High       | S      | 30 + 15 + 20 = 65, Medium | Preserve R16 policies and persisted progress             |
 | TD10 | BE    | Diagnose timeouts and classify survivor equivalence      | Investigation                           | Medium   | Medium     | S      | 30 + 10 + 20 = 60, Medium | Can proceed independently                                |
 | TD11 | BE    | Successful WebSocket and presence contracts              | Coverage and mutation gap               | Medium   | High       | M      | 30 + 15 + 14 = 59, Medium | Coordinate fixtures with TD12                            |
 | TD12 | BE    | Session reuse, handshake, and startup verification scope | Mixed test gap and measurement boundary | Medium   | High       | M      | 30 + 15 + 14 = 59, Medium | Choose verification approach before tooling changes      |
 | TD13 | BE/FE | Typed command contracts                                  | Maintainability finding                 | Medium   | High       | M      | 30 + 15 + 14 = 59, Medium | Incrementally with R15/R19/R11                           |
 | TD14 | BE    | Detached immutable read projections                      | Maintainability finding                 | Medium   | High       | M      | 30 + 15 + 14 = 59, Medium | Relevant TD05 characterization before production changes |
+| TD17 | BE    | Typed zone policies with compatible derived wire names   | Maintainability finding                 | Medium   | High       | M      | 30 + 15 + 14 = 59, Medium | Coordinate with zone movement and privacy work           |
 | TD15 | BE    | Semantic public-log assertions                           | Demonstrated test gap                   | Low      | High       | S      | 15 + 15 + 20 = 50, Medium | Coordinate with R11                                      |
+| TD19 | FE    | Shared typed movement-destination registry               | Maintainability finding                 | Low      | High       | S      | 15 + 15 + 20 = 50, Medium | Coordinate drag and inspector movement                   |
+| TD20 | BE    | Evaluate format-bound deck-validation strategies         | Optional maintainability opportunity    | Low      | High       | S      | 15 + 15 + 20 = 50, Medium | Retain existing branching if coupling outweighs benefit  |
 | TD16 | BE    | Contextual PMD convention cleanup                        | Maintenance/triage                      | Low      | High       | M      | 15 + 15 + 14 = 44, Low    | After higher-value behavioral work                       |
 
 Coordination notes are planning relationships, not additional specification
@@ -220,8 +224,14 @@ must complement each other; a survivor is not automatically a privacy leak.
 
 ### TD06 — Make optional browser preferences failure-tolerant
 
-Evidence: [App](../frontend/src/App.tsx) reads localStorage during render;
-[useTableSession](../frontend/src/useTableSession.ts) writes after server success
+- Status: Done locally, 2026-10-22; no PR or deployment.
+- Specification: [Browser preference resilience](../spec/browser-preference-resilience.md).
+- Confirmed target: Comprehensive coverage, 2026-10-22.
+- Branch: `fix/browser-preferences`; commit `5c7987c`; push/PR pending.
+- Result: Guarded player-name reads/writes and lazy initial loading preserve React state and successful room entry when optional storage fails. All 240 unit tests (nine new), 41 analyzer fixtures and 170 browser tests (21 new) passed, along with frontend lint/format/type/build/analysis checks. Existing eight advisory warnings remain; zero Knip issues.
+
+Original evidence: [App](../frontend/src/App.tsx) read localStorage during render;
+[useTableSession](../frontend/src/useTableSession.ts) wrote after server success
 but before accepting/navigating to the room. Storage exceptions can interrupt either path.
 
 Acceptance criteria:
@@ -236,7 +246,13 @@ Do not change guest-cookie identity or other session storage as incidental scope
 
 ### TD07 — Unify zone-viewer keyboard behavior
 
-Evidence: [ZoneViewer](../frontend/src/table/ZoneViewer.tsx) uses a visual modal
+- Status: Done locally, 2026-10-22; publication pending, no deployment.
+- Specification: [Zone viewer keyboard lifecycle](../spec/zone-viewer-keyboard.md).
+- Confirmed target: Comprehensive coverage, 2026-10-22.
+- Branch: `fix/zone-viewer-keyboard`, retaining the preceding TD06 commit `5c7987c`.
+- Result: Shared native modal supplies zone-viewer focus/dismissal; deferred opener restoration handles pending search closure without stealing focus. All 240 unit tests, 41 analyzer fixtures and 182 browser tests (12 new) passed, with frontend lint/format/type/build/analysis checks. Focused battlefields and card actions remain non-modal popovers.
+
+Original evidence: [ZoneViewer](../frontend/src/table/ZoneViewer.tsx) used a visual modal
 and dialog role without native focus/Escape handling; [Modal](../frontend/src/table/Modal.tsx)
 already provides much of the required lifecycle.
 
@@ -351,6 +367,40 @@ with casting R15, hand shortcut R19, and logging R11. Command-specific builders
 are an alternative. Contract/module-boundary decisions need evaluation and ADR
 approval when selected; this backlog does not finalize a hierarchy or dependency.
 
+#### TD13a — Bind command dispatch behavior in CommandType
+
+Status: Open; planning only. Source reviewed on 2026-10-22 at `2341f98`.
+This is a bounded backend subtask of TD13, not a separate payload-typing project.
+
+Evidence: [GameEngine](../backend/src/main/java/dev/mtgcmd/game/GameEngine.java)
+registers command strings in a handler map and repeats them in admission checks.
+Registration and recognition can drift, and misspelled command names compile.
+
+Acceptance criteria:
+
+- Declare each supported command once in a `CommandType` enum with a mandatory
+  behavior binding; replace the manually maintained string-keyed handler registry.
+- Resolve bindings against an engine-owned action context. Keep injected access,
+  transitions and randomness on engine-owned components; enum singletons must not
+  own mutable engine dependencies. Preserve the existing cohesive action classes.
+- Use typed command identities in admission checks, preserving existing authority
+  and stage rules. Avoid expanding this into a new lifecycle-policy framework.
+- Preserve incoming string names and existing unknown/null command behavior,
+  validation precedence, errors, descriptions, revisions, retries and rollback.
+  Define boundary resolution without inadvertently moving unknown-command errors
+  before the existing admission failures.
+- Verify every command's dispatch binding, completeness, representative dependency
+  isolation across engine instances, and admission/error precedence. An enum does
+  not itself provide command-specific payload validation; parent TD13 remains open
+  after dispatch-only delivery.
+
+Scope/trade-off: M provisionally for this subtask, including all-command dispatch
+and admission characterization; re-estimate the parent TD13 scope separately.
+The enum gains coupling to an action context and a binding step. An enum-keyed map
+with completeness checks is an alternative if direct enum dispatch adds more
+complexity than it removes. Evaluate the component-boundary decision for an ADR
+before implementation. The proposed verification target remains unconfirmed.
+
 ### TD14 — Return detached immutable read data
 
 Evidence: [GameViewMapper](../backend/src/main/java/dev/mtgcmd/game/GameViewMapper.java)
@@ -448,6 +498,142 @@ until reviewed. The register's M estimate is provisional for the initial TD16
 package; re-estimate its combined scope before scheduling, rather than treating
 it as the sum of completed subtasks or a promise to clear all PMD findings.
 
+### TD17 — Consolidate zone policies in a Zone enum
+
+Status: Open; planning only. Source reviewed on 2026-10-22 at `2341f98`.
+This entry does not refresh the analysis measurements above.
+
+Evidence: [GameZones](../backend/src/main/java/dev/mtgcmd/game/GameZones.java)
+defines seven string constants and private-zone classification.
+[CardZoneTransitions](../backend/src/main/java/dev/mtgcmd/game/CardZoneTransitions.java)
+repeats battlefield/stack classification for controller retention, zone ownership
+and token retention. Related access checks consume the same string-based zone
+model. This duplicates intrinsic zone policy and makes changes require coordinated
+edits; it is a maintainability finding, not a demonstrated gameplay defect.
+
+Acceptance criteria:
+
+- Introduce a bounded `Zone` enum for library, hand, battlefield, graveyard, exile,
+  command and stack, with intrinsic characteristics such as private-zone status,
+  controller retention and token retention. Name policies separately even where
+  their current values coincide.
+- Derive external names from enum constants with
+  `name().toLowerCase(Locale.ROOT)`, rather than repeating explicit string constructor
+  arguments. Document that enum naming is tied to the existing external contract.
+- Pin the exact seven lowercase values in compatibility tests with literal expected
+  values, independent of the derivation. Renaming a constant must expose any wire
+  or persisted-value change through a failing test.
+- Define explicit boundary parsing/serialization. Preserve existing JSON commands,
+  views and saved snapshots; an enum declaration alone must not change serialization
+  to uppercase names. Retain legacy null/invalid-input behavior and validation order,
+  including fail-closed privacy checks.
+- Replace repeated intrinsic classifications in the affected backend components.
+  Keep movement, rekeying, reference cleanup, grants and viewer-specific visibility
+  in their existing transition/access owners. Do not move those workflows into enum
+  constants or store mutable game state in the enum.
+- Verify each zone's policies, valid/invalid parsing, snapshot/JSON round trips,
+  private transitions and rekeying, controller/zone-owner assignment, token retention
+  and removal, library ordering, and unchanged rejection atomicity.
+
+Scope/trade-off: M, covering the backend zone model, its affected consumers and
+compatibility tests. Explicit naming reduces duplicated declarations but couples
+Java constant names to persisted/wire values; compatibility tests guard that
+convention. Retaining string constants and named policy helpers is the simpler
+alternative if enum adoption would require an unnecessarily broad migration.
+Choose the internal adoption boundary in the implementation specification; frontend
+destination registries and other proposed enum refactors are outside this item.
+Evaluate ADR approval for the naming/serialization convention before implementation.
+The verification expectations here are proposed, not a confirmed coverage choice.
+
+### TD18 — Consolidate mulligan mode behavior
+
+Status: Open; planning only. Source reviewed on 2026-10-22 at `2341f98`.
+
+Evidence: [MulliganActions](../backend/src/main/java/dev/mtgcmd/game/MulliganActions.java)
+declares string modes and branches on London/unlimited behavior in bottom-count
+calculation and redraw eligibility, separately from mode validation. Adding a mode
+would require coordinated changes to these decisions.
+
+Acceptance criteria:
+
+- Introduce `MulliganMode` with each constant declaring its bottom-count and
+  mode-specific redraw policies through functions or constant-specific methods.
+- Preserve `LONDON` and `UNLIMITED` wire/persisted names, legacy defaults, free-count
+  semantics, exact validation order/errors and both formats' behavior.
+- Keep common validation, player progress, card movement, persistence and logging
+  in their existing owners; the enum owns stateless mode policy only.
+- Verify both modes across free/paid boundaries, short/empty hands, zero-card
+  keeping, redraw limits, persisted round trips and unchanged privacy/atomicity.
+  Retain the focused R16 mutation regression evidence and rerun relevant checks.
+
+Scope/trade-off: S; one policy type and affected backend consumers/tests. Two small
+functional contracts or constant-specific implementations add indirection, but
+localize decisions that already vary together. Named methods with current branches
+remain an alternative if the enum fails to reduce total complexity. Frontend mode
+presentation changes are outside this item unless necessary for compatibility.
+
+### TD19 — Share typed movement-destination descriptors
+
+Status: Open; planning only. Source reviewed on 2026-10-22 at `2341f98`.
+
+Evidence: [cardInteractions](../frontend/src/cardInteractions.ts) and
+[CardMovementActions](../frontend/src/table/inspector/CardMovementActions.tsx)
+both list movement destinations and separately enforce the commander-zone
+restriction. Changes can leave dragging and explicit movement inconsistent.
+
+Acceptance criteria:
+
+- Define a shared typed destination registry holding zone identity, presentation
+  metadata and reusable eligibility predicates. Prefer TypeScript literal types
+  and descriptors; introducing a TypeScript enum is not required.
+- Consume shared eligibility from dragging and the movement selector while
+  preserving each interaction's ordering, labels, payloads and contextual guards.
+- Preserve editable/hidden/stale/pending restrictions, same-zone drop behavior,
+  commander-only command-zone movement, and library top/bottom semantics.
+- Verify parity of destination rules, interaction-specific exceptions, rejected
+  drops and exact command submissions through unit and relevant browser checks.
+- Keep server validation authoritative. Do not create a universal card-action
+  framework or mix this task with TD17's backend representation migration.
+
+Scope/trade-off: S; a small shared descriptor module and its consumers/tests.
+Shared plain helpers are an alternative if metadata does not justify a registry.
+Coordinate with R15/R19 without changing their casting/play semantics here.
+
+### TD20 — Evaluate format-bound deck-validation behavior
+
+Status: Open; optional design evaluation, not a required refactor. Source reviewed
+on 2026-10-22 at `2341f98`.
+
+Evidence: [GameFormat](../backend/src/main/java/dev/mtgcmd/game/GameFormat.java)
+already owns format characteristics, while
+[DeckRules](../backend/src/main/java/dev/mtgcmd/game/DeckRules.java) selects its
+Standard/Commander validation implementation using a format conditional. This
+could use per-format validator bindings, but the current two-way branch is small.
+
+Acceptance criteria:
+
+- Assess binding a validator strategy beside each format's characteristics,
+  accounting for the shared size checks, Clock dependency and method visibility.
+- Record whether improved cohesion outweighs coupling `GameFormat` to validation.
+  Retaining the existing branch with an evidence-based explanation is a valid
+  outcome; do not introduce a strategy framework merely to remove a conditional.
+- If adopted, preserve size errors, commander checks, warning content/order and
+  deduplication, legality freshness and copy exceptions in both formats.
+- Verify selected-strategy dispatch and existing rule behavior if code changes;
+  keep catalog refresh policy and lifecycle startup behavior outside this item.
+
+Scope/trade-off: S provisionally, including the bounded evaluation and tests if
+adopted. An explicit switch or the existing conditional is simpler and avoids
+additional dependency coupling. Evaluate ADR needs if a lasting boundary change
+is selected. Neither evaluation nor a backlog entry authorizes implementation.
+
+The TD13a/TD17–TD20 evidence is source-based; it does not refresh the baseline
+PMD, coverage or mutation counts. All verification lists remain proposed until
+the implementation specification's coverage target is confirmed. Existing
+`DeckSection` already uses cohesive enum metadata and needs no new debt entry.
+The typed WebSocket message switch and ordered security checks are excluded:
+the review found no benefit from replacing them with behavior registries.
+
 ## Suggested delivery sequence
 
 1. **Command assurance:** TD01, then TD02, as separate focused changes; investigate
@@ -465,6 +651,12 @@ is a separate tooling change; TD16c is a bounded rule review. None should delay
 higher-impact behavioral assurance merely to reduce warning counts.
 
 Coordinate TD13/TD15 with R15/R19/R11 and TD08 with related battlefield work.
+Schedule TD17 opportunistically with zone movement/privacy changes; it does not
+block unrelated feature work or require the other proposed enum refactors.
+Within the enum/registry workstream, prefer TD13a command dispatch, then TD18
+mulligan policies, then TD17 zone policies. TD19 can accompany movement UI work;
+TD20 is optional and should not delay higher-value changes. These items are
+independently deliverable, not a single required migration.
 TD14 requires the relevant passing TD05 characterization before its production
 changes, which may be included in the same PR. These relationships do not block
 unrelated product development. Each item still needs its own applicable

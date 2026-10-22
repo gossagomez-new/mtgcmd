@@ -8,15 +8,18 @@ import { PlayingTable } from "./table/PlayingTable";
 import { OpeningHands } from "./table/OpeningHands";
 import { TableOverlays } from "./table/TableOverlays";
 import { actionAvailability } from "./actionAvailability";
+import { readPlayerName } from "./namePreference";
 
 export default function App() {
   const [tableFormat, setTableFormat] = useState<GameFormat>("COMMANDER");
   const [firstPlayer, setFirstPlayer] = useState(0);
-  const [name, setName] = useState(localStorage.getItem("table-name") || "");
+  const [name, setName] = useState(readPlayerName);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [viewer, setViewer] = useState<{ seat: number; zone: string } | null>(
-    null,
-  );
+  const [viewer, setViewer] = useState<{
+    seat: number;
+    zone: string;
+    trigger: HTMLElement | null;
+  } | null>(null);
   const onNavigate = useCallback(() => {
     setSelectedId(null);
     setViewer(null);
@@ -39,8 +42,12 @@ export default function App() {
   });
   const inspect = useCallback((card: Card) => setSelectedId(card.id), []);
   const openZone = (seat: number, zone: string) => {
+    const trigger =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     if (zone === "library") act("SEARCH", { target: seat });
-    setViewer({ seat, zone });
+    setViewer({ seat, zone, trigger });
   };
   return (
     <div className="app-shell">

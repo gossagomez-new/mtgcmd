@@ -67,7 +67,7 @@ test("error dismissal and finished notices preserve placement around screens and
   );
   await expect(page.getByRole("alert")).toContainText("Finished notice");
   await expect(
-    page.locator("main.game-layout + .finished-banner + .modal-shade"),
+    page.locator("main.game-layout + .finished-banner + dialog.zone-modal"),
   ).toBeVisible();
   await expect(page.locator(".finished-banner")).toHaveText(
     "Game finished. Your table has been saved.",
