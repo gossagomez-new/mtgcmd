@@ -34,8 +34,12 @@ public final class GameEngine {
     final PermanentActions permanentActions = new PermanentActions(access, transitions);
     final ObjectActions objectActions = new ObjectActions(access);
     final CounterActions counterActions = new CounterActions(access, random);
+    final MulliganActions mulliganActions = new MulliganActions(transitions);
     handlers =
         Map.ofEntries(
+            Map.entry("CONFIGURE_MULLIGANS", mulliganActions::configure),
+            Map.entry("MULLIGAN", mulliganActions::redraw),
+            Map.entry("KEEP_HAND", mulliganActions::keep),
             Map.entry("READY", lifecycleActions::ready),
             Map.entry("START", lifecycleActions::start),
             Map.entry("PHASE", lifecycleActions::phase),
@@ -115,7 +119,15 @@ public final class GameEngine {
   }
 
   private void admit(final Game game, final Player actor, final String type) {
+    if (Set.of("CONFIGURE_MULLIGANS", "MULLIGAN", "KEEP_HAND").contains(type)) {
+      require(!actor.conceded, "You have conceded");
+      return;
+    }
     if ("READY".equals(type) || "START".equals(type)) {
+      return;
+    }
+    if ("opening".equals(game.status)) {
+      require("FINISH".equals(type), "Choose opening hands before playing");
       return;
     }
     require("playing".equals(Objects.requireNonNull(game.status)), "Game is not playing");

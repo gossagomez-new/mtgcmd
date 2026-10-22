@@ -72,34 +72,68 @@ const libraryInspectionSchema = z.object({
       "Duplicate inspected card",
     ),
 });
-const snapshotSchema = z.object({
-  format: formatSchema,
-  seatCapacity: integer.positive(),
-  id: z.string(),
-  revision: integer.nonnegative(),
-  status: z.string(),
-  host: seat,
-  active: seat,
-  turn: integer,
-  turnVisit: integer.nonnegative().optional(),
-  canGiveBackTurn: z.boolean().optional(),
-  phase: z.string(),
-  you: seat,
-  players: z.array(playerSchema),
-  cards: z.array(cardSchema),
-  abilities: z.array(
-    z.object({
-      id: z.string(),
-      controller: seat,
-      text: z.string(),
-      stackOrder: integer,
-    }),
-  ),
-  log: z.array(z.string()),
-  grants: z.array(seat),
-  search: seat.nullable(),
-  libraryInspection: libraryInspectionSchema.nullish(),
-});
+const snapshotSchema = z
+  .object({
+    mulligans: z
+      .object({
+        mode: z.enum(["LONDON", "UNLIMITED"]),
+        freeMulligans: integer.min(0).max(100),
+        players: z.array(
+          z.object({
+            seat,
+            redraws: integer.nonnegative(),
+            kept: z.boolean(),
+            bottomCount: integer.min(0).max(7),
+          }),
+        ),
+      })
+      .optional(),
+    format: formatSchema,
+    seatCapacity: integer.positive(),
+    id: z.string(),
+    revision: integer.nonnegative(),
+    status: z.string(),
+    host: seat,
+    active: seat,
+    turn: integer,
+    turnVisit: integer.nonnegative().optional(),
+    canGiveBackTurn: z.boolean().optional(),
+    phase: z.string(),
+    you: seat,
+    players: z.array(playerSchema),
+    cards: z.array(cardSchema),
+    abilities: z.array(
+      z.object({
+        id: z.string(),
+        controller: seat,
+        text: z.string(),
+        stackOrder: integer,
+      }),
+    ),
+    log: z.array(z.string()),
+    grants: z.array(seat),
+    search: seat.nullable(),
+    libraryInspection: libraryInspectionSchema.nullish(),
+  })
+  .refine(
+    (view) => view.status !== "opening" || view.mulligans !== undefined,
+    "Missing opening progress",
+  )
+  .refine((view) => {
+    const state = view.mulligans;
+    if (!state) return true;
+    return (
+      state.players.length === view.players.length &&
+      new Set(state.players.map((player) => player.seat)).size ===
+        state.players.length &&
+      state.players.every(
+        (progress) =>
+          view.players.some((player) => player.seat === progress.seat) &&
+          (!(progress.kept || state.mode === "UNLIMITED") ||
+            progress.bottomCount === 0),
+      )
+    );
+  }, "Invalid opening progress");
 const sessionSchema = z.object({ csrf: z.string() });
 const savedRoomsSchema = z.array(
   z.object({ id: z.string(), status: z.string(), format: formatSchema }),

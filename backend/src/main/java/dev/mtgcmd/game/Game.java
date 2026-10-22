@@ -19,6 +19,7 @@ public final class Game {
   public int turn = 1;
   public String phase = "Untap";
   public TurnTracking turnTracking = new TurnTracking();
+  public MulliganState mulligans = new MulliganState();
   public List<Player> players = new ArrayList<>();
   public List<Card> cards = new ArrayList<>();
   public List<Ability> abilities = new ArrayList<>();
@@ -34,6 +35,15 @@ public final class Game {
   }
 
   public record TurnCheckpoint(int active, int turn, String phase) {}
+
+  /** Missing settings use format defaults; progress belongs only to the opening stage. */
+  public static final class MulliganState {
+    public String mode;
+    public Integer freeMulligans;
+    public Map<Integer, OpeningHand> hands = new LinkedHashMap<>();
+  }
+
+  public record OpeningHand(int redraws, boolean kept) {}
 
   public record LibraryInspection(String id, int target, String mode, List<String> cardIds) {}
 

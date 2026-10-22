@@ -57,7 +57,7 @@ class LifecycleAdmissionTest {
     fixture.apply(0, START, Map.of());
     fixture.reject(0, START, Map.of(), STARTED_ERROR);
     fixture.reject(1, START, Map.of(), "Only the host can start");
-    assertThat(fixture.game.status).isEqualTo("playing");
+    assertThat(fixture.game.status).isEqualTo("opening");
   }
 
   @ParameterizedTest

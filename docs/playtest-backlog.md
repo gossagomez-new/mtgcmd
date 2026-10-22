@@ -23,6 +23,10 @@ and delivery order below are recommendations.
   configurable free-mulligan count, London-style bottoming, or unlimited
   seven-card redraws. The starting hand remains seven; settings are visible
   before play. The free count applies to the London mode.
+- Only the host configures mulligans in the lobby; changes reset everyone's
+  readiness. Players choose independently, and normal play starts automatically
+  after everyone keeps. Confirmed defaults are London with zero free mulligans
+  for Standard and one for Commander.
 - Replay is available only after a finished game, in the same room with the same
   players/decks and an optional between-game sideboarding step. Automatic match
   scoring is deferred.
@@ -167,9 +171,8 @@ Applies to Standard and Commander; delivered by the
 - Standard sideboards allow up to 15 cards. Copy restrictions consider the main
   deck and sideboard together, with applicable exceptions. Preserve the app's
   established warning policy for legality and copy exceptions.
-- Recommended mulligan defaults are London mode with zero free mulligans for
-  Standard and one for four-player Commander. These defaults remain proposals;
-  configurable modes and the free count are confirmed scope.
+- Confirmed mulligan defaults are London mode with zero free mulligans for
+  Standard and one for four-player Commander. Unlimited redraws do not require bottoming.
 - Reconnecting must not repeat draws, mulligans or other committed actions.
 - Inspection, scry and logs must preserve hidden information. Full-library search
   is not an appropriate substitute for bounded top-of-library inspection.
@@ -234,6 +237,10 @@ and R14 in both formats: private top-N inspection, face-up top exile, and ordere
 atomic scry. Server-owned sessions preserve bounded privacy and support reconnect;
 unconfirmed arrangements remain local. See [ADR-0024](adr/0024-bounded-library-inspections.md).
 
+The [configurable mulligan increment](../spec/configurable-mulligans.md) delivers
+R16 in both formats: host-owned rules, independent opening-hand choices, ordered
+London bottoming and unlimited redraws. See [ADR-0025](adr/0025-configurable-mulligans.md).
+
 The other requirements remain pending, including R19 double-click from hand.
 
 ## Proposed delivery order
@@ -246,7 +253,7 @@ The other requirements remain pending, including R19 double-click from hand.
    (using the confirmed turn-history policy).
 3. **Gameplay workflows:** R15 casting/resolution, R19 double-click from hand and
    R11 logging together;
-   R13 bounded library actions and R14 scry are delivered together; R16 mulligans remains pending.
+   R13 bounded library actions and R14 scry are delivered together; R16 mulligans is delivered.
 4. **Repeated games:** R17 replay and R18 sideboarding together.
 5. **Presentation polish:** R12 token appearance.
 

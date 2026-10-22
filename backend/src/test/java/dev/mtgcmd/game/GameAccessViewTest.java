@@ -69,6 +69,7 @@ class GameAccessViewTest {
             "id",
             "revision",
             "status",
+            "mulligans",
             "format",
             "seatCapacity",
             "host",

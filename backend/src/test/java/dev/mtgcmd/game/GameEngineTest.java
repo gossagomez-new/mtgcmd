@@ -3,6 +3,7 @@ package dev.mtgcmd.game;
 import static org.assertj.core.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import dev.mtgcmd.testsupport.OpeningHands;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 
@@ -82,6 +83,7 @@ class GameEngineTest {
   Game started() {
     final Game game = lobby();
     action(game, 0, START_COMMAND, Map.of());
+    OpeningHands.keepAll(engine, game);
     return game;
   }
 
@@ -107,7 +109,7 @@ class GameEngineTest {
         .hasMessageContaining("ready");
     game.players.get(3).ready = true;
     action(game, 0, START_COMMAND, Map.of());
-    assertThat(game.status).isEqualTo("playing");
+    assertThat(game.status).isEqualTo("opening");
     assertThat(game.cards).hasSize(40);
     assertThat(game.cards.stream().filter(c -> HAND_ZONE.equals(Objects.requireNonNull(c.zone))))
         .hasSize(28);

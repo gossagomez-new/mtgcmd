@@ -5,6 +5,7 @@ import { TableHeader } from "./table/TableHeader";
 import { WelcomeScreen } from "./table/WelcomeScreen";
 import { LobbyScreen } from "./table/LobbyScreen";
 import { PlayingTable } from "./table/PlayingTable";
+import { OpeningHands } from "./table/OpeningHands";
 import { TableOverlays } from "./table/TableOverlays";
 import { actionAvailability } from "./actionAvailability";
 
@@ -130,6 +131,16 @@ function AppScreen(props: AppScreenProps) {
         preview={props.preview}
         loadDraft={props.loadDraft}
         fail={props.fail}
+      />
+    );
+  }
+  if (props.view.status === "opening") {
+    return (
+      <OpeningHands
+        view={props.view}
+        disabled={props.disabled}
+        act={props.act}
+        inspect={props.inspect}
       />
     );
   }

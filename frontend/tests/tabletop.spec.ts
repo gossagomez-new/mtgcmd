@@ -57,6 +57,22 @@ test("four guests play with private cards, explicit reveals, and durable reconne
       pages[0].getByRole("button", { name: "Start game" }),
     ).toBeEnabled();
     await pages[0].getByRole("button", { name: "Start game" }).click();
+    await pages[0]
+      .getByRole("button", { name: "Mulligan", exact: true })
+      .click();
+    await expect
+      .poll(
+        () =>
+          observers[0].view?.mulligans?.players.find(
+            (player) => player.seat === 0,
+          )?.redraws,
+      )
+      .toBe(1);
+    await pages[0].reload();
+    await expect(
+      pages[0].getByRole("list", { name: "Opening-hand progress" }),
+    ).toContainText("Alice: Choosing · 1 mulligan(s)");
+    await keepOpeningHands(pages);
     for (let i = 0; i < 4; i++) {
       await expect(
         pages[i].getByTestId("hand").getByRole("button", {
@@ -339,6 +355,7 @@ test("private library search filters locally and retains library positions", asy
     await pages[0]
       .getByRole("button", { name: "Start game", exact: true })
       .click();
+    await keepOpeningHands(pages);
     const page = pages[0];
     await page
       .locator(".zone-shortcuts")
@@ -454,6 +471,7 @@ test("battlefields group types automatically and place lands below other permane
     await pages[0]
       .getByRole("button", { name: "Start game", exact: true })
       .click();
+    await keepOpeningHands(pages);
     const page = pages[0];
     const field = page.getByTestId("your-battlefield");
     const otherField = pages[1]
@@ -660,6 +678,26 @@ test("two Standard players import without commanders, accept warnings, play and 
     ).toBeVisible();
     await host.getByLabel("Starting player").selectOption("1");
     await host.getByRole("button", { name: "Start game", exact: true }).click();
+    await host.getByRole("button", { name: "Mulligan", exact: true }).click();
+    await expect(
+      host.getByText("Select 1 card(s) to put on the bottom before keeping.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await host.reload();
+    await expect(
+      host.getByText("Select 1 card(s) to put on the bottom before keeping.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await host
+      .getByRole("button", { name: /^Bottom / })
+      .first()
+      .click();
+    await expect(
+      opponent.getByRole("button", { name: "Draw a card", exact: true }),
+    ).toHaveCount(0);
+    await keepOpeningHands([host, opponent]);
     const apiUrl = new URL(
       `/api/rooms/${new URL(roomUrl).pathname.split("/").pop()}`,
       roomUrl,
@@ -669,7 +707,7 @@ test("two Standard players import without commanders, accept warnings, play and 
       await expect(page.locator(".opponent")).toHaveCount(1);
       await expect(
         page.getByTestId("hand").getByRole("button", { name: /^Inspect / }),
-      ).toHaveCount(7);
+      ).toHaveCount(page === host ? 6 : 7);
       await expect(
         page.getByText("Commander damage received", { exact: true }),
       ).toHaveCount(0);
@@ -778,8 +816,22 @@ test("two Standard players import without commanders, accept warnings, play and 
       .click();
     await expect(
       host.getByTestId("hand").getByRole("button", { name: /^Inspect / }),
-    ).toHaveCount(8);
+    ).toHaveCount(7);
   } finally {
     await Promise.all(contexts.map((context) => context.close()));
   }
 });
+
+async function keepOpeningHands(pages: Page[]) {
+  for (const page of pages) {
+    await expect(
+      page.getByRole("heading", { name: "Choose your opening hand" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Keep hand", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Keep hand", exact: true }),
+    ).toHaveCount(0);
+  }
+  for (const page of pages)
+    await expect(page.getByTestId("your-battlefield")).toBeVisible();
+}

@@ -18,6 +18,9 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 class RoomStoreTest {
+  private static final String KEEP_HAND_COMMAND = "KEEP_HAND";
+  private static final String MULLIGAN_COMMAND = "MULLIGAN";
+  private static final String BOTTOM_FIELD = "bottom";
   private static final String DRAW_COMMAND = "DRAW";
 
   private static final String COUNT_FIELD = "count";
@@ -62,6 +65,27 @@ class RoomStoreTest {
   }
 
   Map<String, Object> game(final GameFormat format) {
+    final Map<String, Object> opening = openingGame(format);
+    return keepOpeningHands((String) opening.get("id"));
+  }
+
+  Map<String, Object> keepOpeningHands(final String identifier) {
+    final int seats =
+        new ObjectMapper()
+            .valueToTree(store.view(guests.getFirst(), identifier))
+            .path("players")
+            .size();
+    for (int seat = 0; seat < seats; seat++) {
+      final Map<String, Object> current = store.view(guests.get(seat), identifier);
+      store.execute(
+          guests.get(seat),
+          identifier,
+          command(rev(current), KEEP_HAND_COMMAND, Map.of(BOTTOM_FIELD, List.of())));
+    }
+    return store.view(guests.getFirst(), identifier);
+  }
+
+  Map<String, Object> openingGame(final GameFormat format) {
     Map<String, Object> view = store.create(guests.getFirst(), "A", format);
     final String identifier = (String) view.get("id");
     for (int i = 1; i < format.seatCapacity(); i++) {
@@ -89,6 +113,83 @@ class RoomStoreTest {
 
   static long rev(final Map<String, Object> view) {
     return ((Number) view.get("revision")).longValue();
+  }
+
+  @ParameterizedTest
+  @EnumSource(GameFormat.class)
+  void openingHandsSurviveRecoveryAndDuplicateRedrawAndKeepRetries(final GameFormat format) {
+    final Map<String, Object> opening = openingGame(format);
+    final String identifier = (String) opening.get("id");
+    final Command redraw = command(rev(opening), MULLIGAN_COMMAND, Map.of());
+    Map<String, Object> current = store.execute(guests.getFirst(), identifier, redraw);
+    assertThat(store.execute(guests.getFirst(), identifier, redraw)).isEqualTo(current);
+    final RoomStore recovered =
+        new RoomStore(jdbc, transactions, new ObjectMapper(), new GameEngine());
+    assertThat(recovered.view(guests.getFirst(), identifier)).isEqualTo(current);
+    assertThatThrownBy(
+            () ->
+                recovered.execute(
+                    guests.getFirst(),
+                    identifier,
+                    command(rev(opening), MULLIGAN_COMMAND, Map.of())))
+        .isInstanceOf(RoomStore.Conflict.class);
+    if (format.usesCommanders()) {
+      current =
+          recovered.execute(
+              guests.getFirst(), identifier, command(rev(current), MULLIGAN_COMMAND, Map.of()));
+    }
+    final com.fasterxml.jackson.databind.JsonNode json = new ObjectMapper().valueToTree(current);
+    final String cardId =
+        java.util.stream.StreamSupport.stream(json.path("cards").spliterator(), false)
+            .filter(c -> "hand".equals(c.path("zone").asText()) && c.path("zoneOwner").asInt() == 0)
+            .findFirst()
+            .orElseThrow()
+            .path("id")
+            .asText();
+    final Command keep =
+        command(rev(current), KEEP_HAND_COMMAND, Map.of(BOTTOM_FIELD, List.of(cardId)));
+    final Map<String, Object> kept = recovered.execute(guests.getFirst(), identifier, keep);
+    assertThat(recovered.execute(guests.getFirst(), identifier, keep)).isEqualTo(kept);
+    assertThat(new ObjectMapper().valueToTree(kept).at("/mulligans/players/0/kept").asBoolean())
+        .isTrue();
+    assertThat(new ObjectMapper().valueToTree(kept).at("/players/0/counts/hand").asInt())
+        .isEqualTo(6);
+    assertThat(
+            new RoomStore(jdbc, transactions, new ObjectMapper(), new GameEngine())
+                .view(guests.getFirst(), identifier))
+        .isEqualTo(kept);
+  }
+
+  @ParameterizedTest
+  @EnumSource(GameFormat.class)
+  void openingPersistenceFailuresRollBackCardsProgressAndCommandRecords(final GameFormat format) {
+    for (final String type : List.of(MULLIGAN_COMMAND, KEEP_HAND_COMMAND)) {
+      final Map<String, Object> opening = openingGame(format);
+      final String identifier = (String) opening.get("id");
+      final Command action = command(rev(opening), type, Map.of(BOTTOM_FIELD, List.of()));
+      jdbc.execute(
+          "CREATE FUNCTION reject_opening_action() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'opening persistence failure'; END $$");
+      jdbc.execute(
+          "CREATE TRIGGER reject_opening BEFORE INSERT ON actions FOR EACH ROW EXECUTE FUNCTION reject_opening_action()");
+      try {
+        assertThatThrownBy(() -> store.execute(guests.getFirst(), identifier, action))
+            .isInstanceOf(org.springframework.dao.DataAccessException.class);
+        assertThat(store.view(guests.getFirst(), identifier)).isEqualTo(opening);
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT count(*) FROM commands WHERE room_id=? AND command_id=?",
+                    Integer.class,
+                    identifier,
+                    action.id()))
+            .isZero();
+      } finally {
+        jdbc.execute("DROP TRIGGER reject_opening ON actions");
+        jdbc.execute("DROP FUNCTION reject_opening_action()");
+      }
+      final Map<String, Object> retried = store.execute(guests.getFirst(), identifier, action);
+      assertThat(rev(retried)).isEqualTo(rev(opening) + 1);
+      assertThat(store.execute(guests.getFirst(), identifier, action)).isEqualTo(retried);
+    }
   }
 
   static Game.Command command(final long rev, final String type, final Map<String, Object> data) {
@@ -213,7 +314,8 @@ class RoomStoreTest {
           command(rev(view), "READY", Map.of("acceptWarnings", true)));
     }
     view = store.view(guests.getFirst(), identifier);
-    return store.execute(guests.getFirst(), identifier, command(rev(view), "START", Map.of()));
+    store.execute(guests.getFirst(), identifier, command(rev(view), "START", Map.of()));
+    return keepOpeningHands(identifier);
   }
 
   @ParameterizedTest
@@ -242,7 +344,7 @@ class RoomStoreTest {
                 session.path("id").asText(),
                 "top",
                 List.of(cards.get(2)),
-                "bottom",
+                BOTTOM_FIELD,
                 List.of(cards.get(1), cards.get(0))));
     final Map<String, Object> result = recovered.execute(guests.getFirst(), id, apply);
     assertThat(result.get("libraryInspection")).isNull();
@@ -285,7 +387,7 @@ class RoomStoreTest {
                 session.path("id").asText(),
                 "top",
                 List.of(),
-                "bottom",
+                BOTTOM_FIELD,
                 List.of(session.path("cardIds").get(0).asText())));
     final String saved =
         jdbc.queryForObject("SELECT snapshot::text FROM rooms WHERE id=?", String.class, id);
@@ -512,11 +614,12 @@ class RoomStoreTest {
     final Map<String, Object> started = store.execute(guests.get(0), identifier, start);
     assertThat(store.execute(guests.get(0), identifier, start)).isEqualTo(started);
     assertThat(started).containsEntry("active", 1);
+    final Map<String, Object> kept = keepOpeningHands(identifier);
     view =
         store.execute(
             guests.get(0),
             identifier,
-            command(rev(started), "COUNTER", Map.of("name", "life", "delta", -1)));
+            command(rev(kept), "COUNTER", Map.of("name", "life", "delta", -1)));
     final RoomStore restarted =
         new RoomStore(jdbc, transactions, new ObjectMapper(), new GameEngine());
     assertThat(restarted.view(guests.get(0), identifier)).isEqualTo(view);

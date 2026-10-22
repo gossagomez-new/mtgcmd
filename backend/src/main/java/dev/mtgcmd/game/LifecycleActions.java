@@ -157,6 +157,6 @@ final class LifecycleActions {
         transitions.move(game, c, HAND, false, false);
       }
     }
-    game.status = "playing";
+    MulliganActions.begin(game);
   }
 }

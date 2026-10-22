@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.mtgcmd.game.Game.*;
+import dev.mtgcmd.testsupport.OpeningHands;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -195,6 +196,7 @@ class StandardGameTest {
                       c -> c.owner == owner && "library".equals(Objects.requireNonNull(c.zone))))
           .hasSize(53);
     }
+    OpeningHands.keepAll(engine, game);
     game.phase = "Cleanup";
     action(game, 1, "PHASE", Map.of());
     assertThat(game.active).isZero();
@@ -242,6 +244,7 @@ class StandardGameTest {
   void invalidTargetsCannotGrantSearchDrawControlOrReveal(final int target) {
     final Game game = ready();
     action(game, 0, START_COMMAND, Map.of());
+    OpeningHands.keepAll(engine, game);
     for (final String type : List.of("DRAW", "SEARCH", "GRANT")) {
       assertThatThrownBy(() -> action(game, 0, type, Map.of(TARGET_FIELD, target)))
           .isInstanceOf(IllegalArgumentException.class);

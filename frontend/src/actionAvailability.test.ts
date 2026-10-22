@@ -13,6 +13,8 @@ const connections = [
   { connected: false, pending: true, busy: true, blocked: true },
 ];
 const states = [
+  { status: "opening", conceded: false, disabled: false, canPlay: false },
+  { status: "opening", conceded: true, disabled: false, canPlay: false },
   { status: "lobby", conceded: false, disabled: false, canPlay: true },
   { status: "lobby", conceded: true, disabled: false, canPlay: false },
   { status: "playing", conceded: false, disabled: false, canPlay: true },
