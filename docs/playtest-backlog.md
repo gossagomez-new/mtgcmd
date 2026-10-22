@@ -163,6 +163,43 @@ Applies to Standard and Commander; delivered by the
 - Verify both formats, multiple faces and image fallbacks, hidden/missing art,
   snapshot updates, viewport edges, keyboard access and gesture conflicts.
 
+### R26 — Name the players still choosing an opening hand
+
+Applies to Standard and Commander; implemented locally in
+[Opening-hand waiting names and hand hover clarity](../spec/opening-hand-playtest-polish.md).
+Added during a follow-up playtest on 2026-10-22; queued separately from R24 at the
+user's request.
+
+- After a player keeps their opening hand, replace the generic waiting message
+  with the names of the players who still need to keep, for example:
+  `Waiting for Alice and Bob to keep their opening hands.`
+- Derive the list from server-confirmed opening-hand progress and player names;
+  update it when another player keeps and after reconnects. Exclude players who
+  have already kept, including the waiting player.
+- Support one or several remaining players and readable wrapping for long names.
+  Make updates accessible without repeatedly announcing unchanged state.
+- Preserve the existing progress list and private-hand visibility. When everyone
+  has kept, normal gameplay replaces the waiting view as usual.
+
+### R27 — Remove the hand drop tooltip from card hover
+
+Applies to Standard and Commander; implemented locally in
+[Opening-hand waiting names and hand hover clarity](../spec/opening-hand-playtest-polish.md).
+Added during a follow-up playtest on 2026-10-22.
+
+- Hovering a card in the player's hand must not show the browser tooltip
+  `Drop to the owner’s hand`, which can obscure the enlarged artwork preview.
+- Remove the inherited drop-instruction tooltip from the hand container while
+  preserving R23's artwork preview and keyboard access to card information.
+- Preserve hand drop behavior, permitted destinations, drag feedback and existing
+  accessibility labels. Drop guidance must not overlay card artwork during an
+  ordinary hover.
+- Verify both formats, hovering hand cards long enough to trigger native tooltips,
+  artwork preview visibility and unchanged drag/drop behavior.
+
+The removed tooltip came from the hand container's `title` attribute in
+[YourHand](../frontend/src/table/YourHand.tsx), rather than the artwork preview.
+
 ## Rules and compatibility constraints
 
 - Playing a land does not use the stack. Distinguish casting a spell from other

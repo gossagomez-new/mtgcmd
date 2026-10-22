@@ -17,11 +17,7 @@ export function YourHand({
   const drop = useCardDrop(view.cards, "hand", !canPlay, act);
   const me = view.players[view.you];
   return (
-    <section
-      {...drop}
-      className={`hand panel ${drop.className}`}
-      title="Drop to the owner’s hand"
-    >
+    <section {...drop} className={`hand panel ${drop.className}`}>
       <div className="zone-heading">
         <h3>
           Your hand <span>{me?.counts.hand || 0}</span>
